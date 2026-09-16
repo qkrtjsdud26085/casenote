@@ -162,6 +162,21 @@
   .sched-title { font-size: 0.9rem; font-weight: 500; }
   .sched-note { font-size: 0.78rem; color: var(--ink-soft); margin-top: 2px; }
 
+  .obs-toggle { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; margin-bottom: 10px; }
+  .obs-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .obs-import { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .obs-import textarea { font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); resize: vertical; }
+  .obs-import-hint { font-size: 0.72rem; color: var(--ink-soft); line-height: 1.5; }
+  .obs-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow-y: auto; }
+  .obs-date { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--ink-soft); text-transform: uppercase; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .obs-items { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .obs-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; line-height: 1.45; }
+  .obs-item .mark { flex-shrink: 0; width: 15px; height: 15px; margin-top: 2px; border-radius: 4px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 0.62rem; }
+  .obs-item.done .mark { background: var(--accent-2); border-color: var(--accent-2); color: var(--accent-2-ink); }
+  .obs-item:not(.done) { font-weight: 600; }
+  .obs-item .school-chip { font-size: 0.68rem; background: var(--accent-2-ink); color: var(--accent-2-strong); padding: 1px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+  .obs-updated { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); margin: 0 0 10px; }
+
   .archive-intro { font-size: 0.88rem; color: var(--ink-soft); background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
   .archive-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
   .chip { font-family: var(--font-mono); font-size: 0.76rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; }
@@ -253,6 +268,19 @@
           <button type="submit">추가</button>
         </form>
         <ul class="schedule-list" id="scheduleList"></ul>
+      </article>
+
+      <article class="card">
+        <span class="tab-label t-2">Obsidian</span>
+        <div class="card-head"><h2>업무 로그</h2></div>
+        <p class="obs-updated" id="obsUpdated"></p>
+        <button type="button" class="obs-toggle" id="obsToggleBtn">옵시디언에서 붙여넣기로 가져오기</button>
+        <form class="obs-import" id="obsForm" hidden>
+          <p class="obs-import-hint">옵시디언 노트에서 <code>## 날짜</code> 제목과 <code>- [x] [[학교명]] 내용</code> 형식의 체크리스트를 그대로 복사해서 붙여넣으세요.</p>
+          <textarea id="obsInput" rows="8" placeholder="## 9/16&#10;- [x] [[봉무초등학교]] 생명존중교육 관리&#10;- [ ] [[만촌초등학교]] 상담일지 및 계산서 발행"></textarea>
+          <button type="submit">가져오기 (Firestore에 저장)</button>
+        </form>
+        <ul class="obs-log" id="obsLog"></ul>
       </article>
     </div>
   </section>
@@ -386,6 +414,92 @@
       var d = new Date(iso);
       return d.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) + " " + d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
     } catch (e) { return ""; }
+  }
+
+  // ---------- obsidian work log (pasted by owner, stored in Firestore only) ----------
+  var obsToggleBtn = document.getElementById("obsToggleBtn");
+  var obsForm = document.getElementById("obsForm");
+  var obsInput = document.getElementById("obsInput");
+  var obsLog = document.getElementById("obsLog");
+  var obsUpdated = document.getElementById("obsUpdated");
+  var worklogRef = db.collection("worklog").doc("current");
+
+  obsToggleBtn.addEventListener("click", function () { obsForm.hidden = !obsForm.hidden; });
+
+  function parseObsidianText(raw) {
+    var lines = raw.split(/\r?\n/);
+    var groups = [];
+    var current = null;
+    lines.forEach(function (line) {
+      var headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+      if (headingMatch) {
+        current = { date: headingMatch[1].trim(), items: [] };
+        groups.push(current);
+        return;
+      }
+      var itemMatch = line.match(/^\s*-\s*\[([ xX])\]\s*(.*)$/);
+      if (itemMatch) {
+        if (!current) { current = { date: "", items: [] }; groups.push(current); }
+        var done = itemMatch[1].toLowerCase() === "x";
+        var rest = itemMatch[2].trim();
+        var school = null;
+        var linkMatch = rest.match(/^\[\[([^\]]+)\]\]\s*(.*)$/);
+        if (linkMatch) { school = linkMatch[1].trim(); rest = linkMatch[2].trim(); }
+        rest = rest.replace(/\[\[([^\]]+)\]\]/g, "$1");
+        current.items.push({ done: done, school: school, text: rest });
+      }
+    });
+    return groups.filter(function (g) { return g.items.length > 0; });
+  }
+
+  obsForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var groups = parseObsidianText(obsInput.value);
+    if (!groups.length) { window.alert("체크리스트 형식(- [ ] 또는 - [x])을 찾지 못했습니다."); return; }
+    worklogRef.set({ groups: groups, updatedAt: new Date().toISOString() }).then(function () {
+      obsInput.value = "";
+      obsForm.hidden = true;
+    }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+  });
+
+  function renderObsLog(data) {
+    obsLog.innerHTML = "";
+    if (!data || !data.groups || !data.groups.length) {
+      obsUpdated.textContent = "아직 가져온 업무 로그가 없습니다.";
+      return;
+    }
+    obsUpdated.textContent = "마지막 업데이트: " + fmtDate(data.updatedAt);
+    data.groups.forEach(function (group) {
+      var li = document.createElement("li");
+      if (group.date) {
+        var dateEl = document.createElement("div");
+        dateEl.className = "obs-date";
+        dateEl.textContent = group.date;
+        li.appendChild(dateEl);
+      }
+      var ul = document.createElement("ul");
+      ul.className = "obs-items";
+      group.items.forEach(function (it) {
+        var row = document.createElement("li");
+        row.className = "obs-item" + (it.done ? " done" : "");
+        var mark = document.createElement("span");
+        mark.className = "mark";
+        mark.textContent = it.done ? "✓" : "";
+        row.appendChild(mark);
+        if (it.school) {
+          var chip = document.createElement("span");
+          chip.className = "school-chip";
+          chip.textContent = it.school;
+          row.appendChild(chip);
+        }
+        var text = document.createElement("span");
+        text.textContent = it.text;
+        row.appendChild(text);
+        ul.appendChild(row);
+      });
+      li.appendChild(ul);
+      obsLog.appendChild(li);
+    });
   }
 
   // ---- profile ----
@@ -564,7 +678,7 @@
   function clearSubs() {
     unsubscribers.forEach(function (u) { u(); });
     unsubscribers = [];
-    renderTodos([]); renderMemos([]); renderSchedule([]);
+    renderTodos([]); renderMemos([]); renderSchedule([]); renderObsLog(null);
   }
   function subscribeAll() {
     unsubscribers.push(profileRef.onSnapshot(function (snap) { if (snap.exists) { applyProfile(snap.data()); } }, function () {}));
@@ -576,6 +690,9 @@
     }, function () {}));
     unsubscribers.push(scheduleRef.orderBy("date", "asc").onSnapshot(function (snap) {
       renderSchedule(snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
+    }, function () {}));
+    unsubscribers.push(worklogRef.onSnapshot(function (snap) {
+      renderObsLog(snap.exists ? snap.data() : null);
     }, function () {}));
   }
 
