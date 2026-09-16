@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>케이스노트</title>
+<meta name="description" content="한국가이던스 근무와 범죄심리학 연구를 함께 관리하는 개인 홈페이지">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%82%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5efe1;
+    --surface: #fffcf5;
+    --surface-2: #eae1c8;
+    --line: #dcd0ae;
+    --ink: #221e17;
+    --ink-soft: #6b6151;
+    --accent: #8a3324;
+    --accent-strong: #6f281c;
+    --accent-ink: #fff6ef;
+    --accent-2: #3f6152;
+    --accent-2-strong: #2f4a3f;
+    --accent-2-ink: #eef6f1;
+    --shadow-rgb: 33, 29, 20;
+    --font-display: "Noto Serif KR", "Source Serif 4", Georgia, serif;
+    --font-body: "Noto Sans KR", -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #181510; --surface: #221e17; --surface-2: #2b261c; --line: #3d3626;
+      --ink: #efe7d4; --ink-soft: #b3a88f; --accent: #d97a5f; --accent-strong: #e69279;
+      --accent-ink: #2a0d05; --accent-2: #7fb89a; --accent-2-strong: #98cbb0;
+      --accent-2-ink: #08170f; --shadow-rgb: 0, 0, 0; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #181510; --surface: #221e17; --surface-2: #2b261c; --line: #3d3626;
+    --ink: #efe7d4; --ink-soft: #b3a88f; --accent: #d97a5f; --accent-strong: #e69279;
+    --accent-ink: #2a0d05; --accent-2: #7fb89a; --accent-2-strong: #98cbb0;
+    --accent-2-ink: #08170f; --shadow-rgb: 0, 0, 0; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+  .app { max-width: 1080px; margin: 0 auto; padding: 0 20px 64px; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner {
+    max-width: 1080px; margin: 0 auto; padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .brand { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; position: relative; }
+  .brand::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; background: var(--accent); opacity: 0.55; }
+  .tabs { display: flex; gap: 8px; }
+  .tab-btn {
+    font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
+    padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink-soft); cursor: pointer;
+  }
+  .tab-btn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .tab-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .hero { padding: 40px 0 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 10px; }
+  .name { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 0 0 10px; line-height: 1.15; }
+  [contenteditable] { outline: none; cursor: text; border-bottom: 1px dashed transparent; }
+  [contenteditable]:hover { border-bottom-color: var(--line); }
+  [contenteditable][data-empty="true"] { color: var(--ink-soft); font-weight: 500; }
+  [contenteditable][data-empty="true"]:before { content: attr(data-placeholder); }
+  .bio { font-size: 1rem; color: var(--ink-soft); max-width: 60ch; margin: 0 0 16px; line-height: 1.6; }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+  .badge.company { background: var(--accent-2-ink); color: var(--accent-2-strong); border: 1px solid color-mix(in srgb, var(--accent-2) 35%, transparent); }
+  .badge.academic { background: var(--accent-ink); color: var(--accent-strong); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+  .sync-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 14px; display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); }
+
+  .panel { padding-top: 32px; }
+  .desk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 28px 22px; }
+  .card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 22px 18px 18px; margin-top: 14px; box-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.06); }
+  .tab-label { position: absolute; top: -14px; left: 16px; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; padding: 4px 10px; border-radius: 3px 3px 0 0; border: 1px solid var(--line); border-bottom: none; }
+  .tab-label.t-2 { background: var(--accent-2-ink); color: var(--accent-2-strong); }
+  .tab-label.t-1 { background: var(--accent-ink); color: var(--accent-strong); }
+  .tab-label.t-3 { background: var(--surface-2); color: var(--ink-soft); }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .card-head h2 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; }
+  .count { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .quick-add { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .quick-add input, .quick-add textarea { font-family: var(--font-body); font-size: 0.88rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); flex: 1 1 auto; min-width: 0; }
+  .quick-add textarea { width: 100%; resize: vertical; }
+  .memo-add, .schedule-add { flex-direction: column; }
+  .schedule-add { flex-direction: row; }
+  .schedule-add input[type="date"] { flex: 0 0 auto; width: 150px; }
+  .quick-add button { font-family: var(--font-body); font-weight: 600; font-size: 0.85rem; padding: 8px 14px; border: none; border-radius: 4px; background: var(--ink); color: var(--bg); cursor: pointer; flex: 0 0 auto; }
+  .quick-add button:hover { opacity: 0.88; }
+
+  ul.todo-list, ul.memo-list, ul.schedule-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+  .empty-state { font-size: 0.85rem; color: var(--ink-soft); padding: 18px 4px; text-align: center; border: 1px dashed var(--line); border-radius: 4px; }
+
+  .todo-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-radius: 4px; }
+  .todo-item:hover { background: var(--bg); }
+  .todo-item input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent-2); flex-shrink: 0; }
+  .todo-text { flex: 1; font-size: 0.9rem; line-height: 1.4; word-break: break-word; }
+  .todo-item.done .todo-text { text-decoration: line-through; color: var(--ink-soft); }
+  .del-btn { border: none; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 1rem; line-height: 1; padding: 2px 6px; opacity: 0; transition: opacity 0.1s; }
+  .todo-item:hover .del-btn, .memo-item:hover .del-btn, .schedule-item:hover .del-btn { opacity: 1; }
+  .del-btn:hover { color: var(--accent); }
+
+  .memo-item { padding: 10px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); }
+  .memo-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .memo-title { font-weight: 600; font-size: 0.88rem; }
+  .memo-date { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); white-space: nowrap; }
+  .memo-body { font-size: 0.85rem; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+
+  .schedule-item { display: flex; gap: 12px; align-items: center; padding: 8px; border-radius: 4px; }
+  .schedule-item:hover { background: var(--bg); }
+  .date-chip { flex-shrink: 0; width: 46px; text-align: center; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; font-family: var(--font-mono); }
+  .date-chip .dow { display: block; background: var(--accent); color: var(--accent-ink); font-size: 0.6rem; padding: 2px 0; letter-spacing: 0.05em; }
+  .date-chip .day { display: block; font-size: 1.1rem; font-weight: 600; padding: 3px 0; }
+  .schedule-item.past { opacity: 0.5; }
+  .schedule-item.past .date-chip .dow { background: var(--ink-soft); }
+  .sched-title { font-size: 0.9rem; font-weight: 500; }
+  .sched-note { font-size: 0.78rem; color: var(--ink-soft); margin-top: 2px; }
+
+  .archive-intro { font-size: 0.88rem; color: var(--ink-soft); background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
+  .archive-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .chip { font-family: var(--font-mono); font-size: 0.76rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; }
+  .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .archive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 26px 20px; }
+  .paper-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 20px 16px 16px; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .paper-title { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.4; margin: 0; }
+  .paper-meta { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
+  .paper-note { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.55; }
+  .paper-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
+  .paper-tag { font-size: 0.7rem; background: var(--surface-2); color: var(--ink-soft); padding: 3px 8px; border-radius: 999px; }
+
+  footer.page-footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.78rem; color: var(--ink-soft); line-height: 1.6; }
+  footer.page-footer code { font-family: var(--font-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand">케이스노트</span>
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="work" role="tab" aria-selected="true">업무 데스크</button>
+        <button class="tab-btn" data-tab="research" role="tab" aria-selected="false">연구 아카이브</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Personal Workspace</p>
+    <h1 class="name" id="profileName" contenteditable="true" data-placeholder="이름을 입력하세요" data-field="name"></h1>
+    <p class="bio" id="profileBio" contenteditable="true" data-placeholder="한 줄 소개를 입력하세요 (예: 상담과 연구를 함께 하고 있습니다)" data-field="bio"></p>
+    <div class="badges">
+      <span class="badge company" id="badgeCompany" contenteditable="true" data-field="company">한국가이던스 대구점</span>
+      <span class="badge academic" id="badgeAcademic" contenteditable="true" data-field="academic">영남대학교 대학원 범죄심리학과 석·박사 수료</span>
+    </div>
+    <p class="sync-note"><span class="sync-dot"></span><span>이 브라우저에 자동 저장됩니다 (같은 브라우저로 다시 열면 그대로 보여요)</span></p>
+  </section>
+
+  <section class="panel" id="panel-work">
+    <div class="desk-grid">
+      <article class="card">
+        <span class="tab-label t-2">To-do</span>
+        <div class="card-head"><h2>할 일</h2><span class="count" id="todoCount"></span></div>
+        <form class="quick-add" id="todoForm">
+          <input id="todoInput" placeholder="새 할 일 입력 후 Enter" maxlength="200" required />
+          <button type="submit">추가</button>
+        </form>
+        <ul class="todo-list" id="todoList"></ul>
+      </article>
+
+      <article class="card">
+        <span class="tab-label t-3">Log</span>
+        <div class="card-head"><h2>메모 · 기록</h2></div>
+        <form class="quick-add memo-add" id="memoForm">
+          <input id="memoTitle" placeholder="제목 (선택)" maxlength="80" />
+          <textarea id="memoBody" placeholder="업무 중 남길 메모를 적어보세요" rows="3" required></textarea>
+          <button type="submit">기록 추가</button>
+        </form>
+        <ul class="memo-list" id="memoList"></ul>
+      </article>
+
+      <article class="card">
+        <span class="tab-label t-1">Schedule</span>
+        <div class="card-head"><h2>일정</h2></div>
+        <form class="quick-add schedule-add" id="scheduleForm">
+          <input type="date" id="scheduleDate" required />
+          <input type="text" id="scheduleTitle" placeholder="일정 제목" maxlength="80" required />
+          <button type="submit">추가</button>
+        </form>
+        <ul class="schedule-list" id="scheduleList"></ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-research" hidden>
+    <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다. 아래 목록은 <strong>예시 항목</strong>이며, 실제 자료 목록은 이 파일의 코드를 직접 수정해 채워 넣는 정적 템플릿입니다.</p>
+    <div class="archive-filters" id="archiveFilters"></div>
+    <div class="archive-grid" id="archiveGrid"></div>
+  </section>
+
+  <footer class="page-footer">
+    이름·소개·배지는 클릭해서 바로 수정할 수 있고, 이 브라우저(이 기기)에 자동 저장됩니다.
+    할 일·메모·일정도 같은 방식으로 이 브라우저에 저장됩니다.
+    연구 아카이브 목록은 <code>PAPERS</code> 배열을 코드에서 수정해 관리하세요.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- tabs ----------
+  var tabBtns = document.querySelectorAll(".tab-btn");
+  var panels = { work: document.getElementById("panel-work"), research: document.getElementById("panel-research") };
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      tabBtns.forEach(function (b) { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      var target = btn.getAttribute("data-tab");
+      Object.keys(panels).forEach(function (key) { panels[key].hidden = key !== target; });
+    });
+  });
+
+  // ---------- research archive (static template) ----------
+  var PAPERS = [
+    { category: "프로파일링", title: "범죄자 프로파일링 기법의 국내 적용 가능성 검토 (예시)", meta: "예: 홍길동 · 2022", note: "국내 강력범죄 사건에 지리적 프로파일링을 적용한 사례를 정리하고 한계점을 검토한 예시 항목입니다.", tags: ["지리적 프로파일링", "강력범죄"] },
+    { category: "재범 위험성 평가", title: "성범죄자 재범 위험성 평가 도구(KSORAS)의 타당도 재검토 (예시)", meta: "예: 김범죄 · 2021", note: "국내 평가도구의 예측 타당도를 재분석한 연구를 정리할 자리입니다.", tags: ["위험성 평가", "재범"] },
+    { category: "사이코패시", title: "사이코패시 성향과 도구적 공격성의 관계 (예시)", meta: "예: 이심리 · 2023", note: "PCL-R 하위요인과 공격성 유형 간 관계를 다룬 문헌을 정리하는 칸입니다.", tags: ["PCL-R", "공격성"] },
+    { category: "피해자학", title: "범죄 피해자의 2차 피해 경험에 관한 질적 연구 (예시)", meta: "예: 박연구 · 2020", note: "형사사법 절차 과정에서 나타나는 2차 피해 경험을 다룬 논문을 정리할 예시 항목입니다.", tags: ["피해자학", "질적연구"] },
+    { category: "법정 증언·감정", title: "아동 목격자 진술의 신빙성 평가 기준 (예시)", meta: "예: 최법정 · 2019", note: "법정 감정 실무에서 활용되는 진술 신빙성 평가 기법을 정리하는 자리입니다.", tags: ["진술분석", "아동증언"] },
+    { category: "교정·상담", title: "교정시설 내 인지행동치료 프로그램의 효과성 메타분석 (예시)", meta: "예: 정교정 · 2023", note: "국내외 교정 프로그램 효과크기를 비교한 메타분석 예시입니다.", tags: ["CBT", "교정프로그램"] }
+  ];
+
+  var archiveGrid = document.getElementById("archiveGrid");
+  var archiveFilters = document.getElementById("archiveFilters");
+  var tabVariants = ["t-2", "t-1", "t-3"];
+  var activeCategory = "전체";
+
+  function renderArchive() {
+    archiveGrid.innerHTML = "";
+    var list = activeCategory === "전체" ? PAPERS : PAPERS.filter(function (p) { return p.category === activeCategory; });
+    list.forEach(function (p, i) {
+      var card = document.createElement("article");
+      card.className = "paper-card";
+      var tab = document.createElement("span");
+      tab.className = "tab-label " + tabVariants[i % tabVariants.length];
+      tab.textContent = p.category;
+      var title = document.createElement("h3");
+      title.className = "paper-title";
+      title.textContent = p.title;
+      var meta = document.createElement("p");
+      meta.className = "paper-meta";
+      meta.textContent = p.meta;
+      var note = document.createElement("p");
+      note.className = "paper-note";
+      note.textContent = p.note;
+      var tagWrap = document.createElement("div");
+      tagWrap.className = "paper-tags";
+      p.tags.forEach(function (t) {
+        var tg = document.createElement("span");
+        tg.className = "paper-tag";
+        tg.textContent = t;
+        tagWrap.appendChild(tg);
+      });
+      card.appendChild(tab);
+      card.appendChild(title);
+      card.appendChild(meta);
+      card.appendChild(note);
+      card.appendChild(tagWrap);
+      archiveGrid.appendChild(card);
+    });
+  }
+
+  function renderFilters() {
+    var cats = ["전체"].concat(PAPERS.map(function (p) { return p.category; }).filter(function (c, i, arr) { return arr.indexOf(c) === i; }));
+    archiveFilters.innerHTML = "";
+    cats.forEach(function (c) {
+      var chip = document.createElement("button");
+      chip.className = "chip" + (c === activeCategory ? " active" : "");
+      chip.textContent = c;
+      chip.addEventListener("click", function () {
+        activeCategory = c;
+        renderFilters();
+        renderArchive();
+      });
+      archiveFilters.appendChild(chip);
+    });
+  }
+
+  renderFilters();
+  renderArchive();
+
+  // ---------- local storage helpers ----------
+  function loadArr(key) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function saveArr(key, arr) {
+    try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
+  }
+  function loadObj(key) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveObj(key, obj) {
+    try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {}
+  }
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function fmtDate(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) + " " + d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    } catch (e) { return ""; }
+  }
+
+  // ---- profile ----
+  var profileFields = {
+    name: document.getElementById("profileName"),
+    bio: document.getElementById("profileBio"),
+    company: document.getElementById("badgeCompany"),
+    academic: document.getElementById("badgeAcademic")
+  };
+  var profileData = Object.assign({
+    company: "한국가이던스 대구점",
+    academic: "영남대학교 대학원 범죄심리학과 석·박사 수료"
+  }, loadObj("casenote_profile"));
+
+  function refreshEmptyState(el) {
+    var empty = el.textContent.trim().length === 0;
+    if (empty) { el.setAttribute("data-empty", "true"); } else { el.removeAttribute("data-empty"); }
+  }
+  function applyProfile(data) {
+    Object.keys(profileFields).forEach(function (key) {
+      var el = profileFields[key];
+      el.textContent = data[key] || "";
+      refreshEmptyState(el);
+    });
+  }
+  applyProfile(profileData);
+
+  Object.keys(profileFields).forEach(function (key) {
+    var el = profileFields[key];
+    el.addEventListener("input", function () { refreshEmptyState(el); });
+    el.addEventListener("blur", function () {
+      profileData[key] = el.textContent.trim();
+      saveObj("casenote_profile", profileData);
+    });
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && key !== "bio") { e.preventDefault(); el.blur(); }
+    });
+  });
+
+  // ---- todo ----
+  var todos = loadArr("casenote_todos");
+  var todoList = document.getElementById("todoList");
+  var todoCount = document.getElementById("todoCount");
+  var todoForm = document.getElementById("todoForm");
+  var todoInput = document.getElementById("todoInput");
+
+  function renderTodos() {
+    todoList.innerHTML = "";
+    todoCount.textContent = todos.length ? todos.filter(function (t) { return !t.done; }).length + " / " + todos.length : "";
+    if (!todos.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "아직 할 일이 없습니다. 위에서 추가해보세요.";
+      todoList.appendChild(empty);
+      return;
+    }
+    todos.forEach(function (t) {
+      var li = document.createElement("li");
+      li.className = "todo-item" + (t.done ? " done" : "");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!t.done;
+      cb.addEventListener("change", function () { t.done = cb.checked; saveArr("casenote_todos", todos); renderTodos(); });
+      var span = document.createElement("span");
+      span.className = "todo-text";
+      span.textContent = t.text;
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () { todos = todos.filter(function (x) { return x.id !== t.id; }); saveArr("casenote_todos", todos); renderTodos(); });
+      li.appendChild(cb); li.appendChild(span); li.appendChild(del);
+      todoList.appendChild(li);
+    });
+  }
+  todoForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = todoInput.value.trim();
+    if (!text) { return; }
+    todos.push({ id: newId(), text: text, done: false, createdAt: new Date().toISOString() });
+    saveArr("casenote_todos", todos);
+    renderTodos();
+    todoInput.value = "";
+  });
+  renderTodos();
+
+  // ---- memo ----
+  var memos = loadArr("casenote_memos");
+  var memoList = document.getElementById("memoList");
+  var memoForm = document.getElementById("memoForm");
+  var memoTitle = document.getElementById("memoTitle");
+  var memoBody = document.getElementById("memoBody");
+
+  function renderMemos() {
+    memoList.innerHTML = "";
+    if (!memos.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "기록된 메모가 없습니다.";
+      memoList.appendChild(empty);
+      return;
+    }
+    memos.forEach(function (m) {
+      var li = document.createElement("li");
+      li.className = "memo-item";
+      var head = document.createElement("div");
+      head.className = "memo-item-head";
+      var title = document.createElement("span");
+      title.className = "memo-title";
+      title.textContent = m.title && m.title.length ? m.title : "(제목 없음)";
+      var date = document.createElement("span");
+      date.className = "memo-date";
+      date.textContent = fmtDate(m.createdAt);
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () { memos = memos.filter(function (x) { return x.id !== m.id; }); saveArr("casenote_memos", memos); renderMemos(); });
+      head.appendChild(title); head.appendChild(date); head.appendChild(del);
+      var body = document.createElement("div");
+      body.className = "memo-body";
+      body.textContent = m.body;
+      li.appendChild(head); li.appendChild(body);
+      memoList.appendChild(li);
+    });
+  }
+  memoForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var body = memoBody.value.trim();
+    if (!body) { return; }
+    memos.unshift({ id: newId(), title: memoTitle.value.trim(), body: body, createdAt: new Date().toISOString() });
+    saveArr("casenote_memos", memos);
+    renderMemos();
+    memoTitle.value = ""; memoBody.value = "";
+  });
+  renderMemos();
+
+  // ---- schedule ----
+  var schedule = loadArr("casenote_schedule");
+  var scheduleList = document.getElementById("scheduleList");
+  var scheduleForm = document.getElementById("scheduleForm");
+  var scheduleDate = document.getElementById("scheduleDate");
+  var scheduleTitle = document.getElementById("scheduleTitle");
+  var DOW = ["일", "월", "화", "수", "목", "금", "토"];
+
+  function renderSchedule() {
+    scheduleList.innerHTML = "";
+    if (!schedule.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "등록된 일정이 없습니다.";
+      scheduleList.appendChild(empty);
+      return;
+    }
+    var todayStr = new Date().toISOString().slice(0, 10);
+    schedule.forEach(function (s) {
+      var li = document.createElement("li");
+      var isPast = s.date < todayStr;
+      li.className = "schedule-item" + (isPast ? " past" : "");
+      var chip = document.createElement("div");
+      chip.className = "date-chip";
+      var parts = s.date.split("-");
+      var dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      var dow = document.createElement("span"); dow.className = "dow"; dow.textContent = DOW[dObj.getDay()];
+      var day = document.createElement("span"); day.className = "day"; day.textContent = parts[2];
+      chip.appendChild(dow); chip.appendChild(day);
+      var info = document.createElement("div");
+      info.style.flex = "1";
+      var title = document.createElement("div"); title.className = "sched-title"; title.textContent = s.title;
+      info.appendChild(title);
+      if (s.note) { var note = document.createElement("div"); note.className = "sched-note"; note.textContent = s.note; info.appendChild(note); }
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () { schedule = schedule.filter(function (x) { return x.id !== s.id; }); saveArr("casenote_schedule", schedule); renderSchedule(); });
+      li.appendChild(chip); li.appendChild(info); li.appendChild(del);
+      scheduleList.appendChild(li);
+    });
+  }
+  scheduleForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var date = scheduleDate.value;
+    var title = scheduleTitle.value.trim();
+    if (!date || !title) { return; }
+    schedule.push({ id: newId(), date: date, title: title, note: "", createdAt: new Date().toISOString() });
+    schedule.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    saveArr("casenote_schedule", schedule);
+    renderSchedule();
+    scheduleTitle.value = "";
+  });
+  renderSchedule();
+})();
+</script>
+</body>
+</html>
