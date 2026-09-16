@@ -69,6 +69,7 @@
   }
   .brand { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; position: relative; }
   .brand::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; background: var(--accent); opacity: 0.55; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .tabs { display: flex; gap: 8px; }
   .tab-btn {
     font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
@@ -79,6 +80,19 @@
   .tab-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
+  .auth-box { display: flex; align-items: center; gap: 10px; }
+  .signin-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
+    padding: 7px 14px 7px 8px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .signin-btn .g-icon { width: 16px; height: 16px; }
+  .user-chip { display: flex; align-items: center; gap: 8px; }
+  .user-avatar { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); }
+  .user-label { font-size: 0.8rem; color: var(--ink-soft); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .signout-btn { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .signout-btn:hover { color: var(--accent); border-color: var(--accent); }
 
   .hero { padding: 40px 0 28px; border-bottom: 1px solid var(--line); }
   .eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 10px; }
@@ -93,7 +107,9 @@
   .badge.company { background: var(--accent-2-ink); color: var(--accent-2-strong); border: 1px solid color-mix(in srgb, var(--accent-2) 35%, transparent); }
   .badge.academic { background: var(--accent-ink); color: var(--accent-strong); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
   .sync-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 14px; display: flex; align-items: center; gap: 6px; }
-  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-soft); }
+  .sync-dot.on { background: var(--accent-2); }
+  .sync-dot.warn { background: var(--accent); }
 
   .panel { padding-top: 32px; }
   .desk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 28px 22px; }
@@ -105,6 +121,9 @@
   .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
   .card-head h2 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; }
   .count { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .lock-panel { border: 1px dashed var(--line); border-radius: 6px; padding: 32px 20px; text-align: center; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.7; }
+  .lock-panel strong { color: var(--ink); }
 
   .quick-add { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
   .quick-add input, .quick-add textarea { font-family: var(--font-body); font-size: 0.88rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); flex: 1 1 auto; min-width: 0; }
@@ -164,26 +183,46 @@
   <header class="topbar">
     <div class="topbar-inner">
       <span class="brand">케이스노트</span>
-      <nav class="tabs" role="tablist">
-        <button class="tab-btn active" data-tab="work" role="tab" aria-selected="true">업무 데스크</button>
-        <button class="tab-btn" data-tab="research" role="tab" aria-selected="false">연구 아카이브</button>
-      </nav>
+      <div class="topbar-right">
+        <nav class="tabs" role="tablist">
+          <button class="tab-btn active" data-tab="work" role="tab" aria-selected="true">업무 데스크</button>
+          <button class="tab-btn" data-tab="research" role="tab" aria-selected="false">연구 아카이브</button>
+        </nav>
+        <div class="auth-box">
+          <button class="signin-btn" id="signInBtn" hidden>
+            <svg class="g-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.7 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.5 29.5 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5 44.5 36.3 44.5 25c0-1.6-.2-3.1-.4-4.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.9 29.5 4.5 24 4.5c-7.7 0-14.4 4.3-17.7 10.2z"/><path fill="#4CAF50" d="M24 45.5c5.4 0 10.3-1.8 14.1-5l-6.5-5.5C29.6 36.5 26.9 37.5 24 37.5c-5.3 0-9.8-3.3-11.4-8l-6.6 5.1C9.5 41 16.2 45.5 24 45.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.6-2.7 4.8-5 6.3l6.5 5.5C40.8 36.6 44.5 31.3 44.5 25c0-1.6-.2-3.1-.9-4.5z"/></svg>
+            Google로 로그인
+          </button>
+          <div class="user-chip" id="userChip" hidden>
+            <img class="user-avatar" id="userAvatar" alt="" />
+            <span class="user-label" id="userLabel"></span>
+            <button class="signout-btn" id="signOutBtn">로그아웃</button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
   <section class="hero">
     <p class="eyebrow">Personal Workspace</p>
-    <h1 class="name" id="profileName" contenteditable="true" data-placeholder="이름을 입력하세요" data-field="name"></h1>
-    <p class="bio" id="profileBio" contenteditable="true" data-placeholder="한 줄 소개를 입력하세요 (예: 상담과 연구를 함께 하고 있습니다)" data-field="bio"></p>
-    <div class="badges">
-      <span class="badge company" id="badgeCompany" contenteditable="true" data-field="company">한국가이던스 대구점</span>
-      <span class="badge academic" id="badgeAcademic" contenteditable="true" data-field="academic">영남대학교 대학원 범죄심리학과 석·박사 수료</span>
+    <div id="heroLocked">
+      <h1 class="name">케이스노트</h1>
+      <p class="bio">업무와 범죄심리학 연구를 함께 관리하는 개인 워크스페이스입니다.</p>
     </div>
-    <p class="sync-note"><span class="sync-dot"></span><span>이 브라우저에 자동 저장됩니다 (같은 브라우저로 다시 열면 그대로 보여요)</span></p>
+    <div id="heroOwner" hidden>
+      <h1 class="name" id="profileName" contenteditable="true" data-placeholder="이름을 입력하세요" data-field="name"></h1>
+      <p class="bio" id="profileBio" contenteditable="true" data-placeholder="한 줄 소개를 입력하세요" data-field="bio"></p>
+      <div class="badges">
+        <span class="badge company" id="badgeCompany" contenteditable="true" data-field="company">한국가이던스 대구점</span>
+        <span class="badge academic" id="badgeAcademic" contenteditable="true" data-field="academic">영남대학교 대학원 범죄심리학과 석·박사 수료</span>
+      </div>
+    </div>
+    <p class="sync-note"><span class="sync-dot" id="syncDot"></span><span id="syncText">Google 로그인이 필요합니다</span></p>
   </section>
 
   <section class="panel" id="panel-work">
-    <div class="desk-grid">
+    <div class="lock-panel" id="workLock">Google 계정으로 로그인하면 이 워크스페이스의 소유자에게만 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 <strong>실시간으로 동일하게 동기화</strong>됩니다.</div>
+    <div class="desk-grid" id="deskGrid" hidden>
       <article class="card">
         <span class="tab-label t-2">To-do</span>
         <div class="card-head"><h2>할 일</h2><span class="count" id="todoCount"></span></div>
@@ -219,18 +258,20 @@
   </section>
 
   <section class="panel" id="panel-research" hidden>
-    <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다. 아래 목록은 <strong>예시 항목</strong>이며, 실제 자료 목록은 이 파일의 코드를 직접 수정해 채워 넣는 정적 템플릿입니다.</p>
+    <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다 (로그인 없이 누구나 볼 수 있어요). 아래 목록은 <strong>예시 항목</strong>이며, 실제 자료 목록은 이 파일의 코드를 직접 수정해 채워 넣는 정적 템플릿입니다.</p>
     <div class="archive-filters" id="archiveFilters"></div>
     <div class="archive-grid" id="archiveGrid"></div>
   </section>
 
   <footer class="page-footer">
-    이름·소개·배지는 클릭해서 바로 수정할 수 있고, 이 브라우저(이 기기)에 자동 저장됩니다.
-    할 일·메모·일정도 같은 방식으로 이 브라우저에 저장됩니다.
-    연구 아카이브 목록은 <code>PAPERS</code> 배열을 코드에서 수정해 관리하세요.
+    이름·소개·배지·할 일·메모·일정은 <strong>Google 로그인(본인 계정)</strong> 상태에서만 보이고 수정되며, 어느 기기에서 열어도 실시간으로 동기화됩니다.
+    연구 아카이브 목록은 로그인 여부와 관계없이 누구나 볼 수 있고, <code>PAPERS</code> 배열을 코드에서 수정해 관리하세요.
   </footer>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
 (function () {
   "use strict";
@@ -248,7 +289,7 @@
     });
   });
 
-  // ---------- research archive (static template) ----------
+  // ---------- research archive (static template, public) ----------
   var PAPERS = [
     { category: "프로파일링", title: "범죄자 프로파일링 기법의 국내 적용 가능성 검토 (예시)", meta: "예: 홍길동 · 2022", note: "국내 강력범죄 사건에 지리적 프로파일링을 적용한 사례를 정리하고 한계점을 검토한 예시 항목입니다.", tags: ["지리적 프로파일링", "강력범죄"] },
     { category: "재범 위험성 평가", title: "성범죄자 재범 위험성 평가 도구(KSORAS)의 타당도 재검토 (예시)", meta: "예: 김범죄 · 2021", note: "국내 평가도구의 예측 타당도를 재분석한 연구를 정리할 자리입니다.", tags: ["위험성 평가", "재범"] },
@@ -257,12 +298,10 @@
     { category: "법정 증언·감정", title: "아동 목격자 진술의 신빙성 평가 기준 (예시)", meta: "예: 최법정 · 2019", note: "법정 감정 실무에서 활용되는 진술 신빙성 평가 기법을 정리하는 자리입니다.", tags: ["진술분석", "아동증언"] },
     { category: "교정·상담", title: "교정시설 내 인지행동치료 프로그램의 효과성 메타분석 (예시)", meta: "예: 정교정 · 2023", note: "국내외 교정 프로그램 효과크기를 비교한 메타분석 예시입니다.", tags: ["CBT", "교정프로그램"] }
   ];
-
   var archiveGrid = document.getElementById("archiveGrid");
   var archiveFilters = document.getElementById("archiveFilters");
   var tabVariants = ["t-2", "t-1", "t-3"];
   var activeCategory = "전체";
-
   function renderArchive() {
     archiveGrid.innerHTML = "";
     var list = activeCategory === "전체" ? PAPERS : PAPERS.filter(function (p) { return p.category === activeCategory; });
@@ -289,15 +328,10 @@
         tg.textContent = t;
         tagWrap.appendChild(tg);
       });
-      card.appendChild(tab);
-      card.appendChild(title);
-      card.appendChild(meta);
-      card.appendChild(note);
-      card.appendChild(tagWrap);
+      card.appendChild(tab); card.appendChild(title); card.appendChild(meta); card.appendChild(note); card.appendChild(tagWrap);
       archiveGrid.appendChild(card);
     });
   }
-
   function renderFilters() {
     var cats = ["전체"].concat(PAPERS.map(function (p) { return p.category; }).filter(function (c, i, arr) { return arr.indexOf(c) === i; }));
     archiveFilters.innerHTML = "";
@@ -305,38 +339,47 @@
       var chip = document.createElement("button");
       chip.className = "chip" + (c === activeCategory ? " active" : "");
       chip.textContent = c;
-      chip.addEventListener("click", function () {
-        activeCategory = c;
-        renderFilters();
-        renderArchive();
-      });
+      chip.addEventListener("click", function () { activeCategory = c; renderFilters(); renderArchive(); });
       archiveFilters.appendChild(chip);
     });
   }
-
   renderFilters();
   renderArchive();
 
-  // ---------- local storage helpers ----------
-  function loadArr(key) {
-    try {
-      var raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-  }
-  function saveArr(key, arr) {
-    try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {}
-  }
-  function loadObj(key) {
-    try {
-      var raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) { return {}; }
-  }
-  function saveObj(key, obj) {
-    try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) {}
-  }
-  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  // ---------- firebase ----------
+  var firebaseConfig = {
+    apiKey: "AIzaSyC_giOdf00Q1BpDIS6hGk1p7Yy-t1fIYHs",
+    authDomain: "hello-dear-sunny.firebaseapp.com",
+    projectId: "hello-dear-sunny",
+    storageBucket: "hello-dear-sunny.firebasestorage.app",
+    messagingSenderId: "123065037934",
+    appId: "1:123065037934:web:cc63c1bdf564ee01d0627f",
+    measurementId: "G-5RR08TPFZY"
+  };
+  var OWNER_EMAIL = "onlygpt2025@gmail.com";
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+  var provider = new firebase.auth.GoogleAuthProvider();
+
+  var signInBtn = document.getElementById("signInBtn");
+  var userChip = document.getElementById("userChip");
+  var userAvatar = document.getElementById("userAvatar");
+  var userLabel = document.getElementById("userLabel");
+  var signOutBtn = document.getElementById("signOutBtn");
+  var heroLocked = document.getElementById("heroLocked");
+  var heroOwner = document.getElementById("heroOwner");
+  var workLock = document.getElementById("workLock");
+  var deskGrid = document.getElementById("deskGrid");
+  var syncDot = document.getElementById("syncDot");
+  var syncText = document.getElementById("syncText");
+
+  signInBtn.addEventListener("click", function () {
+    auth.signInWithPopup(provider).catch(function (err) {
+      window.alert("로그인에 실패했습니다: " + err.message);
+    });
+  });
+  signOutBtn.addEventListener("click", function () { auth.signOut(); });
 
   function fmtDate(iso) {
     try {
@@ -352,66 +395,64 @@
     company: document.getElementById("badgeCompany"),
     academic: document.getElementById("badgeAcademic")
   };
-  var profileData = Object.assign({
-    company: "한국가이던스 대구점",
-    academic: "영남대학교 대학원 범죄심리학과 석·박사 수료"
-  }, loadObj("casenote_profile"));
+  var profileData = { company: "한국가이던스 대구점", academic: "영남대학교 대학원 범죄심리학과 석·박사 수료" };
+  var profileRef = db.collection("profile").doc("main");
 
   function refreshEmptyState(el) {
     var empty = el.textContent.trim().length === 0;
     if (empty) { el.setAttribute("data-empty", "true"); } else { el.removeAttribute("data-empty"); }
   }
   function applyProfile(data) {
+    profileData = Object.assign({}, profileData, data);
     Object.keys(profileFields).forEach(function (key) {
       var el = profileFields[key];
-      el.textContent = data[key] || "";
+      if (document.activeElement === el) { return; }
+      el.textContent = profileData[key] || "";
       refreshEmptyState(el);
     });
   }
-  applyProfile(profileData);
-
   Object.keys(profileFields).forEach(function (key) {
     var el = profileFields[key];
     el.addEventListener("input", function () { refreshEmptyState(el); });
     el.addEventListener("blur", function () {
       profileData[key] = el.textContent.trim();
-      saveObj("casenote_profile", profileData);
+      profileRef.set(profileData, { merge: true }).catch(function () {});
     });
     el.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && key !== "bio") { e.preventDefault(); el.blur(); }
     });
   });
 
-  // ---- todo ----
-  var todos = loadArr("casenote_todos");
+  // ---- todo / memo / schedule rendering (fed by Firestore snapshots) ----
   var todoList = document.getElementById("todoList");
   var todoCount = document.getElementById("todoCount");
   var todoForm = document.getElementById("todoForm");
   var todoInput = document.getElementById("todoInput");
+  var todosRef = db.collection("todos");
 
-  function renderTodos() {
+  function renderTodos(items) {
     todoList.innerHTML = "";
-    todoCount.textContent = todos.length ? todos.filter(function (t) { return !t.done; }).length + " / " + todos.length : "";
-    if (!todos.length) {
+    todoCount.textContent = items.length ? items.filter(function (t) { return !t.done; }).length + " / " + items.length : "";
+    if (!items.length) {
       var empty = document.createElement("li");
       empty.className = "empty-state";
       empty.textContent = "아직 할 일이 없습니다. 위에서 추가해보세요.";
       todoList.appendChild(empty);
       return;
     }
-    todos.forEach(function (t) {
+    items.forEach(function (t) {
       var li = document.createElement("li");
       li.className = "todo-item" + (t.done ? " done" : "");
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = !!t.done;
-      cb.addEventListener("change", function () { t.done = cb.checked; saveArr("casenote_todos", todos); renderTodos(); });
+      cb.addEventListener("change", function () { todosRef.doc(t.id).update({ done: cb.checked }).catch(function () {}); });
       var span = document.createElement("span");
       span.className = "todo-text";
       span.textContent = t.text;
       var del = document.createElement("button");
       del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
-      del.addEventListener("click", function () { todos = todos.filter(function (x) { return x.id !== t.id; }); saveArr("casenote_todos", todos); renderTodos(); });
+      del.addEventListener("click", function () { todosRef.doc(t.id).delete().catch(function () {}); });
       li.appendChild(cb); li.appendChild(span); li.appendChild(del);
       todoList.appendChild(li);
     });
@@ -420,30 +461,26 @@
     e.preventDefault();
     var text = todoInput.value.trim();
     if (!text) { return; }
-    todos.push({ id: newId(), text: text, done: false, createdAt: new Date().toISOString() });
-    saveArr("casenote_todos", todos);
-    renderTodos();
+    todosRef.add({ text: text, done: false, createdAt: new Date().toISOString() }).catch(function () {});
     todoInput.value = "";
   });
-  renderTodos();
 
-  // ---- memo ----
-  var memos = loadArr("casenote_memos");
   var memoList = document.getElementById("memoList");
   var memoForm = document.getElementById("memoForm");
   var memoTitle = document.getElementById("memoTitle");
   var memoBody = document.getElementById("memoBody");
+  var memosRef = db.collection("memos");
 
-  function renderMemos() {
+  function renderMemos(items) {
     memoList.innerHTML = "";
-    if (!memos.length) {
+    if (!items.length) {
       var empty = document.createElement("li");
       empty.className = "empty-state";
       empty.textContent = "기록된 메모가 없습니다.";
       memoList.appendChild(empty);
       return;
     }
-    memos.forEach(function (m) {
+    items.forEach(function (m) {
       var li = document.createElement("li");
       li.className = "memo-item";
       var head = document.createElement("div");
@@ -456,7 +493,7 @@
       date.textContent = fmtDate(m.createdAt);
       var del = document.createElement("button");
       del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
-      del.addEventListener("click", function () { memos = memos.filter(function (x) { return x.id !== m.id; }); saveArr("casenote_memos", memos); renderMemos(); });
+      del.addEventListener("click", function () { memosRef.doc(m.id).delete().catch(function () {}); });
       head.appendChild(title); head.appendChild(date); head.appendChild(del);
       var body = document.createElement("div");
       body.className = "memo-body";
@@ -469,24 +506,20 @@
     e.preventDefault();
     var body = memoBody.value.trim();
     if (!body) { return; }
-    memos.unshift({ id: newId(), title: memoTitle.value.trim(), body: body, createdAt: new Date().toISOString() });
-    saveArr("casenote_memos", memos);
-    renderMemos();
+    memosRef.add({ title: memoTitle.value.trim(), body: body, createdAt: new Date().toISOString() }).catch(function () {});
     memoTitle.value = ""; memoBody.value = "";
   });
-  renderMemos();
 
-  // ---- schedule ----
-  var schedule = loadArr("casenote_schedule");
   var scheduleList = document.getElementById("scheduleList");
   var scheduleForm = document.getElementById("scheduleForm");
   var scheduleDate = document.getElementById("scheduleDate");
   var scheduleTitle = document.getElementById("scheduleTitle");
+  var scheduleRef = db.collection("schedule");
   var DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
-  function renderSchedule() {
+  function renderSchedule(items) {
     scheduleList.innerHTML = "";
-    if (!schedule.length) {
+    if (!items.length) {
       var empty = document.createElement("li");
       empty.className = "empty-state";
       empty.textContent = "등록된 일정이 없습니다.";
@@ -494,7 +527,7 @@
       return;
     }
     var todayStr = new Date().toISOString().slice(0, 10);
-    schedule.forEach(function (s) {
+    items.forEach(function (s) {
       var li = document.createElement("li");
       var isPast = s.date < todayStr;
       li.className = "schedule-item" + (isPast ? " past" : "");
@@ -512,7 +545,7 @@
       if (s.note) { var note = document.createElement("div"); note.className = "sched-note"; note.textContent = s.note; info.appendChild(note); }
       var del = document.createElement("button");
       del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
-      del.addEventListener("click", function () { schedule = schedule.filter(function (x) { return x.id !== s.id; }); saveArr("casenote_schedule", schedule); renderSchedule(); });
+      del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function () {}); });
       li.appendChild(chip); li.appendChild(info); li.appendChild(del);
       scheduleList.appendChild(li);
     });
@@ -522,13 +555,68 @@
     var date = scheduleDate.value;
     var title = scheduleTitle.value.trim();
     if (!date || !title) { return; }
-    schedule.push({ id: newId(), date: date, title: title, note: "", createdAt: new Date().toISOString() });
-    schedule.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    saveArr("casenote_schedule", schedule);
-    renderSchedule();
+    scheduleRef.add({ date: date, title: title, note: "", createdAt: new Date().toISOString() }).catch(function () {});
     scheduleTitle.value = "";
   });
-  renderSchedule();
+
+  // ---- auth-gated subscriptions ----
+  var unsubscribers = [];
+  function clearSubs() {
+    unsubscribers.forEach(function (u) { u(); });
+    unsubscribers = [];
+    renderTodos([]); renderMemos([]); renderSchedule([]);
+  }
+  function subscribeAll() {
+    unsubscribers.push(profileRef.onSnapshot(function (snap) { if (snap.exists) { applyProfile(snap.data()); } }, function () {}));
+    unsubscribers.push(todosRef.orderBy("createdAt", "asc").onSnapshot(function (snap) {
+      renderTodos(snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
+    }, function () {}));
+    unsubscribers.push(memosRef.orderBy("createdAt", "desc").onSnapshot(function (snap) {
+      renderMemos(snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
+    }, function () {}));
+    unsubscribers.push(scheduleRef.orderBy("date", "asc").onSnapshot(function (snap) {
+      renderSchedule(snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
+    }, function () {}));
+  }
+
+  auth.onAuthStateChanged(function (user) {
+    clearSubs();
+    if (user && user.email === OWNER_EMAIL) {
+      signInBtn.hidden = true;
+      userChip.hidden = false;
+      userAvatar.src = user.photoURL || "";
+      userLabel.textContent = user.displayName || user.email;
+      heroLocked.hidden = true;
+      heroOwner.hidden = false;
+      workLock.hidden = true;
+      deskGrid.hidden = false;
+      syncDot.className = "sync-dot on";
+      syncText.textContent = "실시간 동기화 중 · 어느 기기에서나 동일하게 보입니다";
+      subscribeAll();
+    } else if (user) {
+      signInBtn.hidden = true;
+      userChip.hidden = false;
+      userAvatar.src = user.photoURL || "";
+      userLabel.textContent = user.displayName || user.email;
+      heroLocked.hidden = false;
+      heroOwner.hidden = true;
+      workLock.hidden = false;
+      workLock.textContent = "이 Google 계정(" + user.email + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다.";
+      deskGrid.hidden = true;
+      syncDot.className = "sync-dot warn";
+      syncText.textContent = "접근 권한이 없는 계정입니다";
+    } else {
+      signInBtn.hidden = false;
+      userChip.hidden = true;
+      heroLocked.hidden = false;
+      heroOwner.hidden = true;
+      workLock.hidden = false;
+      workLock.textContent = "Google 계정으로 로그인하면 이 워크스페이스의 소유자에게만 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 실시간으로 동기화됩니다.";
+      deskGrid.hidden = true;
+      syncDot.className = "sync-dot";
+      syncText.textContent = "Google 로그인이 필요합니다";
+    }
+  });
 })();
 </script>
 </body>
