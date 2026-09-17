@@ -177,6 +177,21 @@
   .obs-item .school-chip { font-size: 0.68rem; background: var(--accent-2-ink); color: var(--accent-2-strong); padding: 1px 8px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
   .obs-updated { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); margin: 0 0 10px; }
 
+  .flow-card { grid-column: 1 / -1; }
+  .flow-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; }
+  .flow-chip { font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .flow-chip.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .flow-arrow { color: var(--ink-soft); font-size: 0.9rem; }
+  .flow-detail { border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; background: var(--bg); font-size: 0.88rem; line-height: 1.7; max-height: 520px; overflow-y: auto; }
+  .flow-detail h1, .flow-detail h2, .flow-detail h3 { font-family: var(--font-display); margin: 0.7em 0 0.35em; }
+  .flow-detail h1:first-child, .flow-detail h2:first-child, .flow-detail h3:first-child { margin-top: 0; }
+  .flow-detail table { border-collapse: collapse; width: 100%; margin: 0.7em 0; }
+  .flow-detail th, .flow-detail td { border: 1px solid var(--line); padding: 6px 10px; font-size: 0.82rem; text-align: left; }
+  .flow-detail blockquote { border-left: 3px solid var(--accent); margin: 0.7em 0; padding: 6px 14px; color: var(--ink-soft); background: var(--surface-2); border-radius: 0 4px 4px 0; }
+  .flow-detail code { font-family: var(--font-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  .flow-detail a { color: var(--accent-strong); }
+  .flow-detail ul, .flow-detail ol { padding-left: 1.3em; }
+
   .archive-intro { font-size: 0.88rem; color: var(--ink-soft); background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 4px 4px 0; margin-bottom: 20px; }
   .archive-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
   .chip { font-family: var(--font-mono); font-size: 0.76rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; }
@@ -282,6 +297,20 @@
         </form>
         <ul class="obs-log" id="obsLog"></ul>
       </article>
+
+      <article class="card flow-card">
+        <span class="tab-label t-1">Flow</span>
+        <div class="card-head"><h2>업무 순서도</h2></div>
+        <p class="obs-updated" id="flowUpdated"></p>
+        <button type="button" class="obs-toggle" id="flowToggleBtn">옵시디언에서 붙여넣기로 가져오기</button>
+        <form class="obs-import" id="flowForm" hidden>
+          <p class="obs-import-hint">업무 매뉴얼 노트를 그대로 복사해서 붙여넣으세요. <code>## 1. 제목</code> 형식의 소제목 단위로 단계가 나뉘어 순서도가 만들어집니다.</p>
+          <textarea id="flowInput" rows="10" placeholder="## 1. 유선 마케팅&#10;...내용...&#10;&#10;## 2. 주문 접수 시 업무&#10;...내용..."></textarea>
+          <button type="submit">가져오기 (Firestore에 저장)</button>
+        </form>
+        <div class="flow-row" id="flowRow"></div>
+        <div class="flow-detail" id="flowDetail"></div>
+      </article>
     </div>
   </section>
 
@@ -297,6 +326,7 @@
   </footer>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
@@ -502,6 +532,84 @@
     });
   }
 
+  // ---------- company workflow diagram (pasted by owner, stored in Firestore only) ----------
+  var flowToggleBtn = document.getElementById("flowToggleBtn");
+  var flowForm = document.getElementById("flowForm");
+  var flowInput = document.getElementById("flowInput");
+  var flowRow = document.getElementById("flowRow");
+  var flowDetail = document.getElementById("flowDetail");
+  var flowUpdated = document.getElementById("flowUpdated");
+  var flowRef = db.collection("company").doc("flowchart");
+  var flowSteps = [];
+  var activeFlowIndex = 0;
+
+  flowToggleBtn.addEventListener("click", function () { flowForm.hidden = !flowForm.hidden; });
+
+  function parseFlowText(raw) {
+    var lines = raw.split(/\r?\n/);
+    var steps = [];
+    var current = null;
+    lines.forEach(function (line) {
+      var headingMatch = line.match(/^#{2,3}\s*(\d+)\.\s*(.+)$/);
+      if (headingMatch) {
+        current = { title: headingMatch[1] + ". " + headingMatch[2].trim(), body: [] };
+        steps.push(current);
+        return;
+      }
+      if (current) { current.body.push(line); }
+    });
+    return steps.map(function (s) { return { title: s.title, body: s.body.join("\n").trim() }; }).filter(function (s) { return s.body.length > 0; });
+  }
+
+  flowForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var steps = parseFlowText(flowInput.value);
+    if (!steps.length) { window.alert("'## 1. 제목' 형식의 소제목을 찾지 못했습니다."); return; }
+    flowRef.set({ steps: steps, updatedAt: new Date().toISOString() }).then(function () {
+      flowInput.value = "";
+      flowForm.hidden = true;
+    }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+  });
+
+  function renderFlowDetail() {
+    var step = flowSteps[activeFlowIndex];
+    if (!step) { flowDetail.innerHTML = ""; return; }
+    var html = (typeof marked !== "undefined") ? marked.parse(step.body) : step.body;
+    flowDetail.innerHTML = html;
+  }
+
+  function renderFlowChips() {
+    flowRow.innerHTML = "";
+    flowSteps.forEach(function (step, i) {
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "flow-chip" + (i === activeFlowIndex ? " active" : "");
+      chip.textContent = step.title;
+      chip.addEventListener("click", function () { activeFlowIndex = i; renderFlowChips(); renderFlowDetail(); });
+      flowRow.appendChild(chip);
+      if (i < flowSteps.length - 1) {
+        var arrow = document.createElement("span");
+        arrow.className = "flow-arrow";
+        arrow.textContent = "→";
+        flowRow.appendChild(arrow);
+      }
+    });
+  }
+
+  function renderFlow(data) {
+    flowSteps = (data && data.steps) || [];
+    activeFlowIndex = 0;
+    if (!flowSteps.length) {
+      flowUpdated.textContent = "아직 가져온 업무 순서도가 없습니다.";
+      flowRow.innerHTML = "";
+      flowDetail.innerHTML = '<p class="flow-empty">위 "옵시디언에서 붙여넣기로 가져오기"를 눌러 업무 매뉴얼을 붙여넣으세요.</p>';
+      return;
+    }
+    flowUpdated.textContent = "마지막 업데이트: " + fmtDate(data.updatedAt);
+    renderFlowChips();
+    renderFlowDetail();
+  }
+
   // ---- profile ----
   var profileFields = {
     name: document.getElementById("profileName"),
@@ -678,7 +786,7 @@
   function clearSubs() {
     unsubscribers.forEach(function (u) { u(); });
     unsubscribers = [];
-    renderTodos([]); renderMemos([]); renderSchedule([]); renderObsLog(null);
+    renderTodos([]); renderMemos([]); renderSchedule([]); renderObsLog(null); renderFlow(null);
   }
   function subscribeAll() {
     unsubscribers.push(profileRef.onSnapshot(function (snap) { if (snap.exists) { applyProfile(snap.data()); } }, function () {}));
@@ -693,6 +801,9 @@
     }, function () {}));
     unsubscribers.push(worklogRef.onSnapshot(function (snap) {
       renderObsLog(snap.exists ? snap.data() : null);
+    }, function () {}));
+    unsubscribers.push(flowRef.onSnapshot(function (snap) {
+      renderFlow(snap.exists ? snap.data() : null);
     }, function () {}));
   }
 
