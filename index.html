@@ -226,6 +226,33 @@
 
   .wide-card { grid-column: 1 / -1; }
   .research-top { margin-bottom: 8px; }
+  .reco-interests { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .interest-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; padding: 4px 6px 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); }
+  .interest-chip a { font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-soft); text-decoration: none; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+  .interest-chip a:hover { color: var(--accent); border-color: var(--accent); }
+  .interest-chip button { border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 4px; }
+  .interest-chip button:hover { color: var(--accent); }
+  .reco-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; align-items: center; }
+  .reco-suggest .chip { font-size: 0.7rem; padding: 3px 9px; }
+  .reco-settings { margin-bottom: 12px; font-size: 0.82rem; color: var(--ink-soft); }
+  .reco-settings summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.74rem; }
+  .reco-settings label { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; color: var(--ink); }
+  .reco-settings input[type="url"] { width: 100%; font-family: var(--font-body); font-size: 0.85rem; padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); }
+  .reco-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .reco-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .reco-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); margin-bottom: 4px; }
+  .reco-badge { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); }
+  .reco-badge.free { background: var(--accent-2); color: var(--accent-2-ink); border-color: var(--accent-2); }
+  .reco-badge.inst { background: var(--accent-ink); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .reco-title { font-family: var(--font-display); font-weight: 600; font-size: 0.98rem; line-height: 1.4; color: var(--ink); text-decoration: none; word-break: break-word; }
+  .reco-title:hover { text-decoration: underline; }
+  .reco-authors { font-size: 0.8rem; color: var(--ink-soft); margin-top: 3px; }
+  .reco-abs { font-size: 0.82rem; color: var(--ink-soft); margin-top: 6px; line-height: 1.55; }
+  .reco-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .reco-links a, .reco-links button { font-family: var(--font-mono); font-size: 0.7rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; text-decoration: none; }
+  .reco-links a:hover, .reco-links button:hover { color: var(--accent); border-color: var(--accent); }
+  .reco-links button:disabled { opacity: 0.55; cursor: default; }
+  .reco-refresh { margin: 0 0 12px; }
   .chapter-list + .quick-add { margin: 10px 0 0; }
   .quick-add input.w-sm { flex: 0 0 110px; }
   .quick-add input.w-date { flex: 0 0 150px; }
@@ -538,6 +565,26 @@
     <div class="lock-panel gate-lock" data-msg="Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다."></div>
     <div class="gate-content" hidden>
       <div class="desk-grid research-top">
+        <article class="card wide-card">
+          <span class="tab-label t-2">Daily</span>
+          <div class="card-head"><h2>오늘의 논문 추천</h2><span class="count" id="recoDate"></span></div>
+          <p class="obs-updated" id="recoStatus"></p>
+          <div class="reco-interests" id="recoInterests"></div>
+          <form class="quick-add" id="interestForm">
+            <input id="interestInput" placeholder="관심 키워드 (한국어·영어 모두 가능, 예: psychopathy)" maxlength="60" required />
+            <button type="submit">추가</button>
+          </form>
+          <div class="reco-suggest" id="recoSuggest"></div>
+          <details class="reco-settings">
+            <summary>열람 설정 (무료 논문 · 영남대 로그인)</summary>
+            <label><input type="checkbox" id="recoPaywalled" /> 학교 로그인이 필요한 논문도 일부 포함</label>
+            <input type="url" id="recoProxy" placeholder="학교 도서관 프록시 주소 (선택) 예: https://…/login?url=" maxlength="300" />
+            <p class="obs-import-hint">프록시 주소를 넣으면 유료 논문에 "학교 로그인으로 열기" 링크가 생겨요. 영남대 도서관 프록시 주소는 도서관 안내 페이지에서 확인하세요. 비워두면 논문 페이지가 그대로 열려요.</p>
+          </details>
+          <div class="reco-links reco-refresh"><button type="button" id="recoRefresh">새로 추천받기</button></div>
+          <ul class="reco-list" id="recoList"></ul>
+        </article>
+
         <article class="card">
           <span class="tab-label t-1">Thesis</span>
           <div class="card-head"><h2>논문 집필 진행</h2><span class="dday" id="thesisDday"></span></div>
@@ -731,6 +778,7 @@
   var auth = firebase.auth();
   var db = firebase.firestore();
   var provider = new firebase.auth.GoogleAuthProvider();
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function () {});
 
   // ---------- research archive storage (Firestore only, owner only) ----------
   var papersRef = db.collection("research").doc("papers");
@@ -749,6 +797,7 @@
     if (activeCategory !== "전체" && !PAPERS.some(function (p) { return p.category === activeCategory; })) { activeCategory = "전체"; }
     renderFilters();
     renderArchive();
+    renderReco();
   }
   paperForm.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -1661,6 +1710,269 @@
     });
   }
 
+  // ---------- daily paper recommendations (OpenAlex; settings + daily pick stored in Firestore) ----------
+  var recoRef = db.collection("research").doc("reco");
+  var RECO = { interests: [], includePaywalled: false, proxy: "", seen: [], dismissed: [], daily: null };
+  var recoBusy = false;
+  var recoTriedKey = "";
+  var recoMsg = "";
+  var SUGGESTIONS = ["범죄심리학", "forensic psychology", "psychopathy", "recidivism risk assessment", "criminal profiling", "aggression", "empathy", "offender rehabilitation"];
+  var recoYearFrom = new Date().getFullYear() - 4;
+
+  function saveReco(patch) {
+    RECO = Object.assign({}, RECO, patch);
+    renderReco();
+    return recoRef.set({
+      interests: RECO.interests, includePaywalled: !!RECO.includePaywalled, proxy: RECO.proxy || "",
+      seen: RECO.seen || [], dismissed: RECO.dismissed || [], daily: RECO.daily || null,
+      updatedAt: new Date().toISOString()
+    }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+  }
+  function scholarUrl(q) { return "https://scholar.google.com/scholar?q=" + encodeURIComponent(q) + "&as_ylo=" + recoYearFrom; }
+  function rissUrl(q) { return "https://www.riss.kr/search/Search.do?queryText=&query=" + encodeURIComponent(q); }
+  function hashStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function seededRng(seed) {
+    return function () {
+      seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffled(list, rand) {
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rand() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  function abstractFrom(inv) {
+    if (!inv) { return ""; }
+    var words = [];
+    Object.keys(inv).forEach(function (w) { inv[w].forEach(function (pos) { words[pos] = w; }); });
+    var text = words.filter(Boolean).join(" ");
+    return text.length > 300 ? text.slice(0, 300) + "…" : text;
+  }
+  function toRecoItem(w, kw) {
+    var loc = w.primary_location || {};
+    var oa = !!(w.open_access && w.open_access.is_oa);
+    var best = w.best_oa_location || {};
+    var pdf = oa ? safeUrl(best.pdf_url || "") : "";
+    var url = safeUrl(pdf || (oa && w.open_access.oa_url) || best.landing_page_url || loc.landing_page_url || w.doi || "");
+    var auth = w.authorships || [];
+    var names = auth.slice(0, 3).map(function (a) { return a.author && a.author.display_name; }).filter(Boolean);
+    return {
+      id: (w.id || "").replace("https://openalex.org/", ""),
+      title: w.display_name || "",
+      year: w.publication_year || "",
+      authors: names.join(", ") + (auth.length > 3 ? " 외" : ""),
+      journal: (loc.source && loc.source.display_name) || "",
+      oa: oa, pdf: pdf, url: url, abs: abstractFrom(w.abstract_inverted_index), kw: kw
+    };
+  }
+  function interleaveByKeyword(list, rand) {
+    var groups = {};
+    shuffled(list, rand).forEach(function (it) { (groups[it.kw] = groups[it.kw] || []).push(it); });
+    var keys = Object.keys(groups);
+    var out = [];
+    var more = true;
+    while (more) {
+      more = false;
+      keys.forEach(function (k) { var x = groups[k].shift(); if (x) { out.push(x); more = true; } });
+    }
+    return out;
+  }
+  async function buildDaily(n) {
+    var kws = RECO.interests.slice(0, 8);
+    var select = "id,doi,display_name,publication_year,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index";
+    var oaFilter = RECO.includePaywalled ? "" : ",open_access.is_oa:true";
+    var responses = await Promise.all(kws.map(function (kw) {
+      var url = "https://api.openalex.org/works?search=" + encodeURIComponent(kw) +
+        "&filter=from_publication_date:" + recoYearFrom + "-01-01,type:article" + oaFilter +
+        "&per-page=30&select=" + select;
+      return fetch(url).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); });
+    }));
+    var dismissed = {}; (RECO.dismissed || []).forEach(function (id) { dismissed[id] = true; });
+    var seen = {}; (RECO.seen || []).forEach(function (id) { seen[id] = true; });
+    var byId = {};
+    var all = [];
+    responses.forEach(function (j, i) {
+      (j.results || []).forEach(function (w) {
+        var it = toRecoItem(w, kws[i]);
+        if (!it.id || !it.title || !it.url || byId[it.id] || dismissed[it.id]) { return; }
+        if (PAPERS.some(function (p) { return p.link === it.url || p.title === it.title; })) { return; }
+        byId[it.id] = true;
+        all.push(it);
+      });
+    });
+    var fresh = all.filter(function (it) { return !seen[it.id]; });
+    var pool = fresh.length >= 5 ? fresh : all;
+    var rand = seededRng(hashStr(todayStr() + "|" + n));
+    var oaPool = pool.filter(function (it) { return it.oa; });
+    var oaList = interleaveByKeyword(oaPool.filter(function (it) { return it.pdf; }), rand)
+      .concat(interleaveByKeyword(oaPool.filter(function (it) { return !it.pdf; }), rand));
+    var instList = interleaveByKeyword(pool.filter(function (it) { return !it.oa; }), rand);
+    var picked = oaList.slice(0, RECO.includePaywalled ? 3 : 5).concat(RECO.includePaywalled ? instList.slice(0, 2) : []);
+    if (picked.length < 5) {
+      var rest = oaList.slice(picked.filter(function (x) { return x.oa; }).length).concat(instList.slice(picked.filter(function (x) { return !x.oa; }).length));
+      picked = picked.concat(rest.slice(0, 5 - picked.length));
+    }
+    return picked;
+  }
+  async function ensureDaily(force) {
+    if (recoBusy || !RECO.interests.length) { return; }
+    var today = todayStr();
+    var d = RECO.daily;
+    if (!force && d && d.date === today) { return; }
+    var key = today + "|" + RECO.interests.join(",") + "|" + RECO.includePaywalled;
+    if (!force && recoTriedKey === key) { return; }
+    recoTriedKey = key;
+    recoBusy = true;
+    recoMsg = "추천 논문을 찾는 중…";
+    renderReco();
+    var n = force && d && d.date === today ? (d.n || 0) + 1 : 0;
+    try {
+      var items = await buildDaily(n);
+      recoBusy = false;
+      recoMsg = items.length ? "" : "조건에 맞는 새 논문이 없어요. 키워드를 바꾸거나 '학교 로그인 논문 포함'을 켜 보세요.";
+      var seenIds = (RECO.seen || []).concat(items.map(function (x) { return x.id; })).slice(-300);
+      await saveReco({ daily: { date: today, n: n, items: items }, seen: seenIds });
+    } catch (err) {
+      recoBusy = false;
+      recoMsg = "추천을 불러오지 못했어요 (" + err.message + "). 잠시 후 '새로 추천받기'를 눌러 주세요.";
+      renderReco();
+    }
+  }
+  function addInterest(raw) {
+    var kw = (raw || "").trim();
+    if (!kw) { return; }
+    if (RECO.interests.length >= 8) { window.alert("관심 키워드는 최대 8개까지 등록할 수 있어요."); return; }
+    if (RECO.interests.some(function (x) { return x.toLowerCase() === kw.toLowerCase(); })) { return; }
+    saveReco({ interests: RECO.interests.concat([kw]), daily: null });
+  }
+  function renderReco() {
+    var today = todayStr();
+    document.getElementById("recoDate").textContent = today.slice(5).replace("-", "/");
+
+    var chips = document.getElementById("recoInterests");
+    chips.innerHTML = "";
+    RECO.interests.forEach(function (kw) {
+      var c = mkEl("span", "interest-chip");
+      c.appendChild(mkEl("span", "", kw));
+      var g = mkEl("a", "", "GS");
+      g.href = scholarUrl(kw); g.target = "_blank"; g.rel = "noopener noreferrer"; g.title = "Google Scholar에서 최근 5개년 검색";
+      var r = mkEl("a", "", "RISS");
+      r.href = rissUrl(kw); r.target = "_blank"; r.rel = "noopener noreferrer"; r.title = "RISS 국내 학술논문 검색 (기관 내 무료 필터 가능)";
+      var x = mkEl("button", "", "×");
+      x.type = "button"; x.title = "키워드 삭제";
+      x.addEventListener("click", function () {
+        saveReco({ interests: RECO.interests.filter(function (k) { return k !== kw; }), daily: null });
+      });
+      c.appendChild(g); c.appendChild(r); c.appendChild(x);
+      chips.appendChild(c);
+    });
+    if (!RECO.interests.length) { chips.appendChild(mkEl("span", "prog-label", "관심 키워드를 추가하면 매일 5편을 추천해 드려요.")); }
+
+    var sug = document.getElementById("recoSuggest");
+    sug.innerHTML = "";
+    var rest = SUGGESTIONS.filter(function (s) { return RECO.interests.indexOf(s) === -1; });
+    if (rest.length && RECO.interests.length < 8) {
+      sug.appendChild(mkEl("span", "prog-label", "추천 키워드:"));
+      rest.forEach(function (s) {
+        var b = mkEl("button", "chip", "+ " + s);
+        b.type = "button";
+        b.addEventListener("click", function () { addInterest(s); });
+        sug.appendChild(b);
+      });
+    }
+
+    document.getElementById("recoPaywalled").checked = !!RECO.includePaywalled;
+    var px = document.getElementById("recoProxy");
+    if (document.activeElement !== px) { px.value = RECO.proxy || ""; }
+
+    document.getElementById("recoStatus").textContent = "OpenAlex 기준 · 최근 5개년(" + recoYearFrom + "~" + new Date().getFullYear() + ") · " + (RECO.includePaywalled ? "무료 원문(PDF 우선) + 학교 로그인 논문" : "무료 공개 원문만 (PDF 우선)") + " · 하루 5편";
+
+    var ul = document.getElementById("recoList");
+    ul.innerHTML = "";
+    var d = RECO.daily;
+    var dismissed = RECO.dismissed || [];
+    var items = d && d.date === today ? (d.items || []).filter(function (it) { return dismissed.indexOf(it.id) === -1; }) : [];
+    if (!items.length) {
+      if (RECO.interests.length) { ul.appendChild(mkEmpty(recoMsg || (recoBusy ? "추천 논문을 찾는 중…" : "오늘 추천할 논문이 없어요."))); }
+      return;
+    }
+    items.forEach(function (it) {
+      var li = mkEl("li", "reco-item");
+      var top = mkEl("div", "reco-top");
+      top.appendChild(mkEl("span", "reco-badge " + (it.oa ? "free" : "inst"), it.pdf ? "PDF 바로 열림" : (it.oa ? "무료 원문" : "학교 로그인 필요할 수 있음")));
+      top.appendChild(mkEl("span", "", [it.year, it.journal].filter(Boolean).join(" · ")));
+      top.appendChild(mkEl("span", "", "#" + it.kw));
+      li.appendChild(top);
+      var title = mkEl("a", "reco-title", it.title);
+      title.href = it.url; title.target = "_blank"; title.rel = "noopener noreferrer";
+      li.appendChild(title);
+      if (it.authors) { li.appendChild(mkEl("div", "reco-authors", it.authors)); }
+      if (it.abs) { li.appendChild(mkEl("div", "reco-abs", it.abs)); }
+      var links = mkEl("div", "reco-links");
+      var gs = mkEl("a", "", "Google Scholar");
+      gs.href = scholarUrl(it.title); gs.target = "_blank"; gs.rel = "noopener noreferrer";
+      links.appendChild(gs);
+      var proxy = (RECO.proxy || "").trim();
+      if (!it.oa && /^https:\/\//i.test(proxy)) {
+        var pa = mkEl("a", "", "학교 로그인으로 열기");
+        pa.href = proxy + it.url; pa.target = "_blank"; pa.rel = "noopener noreferrer";
+        links.appendChild(pa);
+      }
+      var saved = PAPERS.some(function (p) { return p.link === it.url || p.title === it.title; });
+      var save = mkEl("button", "", saved ? "저장됨" : "내 자료로 저장");
+      save.type = "button"; save.disabled = saved;
+      save.addEventListener("click", function () {
+        save.disabled = true;
+        savePapers(PAPERS.concat([{
+          id: String(Date.now()), category: it.kw.slice(0, 40), title: it.title,
+          meta: [it.authors, it.year].filter(Boolean).join(" · "),
+          note: [it.journal, it.abs].filter(Boolean).join(" — ").slice(0, 400),
+          link: it.url, status: PSTAT[0], tags: [it.kw]
+        }]));
+      });
+      links.appendChild(save);
+      var skip = mkEl("button", "", "관심 없음");
+      skip.type = "button";
+      skip.addEventListener("click", function () {
+        saveReco({
+          dismissed: (RECO.dismissed || []).concat([it.id]).slice(-500),
+          daily: Object.assign({}, RECO.daily, { items: (RECO.daily.items || []).filter(function (x) { return x.id !== it.id; }) })
+        });
+      });
+      links.appendChild(skip);
+      li.appendChild(links);
+      ul.appendChild(li);
+    });
+  }
+  document.getElementById("interestForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = document.getElementById("interestInput");
+    addInterest(input.value);
+    input.value = "";
+  });
+  document.getElementById("recoPaywalled").addEventListener("change", function () {
+    saveReco({ includePaywalled: this.checked, daily: null });
+  });
+  document.getElementById("recoProxy").addEventListener("change", function () {
+    var v = this.value.trim();
+    if (v && !/^https:\/\//i.test(v)) { window.alert("프록시 주소는 https:// 로 시작해야 해요."); this.value = RECO.proxy || ""; return; }
+    saveReco({ proxy: v });
+  });
+  document.getElementById("recoRefresh").addEventListener("click", function () {
+    if (!RECO.interests.length) { window.alert("먼저 관심 키워드를 추가해 주세요."); return; }
+    ensureDaily(true);
+  });
+
   // ---- auth-gated subscriptions ----
   var unsubscribers = [];
   function clearSubs() {
@@ -1674,8 +1986,19 @@
     HABITS = []; renderHabits();
     DEALS = []; renderDeals();
     SNIPPETS = []; renderSnippets();
+    RECO = { interests: [], includePaywalled: false, proxy: "", seen: [], dismissed: [], daily: null };
+    recoBusy = false; recoMsg = ""; recoTriedKey = ""; renderReco();
   }
   function subscribeAll() {
+    unsubscribers.push(recoRef.onSnapshot(function (snap) {
+      var d = snap.exists ? snap.data() : {};
+      RECO = {
+        interests: d.interests || [], includePaywalled: !!d.includePaywalled, proxy: d.proxy || "",
+        seen: d.seen || [], dismissed: d.dismissed || [], daily: d.daily || null
+      };
+      renderReco();
+      ensureDaily(false);
+    }, function () {}));
     unsubscribers.push(thesisRef.onSnapshot(function (snap) {
       THESIS = snap.exists ? Object.assign(defaultThesis(), snap.data()) : defaultThesis();
       renderThesis();
