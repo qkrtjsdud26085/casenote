@@ -90,12 +90,12 @@
 
   /* ---------- menu ---------- */
   App.MENU = [
-    { key: "thesis", short: "박사", label: "박사 학위논문", groups: [
-      { pages: ["thesis-overview"] },
-      { label: "문헌", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
-      { label: "연구 설계", pages: ["thesis-questions", "thesis-methods", "thesis-ethics"] },
-      { label: "분석 · 집필", pages: ["thesis-analysis", "thesis-writing"] },
-      { label: "지도 · 성과", pages: ["thesis-advisor", "thesis-publications"] },
+    { key: "thesis", short: "박사", label: "박사", groups: [
+      { pages: ["thesis-home"] },
+      { label: "논문 프로젝트", pages: ["proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit"] },
+      { label: "문헌 · 자료", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
+      { label: "지도 · 학술활동", pages: ["thesis-advisor", "thesis-publications"] },
+      { label: "학위논문", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing"] },
       { pages: ["thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", pages: ["writer-works", "writer-ideas", "writer-log"] },

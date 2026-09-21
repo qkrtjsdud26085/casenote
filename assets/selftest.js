@@ -14,6 +14,7 @@
 
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function ok(name, cond, info) { (cond ? results.ok : results.fail).push(cond ? name : name + " :: " + (info || "")); }
+  function P() { return App.proj; }
   function $(s, root) { return (root || document).querySelector(s); }
   function $$(s, root) { return Array.prototype.slice.call((root || document).querySelectorAll(s)); }
   function submit(form) { form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); }
@@ -78,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 28, ids.length);
+    ok("page count", ids.length === 36, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -107,7 +108,7 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 3, $$("#subnav a[data-page]").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 13, $$("#subnav a[data-page]").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 21, $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
@@ -168,6 +169,62 @@
     await go("thesis-concepts");
     $$("#view .tool-btn").filter(function (b) { return b.textContent.indexOf("기본 개념 예시") !== -1; })[0].click(); await sleep(100);
     ok("concept template", $$("#view .item-card").length === 6, $$("#view .item-card").length);
+
+    /* thesis projects */
+    function cardBy(title) { return $$("#view .card").filter(function (c) { return ($("h2", c) || {}).textContent === title; })[0]; }
+    async function addVia(panelRoot, vals) {
+      var addBtn = $$(".items-tools .tool-btn", panelRoot).filter(function (b) { return b.textContent.charAt(0) === "+"; })[0];
+      addBtn.click(); await sleep(40);
+      var form = $(".item-form", panelRoot);
+      Object.keys(vals).forEach(function (k) { var i = $("[name='" + k + "']", form); if (i) { i.value = vals[k]; } });
+      submit(form); await sleep(100);
+    }
+    App.h.safeSet("hds_proj", "p1");
+    await go("thesis-home");
+    ok("requirement default 0/2", /0\s*\/\s*2/.test($("#view .req-big").textContent), $("#view .req-big").textContent);
+    ok("two default projects", $$("#view .items-panel")[0].querySelectorAll(".item-card").length === 2, $$("#view .items-panel")[0].querySelectorAll(".item-card").length);
+    ok("stages by kind", App.proj.stagesFor({ kind: "실증 연구" }).length === 10 && App.proj.stagesFor({ kind: "척도 타당화" }).length === 11);
+    $$("#view .items-panel")[0].querySelector(".item-card .copy-btn").click(); await sleep(200);
+    ok("open project navigates", location.hash === "#/proj-overview" && $$("#view .proj-bar select option").length === 2, location.hash);
+    ok("stepper chips", $$("#view .flow-chip").length === 11, $$("#view .flow-chip").length);
+    ok("tasks grouped defaults", $$("#view .group-title").length >= 8, $$("#view .group-title").length);
+    var foldersRoot = $(".items-panel", cardBy("자료 폴더 · 링크"));
+    await addVia(foldersRoot, { name: "원자료", kind: "Google Drive", link: "https://drive.google.com/drive/folders/abc123" });
+    await addVia($(".items-panel", cardBy("자료 폴더 · 링크")), { name: "분석 파일", kind: "내 컴퓨터 경로", link: "G:\내 드라이브\논문\분석" });
+    var fc = cardBy("자료 폴더 · 링크");
+    ok("folder link opens", !!$("a[href^='https://drive.google.com/drive/folders/abc123']", fc) && /폴더 열기/.test($("a[href^='https://drive.google.com']", fc).textContent));
+    ok("folder path copy", !!$("code", fc) && /경로 복사/.test(fc.textContent), fc.textContent.slice(0, 200));
+    $$("#view .flow-chip").filter(function (b) { return b.textContent === "게재 확정"; })[0].click(); await sleep(200);
+    ok("stage saved", P().list.filter(function (p) { return p.id === "p1"; })[0].stage === "게재 확정");
+    await go("thesis-home");
+    ok("requirement counts accepted", /^1\s*\/\s*2/.test($("#view .req-big").textContent.trim()), $("#view .req-big").textContent);
+    ok("global folders show project", /원자료/.test($("#view").textContent) && /학회지 논문 ①/.test($$("#view .card").filter(function (c) { return /논문 자료 폴더/.test(c.textContent); })[0].textContent));
+    await go("proj-lit");
+    var np = $(".items-panel", cardBy("문헌 노트 (이 프로젝트)"));
+    await addVia(np, { cite: "테스트 서지 2026" });
+    ok("scoped note visible", $$(".item-card", $(".items-panel", cardBy("문헌 노트 (이 프로젝트)"))).length === 1);
+    var sel = $("#view .proj-bar select"); sel.value = "p2"; change(sel); await sleep(250);
+    ok("project switched", $("#view .proj-bar select").value === "p2" && App.h.safeGet("hds_proj") === "p2");
+    ok("scoped note hidden in other project", $$(".item-card", $(".items-panel", cardBy("문헌 노트 (이 프로젝트)"))).length === 0);
+    await go("thesis-notes");
+    ok("global notes aggregate", /테스트 서지 2026/.test($("#view").textContent));
+    App.h.safeSet("hds_proj", "p1");
+    await go("proj-translation");
+    await addVia($(".items-panel", cardBy("문항 관리표")), { original: "I sometimes spread rumors", no: "1" });
+    ok("item table row", $$("#view .items-table tbody tr").length >= 1 && /확정 0\/1/.test(cardBy("문항 관리표").textContent), cardBy("문항 관리표").textContent.slice(0, 160));
+    await go("proj-analysis");
+    await addVia($(".items-panel", cardBy("자료 수집 현황")), { name: "표본 1", target: "100", current: "40" });
+    ok("sample progress", /40 \/ 100명/.test(cardBy("자료 수집 현황").textContent) && /전체 수집 40 \/ 목표 100명/.test(cardBy("자료 수집 현황").textContent));
+    await addVia($(".items-panel", cardBy("모형 비교표 (CFA · SEM)")), { name: "bifactor", cfi: ".96" });
+    var adopt = $("#view .items-table .cell-check", cardBy("모형 비교표 (CFA · SEM)")); adopt.checked = true; change(adopt); await sleep(120);
+    ok("model adopted row", $$(".items-table tr.done", cardBy("모형 비교표 (CFA · SEM)")).length === 1);
+    await go("proj-manuscript");
+    ok("manuscript sections default", $$(".item-card", $(".items-panel", cardBy("원고 섹션 진행"))).length === 8);
+    await go("proj-submit");
+    await addVia($(".items-panel", cardBy("투고 후보 학술지 비교")), { name: "테스트 학술지" });
+    ok("journal candidate", /테스트 학술지/.test(cardBy("투고 후보 학술지 비교").textContent));
+    await go("thesis-refs");
+    ok("scale text templates", $$("#view .card").some(function (c) { return /척도 타당화 결과 서술 문장/.test(c.textContent); }));
 
     await go("thesis-recommend");
     var rf = $("#view form.quick-add");

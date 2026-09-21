@@ -6,7 +6,7 @@
   App.page({
     id: "home", title: "홈",
     render: function (view) {
-      var D = { todos: [], schedule: [], thesis: null, roadmap: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null, gcal: null };
+      var D = { todos: [], schedule: [], projects: null, grad: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null, gcal: null };
 
       /* ---------- header: title, affiliation, quote of the day ---------- */
       var head = el("section", "home-head");
@@ -65,8 +65,6 @@
         H.clear(dash);
         var today = H.todayStr();
         var openTodos = D.todos.filter(function (t) { return !t.done; });
-        var chapters = (D.thesis && D.thesis.chapters) || [];
-        var deadline = D.thesis && D.thesis.deadline;
         var worklogOpen = [];
         ((D.worklog && D.worklog.groups) || []).forEach(function (g) { g.items.forEach(function (it) { if (!it.done) { worklogOpen.push({ date: g.date, school: it.school, text: it.text }); } }); });
         var deals = (D.pipeline && D.pipeline.items) || [];
@@ -74,9 +72,12 @@
         var tCount = todaySum(D.tlog), wCount = todaySum(D.wlog);
 
         var tiles = el("div", "tiles");
-        tiles.appendChild(tile("논문 제출 D-day", deadline ? H.ddayInfo(deadline).text : "미설정", deadline ? (D.thesis.title || "제출 목표일 " + deadline) : "개요에서 목표일 설정", "thesis-overview"));
-        var pct = chapters.length ? App.chaptersPct(chapters) : 0;
-        tiles.appendChild(tile("논문 진행률", pct + "%", chapters.length ? "장 " + chapters.filter(function (c) { return c.status === "완료"; }).length + "/" + chapters.length + " 완료" : "집필에서 장 구성하기", "thesis-writing"));
+        var plist0 = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
+        var need = Number(D.grad && D.grad.required) || 2;
+        var accepted = plist0.filter(App.proj.isAccepted).length;
+        tiles.appendChild(tile("졸업 요건 · 학회지 논문", accepted + " / " + need, accepted >= need ? "요건 충족 · 학위논문 단계로" : "게재 확정 기준", "thesis-home"));
+        var active = plist0.filter(function (p) { return p.type === "학회지 논문" && !App.proj.isAccepted(p); }).sort(function (a, b) { return App.proj.stagePct(b) - App.proj.stagePct(a); })[0];
+        tiles.appendChild(tile("진행 중 논문", active ? App.proj.stagePct(active) + "%" : "—", active ? active.title + " · " + App.proj.stagesFor(active)[App.proj.stageIndex(active)] : "모든 논문 게재 확정", "proj-overview"));
         tiles.appendChild(tile("오늘 할 일", String(openTodos.length), "전체 " + D.todos.length + "개 중 완료 " + (D.todos.length - openTodos.length), "personal-todos"));
         tiles.appendChild(tile("오늘 집필", (tCount + wCount).toLocaleString("ko-KR") + "자", "논문 " + tCount.toLocaleString("ko-KR") + " · 작품 " + wCount.toLocaleString("ko-KR"), "thesis-writing"));
         tiles.appendChild(tile("회사 미완료", String(worklogOpen.length), "업무 로그 기준", "company-worklog"));
@@ -115,19 +116,16 @@
         });
 
         /* 박사 학위논문 */
-        var c2 = ui.card(g, { tab: "Thesis", tone: "t-1", title: "박사 학위논문", link: "thesis-overview" });
-        var rm = (D.roadmap && D.roadmap.items) || null;
-        if (rm && rm.length) {
-          var done = rm.filter(function (x) { return x.done; }).length;
-          c2.body.appendChild(ui.progress(Math.round(done / rm.length * 100), "로드맵 " + done + "/" + rm.length));
-          var nextStep = rm.filter(function (x) { return !x.done; })[0];
-          c2.body.appendChild(el("div", "mini-title", "다음 단계"));
-          var l3 = mini(c2.body);
-          if (nextStep) { var nodes = [el("span", "grow", nextStep.text)]; if (nextStep.due) { nodes.unshift(H.ddayEl(nextStep.due)); } miniItem(l3, nodes); }
-          else { l3.appendChild(ui.empty("모든 단계를 마쳤어요!")); }
-        } else {
-          c2.body.appendChild(ui.empty("개요 · 로드맵에서 학위 취득 단계를 확인해 보세요."));
-        }
+        var c2 = ui.card(g, { tab: "Thesis", tone: "t-1", title: "박사", link: "thesis-home" });
+        var plist = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
+        c2.body.appendChild(el("div", "mini-title", "논문 프로젝트"));
+        var lp = mini(c2.body);
+        plist.forEach(function (p) {
+          var st = App.proj.stagesFor(p)[App.proj.stageIndex(p)];
+          var a = el("a", "", p.title); a.href = "#/proj-overview"; a.addEventListener("click", function () { H.safeSet("hds_proj", p.id); });
+          var w = el("span", "grow"); w.appendChild(a);
+          miniItem(lp, [el("span", "status-chip", st), w, el("span", "mini-sub", App.proj.stagePct(p) + "%")]);
+        });
         var meets = ((D.meetings && D.meetings.items) || []).filter(function (m) { return m.next && m.next >= today; }).sort(function (a, b) { return a.next < b.next ? -1 : 1; });
         c2.body.appendChild(el("div", "mini-title", "지도교수 다음 면담"));
         var l4 = mini(c2.body);
@@ -189,7 +187,7 @@
       draw();
       App.watchQuery(App.col("todos").orderBy("createdAt", "asc"), function (i) { D.todos = i; draw(); });
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
-      [["thesis", "research/thesis"], ["roadmap", "research/roadmap"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
+      [["projects", "research/projects"], ["grad", "research/grad"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
         ["works", "writer/works"], ["habits", "personal/habits"], ["worklog", "worklog/current"], ["pipeline", "company/pipeline"], ["reco", "research/reco"], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }

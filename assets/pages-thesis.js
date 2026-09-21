@@ -53,8 +53,8 @@
   }
 
   App.page({
-    id: "thesis-overview", title: "개요 · 로드맵",
-    desc: "학위논문의 큰 그림과 학위 취득까지의 절차를 한눈에 봅니다. 기본 항목은 일반적인 절차 예시이니 학교 규정에 맞게 고쳐 쓰세요.",
+    id: "thesis-overview", title: "학위 로드맵",
+    desc: "학회지 논문 요건을 채운 뒤 이어질 학위논문의 큰 그림과 학위 취득 절차를 봅니다. 기본 항목은 일반적인 절차 예시이니 학교 규정에 맞게 고쳐 쓰세요.",
     render: function (view) {
       var g = ui.grid(view, true);
       var c1 = ui.card(g, { tab: "Thesis", tone: "t-1", title: "논문 기본 정보" });
@@ -821,13 +821,26 @@
     { label: "Contribution", text: "Taken together, the present findings extend the literature by …" },
     { label: "Abstract skeleton", text: "Background: … Objective: … Method: … Results: … Conclusions: … Keywords: …" }
   ];
+  var SCALE_TEXT = [
+    { label: "번안 절차", text: "원저자의 사용 허가를 받은 후, 심리학 전공자 2인이 독립적으로 번역하고 불일치 문항은 협의하여 조정하였다. 이후 이중언어 전문가가 원문을 보지 않은 상태에서 역번역하였으며, 원문과 대조하여 의미 차이가 있는 문항을 수정하였다. 전문가 ○인의 내용타당도 평가(CVI)와 예비조사(N = ○)를 거쳐 최종 문항을 확정하였다." },
+    { label: "요인분석 적합성", text: "탐색적 요인분석에 앞서 KMO = .xx, Bartlett의 구형성 검정 χ²(df) = xxx.x, p < .001로 요인분석에 적합함을 확인하였다." },
+    { label: "요인 수 결정", text: "평행분석과 스크리 검사, 해석 가능성을 종합하여 k요인 구조가 적절하다고 판단하였다. 요인부하량이 .40 미만이거나 교차부하량이 큰 문항 ○개를 제거하였다." },
+    { label: "확인적 요인분석", text: "확인적 요인분석 결과, k요인 모형은 χ²(df) = xxx.x, CFI = .xx, TLI = .xx, RMSEA = .xx [90% CI .xx, .xx], SRMR = .xx로 수용 가능한 적합도를 보였다. 경쟁 모형(단일요인 · 2차요인 · bifactor)과 비교한 결과 …" },
+    { label: "서열형 자료 · 추정법", text: "문항이 5점 이하 리커트 척도인 점을 고려하여 polychoric 상관행렬을 사용하고 WLSMV 방법으로 모수를 추정하였다." },
+    { label: "bifactor 지표", text: "bifactor 모형의 일반요인 설명 공통분산(ECV) = .xx, 위계적 오메가(ωH) = .xx였으며, 이는 총점과 하위요인 점수의 해석 가능성을 …" },
+    { label: "신뢰도", text: "내적 합치도(Cronbach's α)는 전체 .xx, 하위요인 .xx~.xx였고, McDonald's ω는 .xx~.xx였다. 2~4주 간격의 재검사 신뢰도는 r = .xx(N = ○)였다." },
+    { label: "수렴 · 변별 타당도", text: "수렴타당도를 확인하기 위해 관련 척도 A와의 상관을 분석한 결과 r = .xx (p < .001)로 예상한 방향의 유의한 관계를 보였다. 반면 변별 척도 B와의 상관은 r = .xx로 낮았다." },
+    { label: "측정동일성", text: "성별에 따른 측정동일성을 검증한 결과, 형태 · 요인부하량 · 절편 동일성이 지지되었다(ΔCFI ≤ .010; Cheung & Rensvold, 2002)." },
+    { label: "제한점 문장", text: "본 연구의 제한점은 다음과 같다. 첫째, 표본이 ○○에 한정되어 일반화에 제한이 있다. 둘째, 자기보고식 측정에 의존하여 사회적 바람직성의 영향을 배제하기 어렵다. 셋째, 준거타당도 검증에 …" }
+  ];
   App.page({
     id: "thesis-refs", title: "참고 템플릿",
     desc: "APA 7판 참고문헌 · 통계 표기 · 학술 문장 패턴을 모아 둔 복사용 템플릿입니다. (학교 · 학회 지침이 우선이에요)",
     render: function (view) {
       var g = ui.grid(view, true);
-      [["APA 7판 참고문헌 · 인용", "Cite", "t-1", APA], ["통계 결과 표기", "Stats", "t-2", STATS], ["학술 문장 패턴 (국문)", "Style", "t-3", SENTENCES], ["영문 초록 · 논문 표현", "English", "t-1", ENGLISH]]
+      [["APA 7판 참고문헌 · 인용", "Cite", "t-1", APA], ["통계 결과 표기", "Stats", "t-2", STATS], ["학술 문장 패턴 (국문)", "Style", "t-3", SENTENCES], ["영문 초록 · 논문 표현", "English", "t-1", ENGLISH], ["척도 타당화 결과 서술 문장", "Scale", "t-2", SCALE_TEXT]]
         .forEach(function (r) { var c = ui.card(g, { tab: r[1], tone: r[2], title: r[0] }); ui.refList(c.body, r[3]); });
     }
   });
+  App.tpl = { CHECK_FIELDS: CHECK_FIELDS, IRB: IRB, EFFECT: EFFECT };
 })(window.App);

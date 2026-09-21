@@ -378,6 +378,25 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .stage-pill { font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); }
 .stage-pill strong { color: var(--ink); margin-left: 4px; }
 
+/* ---------- thesis projects ---------- */
+.proj-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; margin: 6px 0 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.proj-pick { display: flex; align-items: center; gap: 8px; }
+.proj-pick select { padding: 6px 10px; font-weight: 600; max-width: 260px; }
+.proj-pick .f-label { font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-soft); }
+.proj-stage { font-size: 0.82rem; color: var(--ink-soft); }
+.proj-bar .more-link { margin-left: auto; }
+.flow-chip.done { background: var(--accent-2-ink); color: var(--accent-2-strong); border-color: color-mix(in srgb, var(--accent-2) 35%, transparent); }
+.folder-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.folder-actions code { max-width: 100%; overflow-wrap: anywhere; }
+.folder-actions a.tool-btn { text-decoration: none; }
+.req-big { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+.req-num { font-family: var(--font-display); font-weight: 700; font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.req-of { font-family: var(--font-display); font-size: 1.3rem; color: var(--ink-soft); }
+.req-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin-left: 8px; }
+.req-form { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.mini-sub { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); }
+.item-extra .mini-sub { display: block; margin-top: 6px; line-height: 1.5; }
+
 /* ---------- mobile ---------- */
 @media (max-width: 720px) {
   .topbar-in { padding: 10px 16px; }

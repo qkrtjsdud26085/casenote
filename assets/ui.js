@@ -99,6 +99,8 @@
     var views = cfg.views ? (Array.isArray(cfg.views) ? cfg.views : [cfg.views]) : ["cards"];
     var state = { items: [], exists: false, view: views[0], q: "", formOpen: false, editId: null, filters: {} };
     var filterKeys = cfg.filters || [];
+    var scope = cfg.scope || null;
+    function scoped() { return scope ? state.items.filter(function (it) { return it[scope.key] === scope.value; }) : state.items; }
 
     var root = el("div", "items-panel");
     var toolsEl = el("div", "items-tools");
@@ -119,7 +121,7 @@
     function persist(items) {
       state.items = items; state.exists = true;
       renderFilters(); renderSummary(); renderList();
-      if (cfg.onItems) { cfg.onItems(state.items); }
+      if (cfg.onItems) { cfg.onItems(scoped()); }
       var payload = {}; payload[itemsKey] = items; payload.updatedAt = new Date().toISOString();
       return cfg.ref.set(payload, { merge: true }).catch(function (err) { window.alert("저장 실패: " + err.message); });
     }
@@ -132,7 +134,7 @@
       return v === undefined ? "" : v;
     }
     function visibleItems() {
-      var arr = state.items.slice();
+      var arr = scoped().slice();
       filterKeys.forEach(function (k) {
         var want = state.filters[k];
         if (want) { arr = arr.filter(function (it) { return valueFor(it, k) === want; }); }
@@ -151,7 +153,7 @@
       filterKeys.forEach(function (k) {
         var f = fields.filter(function (x) { return x.key === k; })[0];
         var values = f && f.type === "select" ? f.options.slice() : [];
-        state.items.forEach(function (it) { var v = valueFor(it, k); if (v && values.indexOf(v) === -1) { values.push(v); } });
+        scoped().forEach(function (it) { var v = valueFor(it, k); if (v && values.indexOf(v) === -1) { values.push(v); } });
         if (values.length < 2) { return; }
         var row = el("div", "archive-filters");
         ["전체"].concat(values).forEach(function (v) {
@@ -223,6 +225,7 @@
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var item = { id: H.uid() };
+        if (scope) { item[scope.key] = scope.value; }
         fields.forEach(function (f) { item[f.key] = defaultVal(f); });
         cfg.quickFields.forEach(function (k) { item[k] = readInput(inputs[k].f, inputs[k].input); });
         if (!String(item[titleField.key] || "").trim()) { return; }
@@ -263,6 +266,7 @@
         if (item) { next = state.items.map(function (x) { return x.id === item.id ? Object.assign({}, x, vals) : x; }); }
         else {
           var created = Object.assign({ id: H.uid() }, vals);
+          if (scope) { created[scope.key] = scope.value; }
           if (cfg.timestamp) { created.createdAt = new Date().toISOString(); }
           next = state.items.concat([created]);
         }
@@ -427,13 +431,14 @@
       clear(summaryEl); clear(progEl);
       summaryEl.hidden = true;
       if (cfg.summary) {
-        var s = cfg.summary(state.items);
+        var s = cfg.summary(scoped());
         if (s) { summaryEl.hidden = false; if (typeof s === "string") { summaryEl.textContent = s; } else { summaryEl.appendChild(s); } }
       }
-      if (cfg.checkKey && state.items.length) {
-        var done = state.items.filter(function (x) { return x[cfg.checkKey]; }).length;
-        var pct = Math.round(done / state.items.length * 100);
-        progEl.appendChild(ui.progress(pct, done + "/" + state.items.length + " 완료 · " + pct + "%"));
+      var sc = scoped();
+      if (cfg.checkKey && sc.length) {
+        var done = sc.filter(function (x) { return x[cfg.checkKey]; }).length;
+        var pct = Math.round(done / sc.length * 100);
+        progEl.appendChild(ui.progress(pct, done + "/" + sc.length + " 완료 · " + pct + "%"));
       }
     }
     function renderAll() {
@@ -448,9 +453,9 @@
       else if (cfg.defaults) { state.items = withIds(cfg.defaults); state.exists = false; }
       else { state.items = []; state.exists = false; }
       renderFilters(); renderSummary(); renderList();
-      if (cfg.onItems) { cfg.onItems(state.items); }
+      if (cfg.onItems) { cfg.onItems(scoped()); }
     });
-    return { items: function () { return state.items; }, root: root };
+    return { items: function () { return scoped(); }, root: root, refresh: function () { renderSummary(); renderList(); } };
   };
 
   /* ---------- fields panel (single document of labeled text areas) ---------- */
