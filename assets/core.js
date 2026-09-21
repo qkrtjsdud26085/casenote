@@ -90,60 +90,57 @@
 
   /* ---------- menu ---------- */
   App.MENU = [
-    { key: "thesis", label: "박사 학위논문", pages: ["thesis-overview", "thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing", "thesis-advisor", "thesis-publications", "thesis-refs"] },
-    { key: "writer", label: "작가", pages: ["writer-works", "writer-ideas", "writer-log"] },
-    { key: "personal", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-memos", "personal-habits", "personal-weekly"] },
-    { key: "company", label: "회사", pages: ["company-pipeline", "company-billing", "company-worklog", "company-flow", "company-snippets", "company-instructors"] }
+    { key: "thesis", short: "박사", label: "박사 학위논문", pages: ["thesis-overview", "thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing", "thesis-advisor", "thesis-publications", "thesis-refs"] },
+    { key: "writer", short: "작가", label: "작가", pages: ["writer-works", "writer-ideas", "writer-log"] },
+    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-memos", "personal-habits", "personal-weekly"] },
+    { key: "company", short: "회사", label: "회사", pages: ["company-pipeline", "company-billing", "company-worklog", "company-flow", "company-snippets", "company-instructors"] }
   ];
   App.page = function (def) { App.pages[def.id] = def; };
 
   var $ = function (id) { return document.getElementById(id); };
-  var shell, navEl, viewEl, headEl, mtitleEl;
+  var viewEl, headEl, sectionsEl, subnavEl;
 
   function groupOf(id) {
     for (var i = 0; i < App.MENU.length; i++) { if (App.MENU[i].pages.indexOf(id) !== -1) { return App.MENU[i]; } }
     return null;
   }
-  function collapsedSet() { try { return JSON.parse(safeGet("hds_collapsed") || "[]"); } catch (e) { return []; } }
-  function buildNav() {
-    clear(navEl);
-    var home = el("a", "nav-home", "홈"); home.href = "#/home"; home.setAttribute("data-page", "home");
-    navEl.appendChild(home);
-    var collapsed = collapsedSet();
+  function lastPageOf(g) {
+    var saved = safeGet("hds_last_" + g.key);
+    return g.pages.indexOf(saved) !== -1 ? saved : g.pages[0];
+  }
+  function buildSections() {
+    clear(sectionsEl);
     App.MENU.forEach(function (g) {
-      var wrap = el("div", "nav-group" + (collapsed.indexOf(g.key) !== -1 ? " collapsed" : ""));
-      var head = el("button", "nav-group-head", g.label);
-      head.type = "button";
-      head.addEventListener("click", function () {
-        wrap.classList.toggle("collapsed");
-        var now = collapsedSet().filter(function (k) { return k !== g.key; });
-        if (wrap.classList.contains("collapsed")) { now.push(g.key); }
-        safeSet("hds_collapsed", JSON.stringify(now));
-      });
-      var links = el("div", "nav-links");
-      g.pages.forEach(function (pid) {
-        var p = App.pages[pid];
-        if (!p) { return; }
-        var a = el("a", "nav-link", p.title);
-        a.href = "#/" + pid; a.setAttribute("data-page", pid);
-        links.appendChild(a);
-      });
-      wrap.appendChild(head); wrap.appendChild(links);
-      navEl.appendChild(wrap);
+      var a = el("a", "sec-btn", g.short);
+      a.href = "#/" + lastPageOf(g);
+      a.setAttribute("data-section", g.key);
+      sectionsEl.appendChild(a);
     });
   }
-  function setActiveNav(id) {
-    Array.prototype.forEach.call(navEl.querySelectorAll("[data-page]"), function (a) {
-      var on = a.getAttribute("data-page") === id;
+  function updateSections(page) {
+    var grp = groupOf(page.id);
+    if (grp) { safeSet("hds_last_" + grp.key, page.id); }
+    Array.prototype.forEach.call(sectionsEl.children, function (a) {
+      var g = App.MENU.filter(function (x) { return x.key === a.getAttribute("data-section"); })[0];
+      a.href = "#/" + lastPageOf(g);
+      var on = !!grp && grp.key === g.key;
       a.classList.toggle("active", on);
-      if (on) { a.setAttribute("aria-current", "page"); } else { a.removeAttribute("aria-current"); }
-      if (on) {
-        var grp = a.closest(".nav-group");
-        if (grp) { grp.classList.remove("collapsed"); }
-      }
+      if (on) { a.setAttribute("aria-current", "true"); } else { a.removeAttribute("aria-current"); }
     });
+    clear(subnavEl);
+    if (!grp) { subnavEl.hidden = true; return; }
+    subnavEl.hidden = false;
+    grp.pages.forEach(function (pid) {
+      var p = App.pages[pid];
+      if (!p) { return; }
+      var a = el("a", "sub-link" + (pid === page.id ? " active" : ""), p.title);
+      a.href = "#/" + pid; a.setAttribute("data-page", pid);
+      if (pid === page.id) { a.setAttribute("aria-current", "page"); }
+      subnavEl.appendChild(a);
+    });
+    var act = subnavEl.querySelector(".active");
+    if (act && act.scrollIntoView) { act.scrollIntoView({ block: "nearest", inline: "center" }); }
   }
-  function closeNav() { shell.classList.remove("nav-open"); }
 
   function currentId() {
     var h = (location.hash || "").replace(/^#\/?/, "");
@@ -169,11 +166,9 @@
       headEl.appendChild(el("h1", "page-title", page.title));
       if (page.desc) { headEl.appendChild(el("p", "page-desc", page.desc)); }
     }
-    mtitleEl.textContent = page.id === "home" ? "Hello dear Sunny" : page.title;
     document.title = (page.id === "home" ? "" : page.title + " · ") + "Hello dear Sunny";
-    setActiveNav(page.id);
+    updateSections(page);
     clear(viewEl);
-    closeNav();
     window.scrollTo(0, 0);
     try { page.render(viewEl, { page: page }); } catch (e) { console.error(e); viewEl.appendChild(errorCard(e)); }
     safeSet("hds_page", page.id);
@@ -212,14 +207,12 @@
     $("userAvatar").hidden = !user.photoURL;
     $("userAvatar").src = user.photoURL || "";
     $("userLabel").textContent = user.displayName || user.email;
-    if (!navEl.firstChild) { buildNav(); }
+    if (!sectionsEl.firstChild) { buildSections(); }
     route();
   }
 
   App.start = function () {
-    shell = $("appRoot"); navEl = $("nav"); viewEl = $("view"); headEl = $("pageHead"); mtitleEl = $("mtitle");
-    $("menuBtn").addEventListener("click", function () { shell.classList.toggle("nav-open"); });
-    $("scrim").addEventListener("click", closeNav);
+    viewEl = $("view"); headEl = $("pageHead"); sectionsEl = $("sections"); subnavEl = $("subnav");
     $("signOutBtn").addEventListener("click", function () { App.auth.signOut(); });
     window.addEventListener("hashchange", route);
     if (typeof firebase === "undefined") {

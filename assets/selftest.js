@@ -85,8 +85,12 @@
       await go(id);
       var view = $("#view");
       ok("render " + id, view.children.length > 0 && !$(".error-card", view), $(".error-card", view) ? $(".error-card", view).textContent : "empty view");
-      var act = $("#nav .active");
-      ok("nav-active " + id, !!act && act.getAttribute("data-page") === id, act ? act.getAttribute("data-page") : "none");
+      if (id === "home") { ok("home has no subnav", $("#subnav").hidden); }
+      else {
+        var act = $("#subnav .active");
+        ok("subnav-active " + id, !!act && act.getAttribute("data-page") === id, act ? act.getAttribute("data-page") : "none");
+        ok("section-active " + id, !!$("#sections .active"), "no active section button");
+      }
       if (id !== "home") { ok("head " + id, $("#pageHead .page-title") && $("#pageHead .page-title").textContent === App.pages[id].title, "title mismatch"); }
       if ($$("#view .items-panel").length) { await testPanels(id); }
     }
@@ -94,6 +98,17 @@
     /* custom flows */
     await go("home");
     ok("home tiles", $$("#view .tile").length === 6, $$("#view .tile").length);
+    ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인,회사", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
+    ok("home quote", !!$("#view .quote-text") && $("#view .quote-text").textContent.length > 4 && /—/.test($("#view .quote-author").textContent), $("#view .quote-author") && $("#view .quote-author").textContent);
+    ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
+    ok("home affiliation", /한국가이던스 대구점/.test($("#view .home-affil").textContent) && /범죄심리학과 석박사 수료/.test($("#view .home-affil").textContent));
+    ok("home old profile removed", !$("#view .badge") && !$("#view [contenteditable]") && !$("#view .bio"));
+    $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
+    ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
+    ok("subnav count writer", $$("#subnav .sub-link").length === 3, $$("#subnav .sub-link").length);
+    $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
+    ok("subnav count thesis", $$("#subnav .sub-link").length === 13, $$("#subnav .sub-link").length);
+    await go("home");
 
     await go("personal-todos");
     var tf = $("#view form.quick-add");

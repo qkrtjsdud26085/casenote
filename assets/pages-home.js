@@ -8,38 +8,22 @@
     render: function (view) {
       var D = { todos: [], schedule: [], thesis: null, roadmap: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null };
 
-      /* ---------- hero (profile, editable) ---------- */
-      var hero = el("section", "hero");
-      var now = new Date();
-      hero.appendChild(el("p", "eyebrow", "Personal Workspace · " + now.getFullYear() + "." + H.pad2(now.getMonth() + 1) + "." + H.pad2(now.getDate()) + " (" + H.DOW[now.getDay()] + ")"));
-      var fields = {
-        name: el("h1", "name"), bio: el("p", "bio"),
-        company: el("span", "badge company"), academic: el("span", "badge academic")
-      };
-      fields.name.setAttribute("data-placeholder", "이름을 입력하세요");
-      fields.bio.setAttribute("data-placeholder", "한 줄 소개를 입력하세요");
-      Object.keys(fields).forEach(function (k) { fields[k].contentEditable = "true"; fields[k].setAttribute("data-field", k); });
-      var badges = el("div", "badges"); badges.appendChild(fields.company); badges.appendChild(fields.academic);
-      hero.appendChild(fields.name); hero.appendChild(fields.bio); hero.appendChild(badges);
-      view.appendChild(hero);
-      var profile = { company: "한국가이던스 대구점", academic: "영남대학교 대학원 범죄심리학과 석·박사 수료" };
-      var profileRef = App.doc("profile/main");
-      function empty(elm) { if (elm.textContent.trim().length === 0) { elm.setAttribute("data-empty", "true"); } else { elm.removeAttribute("data-empty"); } }
-      function applyProfile(d) {
-        profile = Object.assign({}, profile, d || {});
-        Object.keys(fields).forEach(function (k) {
-          if (document.activeElement === fields[k]) { return; }
-          fields[k].textContent = profile[k] || ""; empty(fields[k]);
-        });
-      }
-      Object.keys(fields).forEach(function (k) {
-        var f = fields[k];
-        f.addEventListener("input", function () { empty(f); });
-        f.addEventListener("blur", function () { profile[k] = f.textContent.trim(); profileRef.set(profile, { merge: true }).catch(function () {}); });
-        f.addEventListener("keydown", function (e) { if (e.key === "Enter" && k !== "bio") { e.preventDefault(); f.blur(); } });
-      });
-      applyProfile(null);
-      App.watchDoc(profileRef, applyProfile);
+      /* ---------- header: title, affiliation, quote of the day ---------- */
+      var head = el("section", "home-head");
+      var left = el("div", "home-left");
+      left.appendChild(el("h1", "home-title", "Hello dear Sunny"));
+      var affil = el("p", "home-affil");
+      affil.appendChild(el("span", "", "한국가이던스 대구점"));
+      affil.appendChild(el("span", "", "영남대학교 대학원 범죄심리학과 석박사 수료"));
+      left.appendChild(affil);
+      var quote = App.todayQuote();
+      var year = String(quote.y).replace(/^(\d+)경$/, "$1년경").replace(/^(기원전 )?(\d+)$/, "$1$2년");
+      var box = el("div", "quote-box");
+      box.appendChild(el("p", "quote-label", "오늘의 명언"));
+      box.appendChild(el("p", "quote-text", "“" + quote.t + "”"));
+      box.appendChild(el("p", "quote-author", "— " + quote.a + " · " + year));
+      head.appendChild(left); head.appendChild(box);
+      view.appendChild(head);
 
       /* ---------- quick capture ---------- */
       var cap = el("form", "capture");

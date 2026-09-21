@@ -9,38 +9,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=20260921">
+<link rel="stylesheet" href="assets/style.css?v=20260922">
 </head>
 <body>
 <div id="landing" class="landing"><p class="page-desc">불러오는 중…</p></div>
 
-<div id="appRoot" class="shell" hidden>
-  <aside class="sidebar" id="sidebar">
-    <div class="brand-block">
+<div id="appRoot" class="app" hidden>
+  <header class="topbar">
+    <div class="topbar-in">
       <a class="brand" href="#/home">Hello dear Sunny</a>
-      <span class="brand-sub">Personal Workspace</span>
-    </div>
-    <nav class="nav" id="nav" aria-label="메뉴"></nav>
-    <div class="side-foot">
-      <div class="user-chip">
-        <img class="user-avatar" id="userAvatar" alt="" />
-        <span class="user-label" id="userLabel"></span>
-        <button class="signout-btn" id="signOutBtn" type="button">로그아웃</button>
+      <div class="top-right">
+        <nav class="sections" id="sections" aria-label="섹션"></nav>
+        <div class="user-chip">
+          <img class="user-avatar" id="userAvatar" alt="" />
+          <span class="user-label" id="userLabel"></span>
+          <button class="signout-btn" id="signOutBtn" type="button">로그아웃</button>
+        </div>
       </div>
-      <div class="sync-note"><span class="sync-dot on"></span><span>실시간 동기화 중</span></div>
     </div>
-  </aside>
-  <div class="scrim" id="scrim"></div>
-  <div class="main-wrap">
-    <div class="mtop">
-      <button class="menu-btn" id="menuBtn" type="button" aria-label="메뉴 열기">☰</button>
-      <span class="mtitle" id="mtitle"></span>
-    </div>
-    <main class="main">
-      <header class="page-head" id="pageHead" hidden></header>
-      <div class="view" id="view"></div>
-    </main>
-  </div>
+    <nav class="subnav" id="subnav" aria-label="세부 메뉴" hidden></nav>
+  </header>
+  <main class="main">
+    <header class="page-head" id="pageHead" hidden></header>
+    <div class="view" id="view"></div>
+  </main>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
@@ -51,11 +43,12 @@
   /* local self-test only: file:// + ?mock swaps in an in-memory Firebase (never active on the live site) */
   if (location.protocol === "file:" && /[?&]mock\b/.test(location.search)) { document.write('<script src="assets/mock.js"><\/script>'); }
 </script>
-<script src="assets/core.js?v=20260921"></script>
-<script src="assets/ui.js?v=20260921"></script>
-<script src="assets/pages-thesis.js?v=20260921"></script>
-<script src="assets/pages-other.js?v=20260921"></script>
-<script src="assets/pages-home.js?v=20260921"></script>
+<script src="assets/core.js?v=20260922"></script>
+<script src="assets/ui.js?v=20260922"></script>
+<script src="assets/pages-thesis.js?v=20260922"></script>
+<script src="assets/pages-other.js?v=20260922"></script>
+<script src="assets/quotes.js?v=20260922"></script>
+<script src="assets/pages-home.js?v=20260922"></script>
 <script>
   App.start();
   if (location.protocol === "file:" && /[?&]selftest\b/.test(location.search)) { document.write('<script src="assets/selftest.js"><\/script>'); }
