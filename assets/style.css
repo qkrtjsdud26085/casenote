@@ -451,7 +451,7 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .cv-link { fill: none; stroke: var(--ink-soft); stroke-width: 1.7; opacity: 0.7; }
 .cv-link.sel { stroke: var(--accent); stroke-width: 2.8; opacity: 1; }
 .cv-link-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
-.cv-node { position: absolute; min-width: 56px; max-width: 250px; padding: 8px 13px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--ink); font-size: 0.88rem; line-height: 1.5; box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.15); cursor: grab; white-space: pre-wrap; word-break: break-word; }
+.cv-node { position: absolute; width: max-content; min-width: 56px; max-width: 250px; padding: 8px 13px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--ink); font-size: 0.88rem; line-height: 1.5; box-shadow: 0 1px 3px rgba(var(--shadow-rgb), 0.15); cursor: grab; white-space: pre-wrap; word-break: break-word; }
 .cv-node.sel { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 .cv-node.link-src { outline: 2.5px dashed var(--accent-2); }
 .cv-text { min-height: 1.3em; }
