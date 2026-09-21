@@ -207,6 +207,23 @@
   .paper-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; }
   .paper-tag { font-size: 0.7rem; background: var(--surface-2); color: var(--ink-soft); padding: 3px 8px; border-radius: 999px; }
 
+  .quick-add select { font-family: var(--font-body); font-size: 0.88rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); flex: 0 0 auto; }
+  .work-add input:first-child { flex: 1 1 100%; }
+  .work-add input:nth-of-type(2) { flex: 1 1 140px; }
+  ul.work-list, ul.idea-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+  .work-item, .idea-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); }
+  .work-item:hover .del-btn, .idea-item:hover .del-btn { opacity: 1; }
+  .work-main { flex: 1; min-width: 0; }
+  .work-title { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; word-break: break-word; }
+  .work-note { font-size: 0.8rem; color: var(--ink-soft); margin-top: 2px; line-height: 1.5; word-break: break-word; }
+  .status-chip { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.68rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: pointer; }
+  .status-chip[data-status="집필중"] { background: var(--accent-ink); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .status-chip[data-status="퇴고"] { background: var(--accent-2-ink); color: var(--accent-2-strong); border-color: color-mix(in srgb, var(--accent-2) 35%, transparent); }
+  .status-chip[data-status="완결"] { background: var(--accent-2); color: var(--accent-2-ink); border-color: var(--accent-2); }
+  .idea-text { flex: 1; font-size: 0.88rem; line-height: 1.55; word-break: break-word; white-space: pre-wrap; }
+  .idea-date { font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-soft); white-space: nowrap; }
+  .tabs { flex-wrap: wrap; }
+
   footer.page-footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.78rem; color: var(--ink-soft); line-height: 1.6; }
   footer.page-footer code { font-family: var(--font-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; }
 </style>
@@ -218,8 +235,10 @@
       <span class="brand">Hello dear Sunny</span>
       <div class="topbar-right">
         <nav class="tabs" role="tablist">
-          <button class="tab-btn active" data-tab="work" role="tab" aria-selected="true">업무 데스크</button>
-          <button class="tab-btn" data-tab="research" role="tab" aria-selected="false">연구 아카이브</button>
+          <button class="tab-btn active" data-tab="research" role="tab" aria-selected="true">대학원 논문</button>
+          <button class="tab-btn" data-tab="writer" role="tab" aria-selected="false">작가</button>
+          <button class="tab-btn" data-tab="personal" role="tab" aria-selected="false">개인일정관리</button>
+          <button class="tab-btn" data-tab="company" role="tab" aria-selected="false">회사</button>
         </nav>
         <div class="auth-box">
           <button class="signin-btn" id="signInBtn" hidden>
@@ -240,7 +259,7 @@
     <p class="eyebrow">Personal Workspace</p>
     <div id="heroLocked">
       <h1 class="name">Hello dear Sunny</h1>
-      <p class="bio">업무와 범죄심리학 연구를 함께 관리하는 개인 워크스페이스입니다.</p>
+      <p class="bio">대학원 논문 · 글쓰기 · 개인 일정 · 회사 업무를 한곳에서 관리하는 개인 워크스페이스입니다.</p>
     </div>
     <div id="heroOwner" hidden>
       <h1 class="name" id="profileName" contenteditable="true" data-placeholder="이름을 입력하세요" data-field="name"></h1>
@@ -253,9 +272,9 @@
     <p class="sync-note"><span class="sync-dot" id="syncDot"></span><span id="syncText">Google 로그인이 필요합니다</span></p>
   </section>
 
-  <section class="panel" id="panel-work">
-    <div class="lock-panel" id="workLock">Google 계정으로 로그인하면 이 워크스페이스의 소유자에게만 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 <strong>실시간으로 동일하게 동기화</strong>됩니다.</div>
-    <div class="desk-grid" id="deskGrid" hidden>
+  <section class="panel" id="panel-personal" hidden>
+    <div class="lock-panel gate-lock" data-msg="Google 계정으로 로그인하면 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 실시간으로 동기화됩니다."></div>
+    <div class="desk-grid gate-content" hidden>
       <article class="card">
         <span class="tab-label t-2">To-do</span>
         <div class="card-head"><h2>할 일</h2><span class="count" id="todoCount"></span></div>
@@ -271,7 +290,7 @@
         <div class="card-head"><h2>메모 · 기록</h2></div>
         <form class="quick-add memo-add" id="memoForm">
           <input id="memoTitle" placeholder="제목 (선택)" maxlength="80" />
-          <textarea id="memoBody" placeholder="업무 중 남길 메모를 적어보세요" rows="3" required></textarea>
+          <textarea id="memoBody" placeholder="남길 메모를 적어보세요" rows="3" required></textarea>
           <button type="submit">기록 추가</button>
         </form>
         <ul class="memo-list" id="memoList"></ul>
@@ -287,7 +306,12 @@
         </form>
         <ul class="schedule-list" id="scheduleList"></ul>
       </article>
+    </div>
+  </section>
 
+  <section class="panel" id="panel-company" hidden>
+    <div class="lock-panel gate-lock" data-msg="Google 계정으로 로그인하면 업무 로그 · 업무 순서도가 보입니다. 내용은 로그인한 본인에게만 보여요."></div>
+    <div class="desk-grid gate-content" hidden>
       <article class="card">
         <span class="tab-label t-2">Obsidian</span>
         <div class="card-head"><h2>업무 로그</h2></div>
@@ -317,9 +341,38 @@
     </div>
   </section>
 
-  <section class="panel" id="panel-research" hidden>
-    <div class="lock-panel" id="researchLock">Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다.</div>
-    <div id="researchContent" hidden>
+  <section class="panel" id="panel-writer" hidden>
+    <div class="lock-panel gate-lock" data-msg="Google 계정으로 로그인하면 작품 · 글감 노트가 보입니다. 내용은 로그인한 본인에게만 보여요."></div>
+    <div class="desk-grid gate-content" hidden>
+      <article class="card">
+        <span class="tab-label t-1">Works</span>
+        <div class="card-head"><h2>작품 · 원고</h2><span class="count" id="workCount"></span></div>
+        <form class="quick-add work-add" id="workForm">
+          <input id="workTitle" placeholder="작품 제목" maxlength="120" required />
+          <select id="workStatus" aria-label="진행 상태">
+            <option>구상</option><option>집필중</option><option>퇴고</option><option>완결</option>
+          </select>
+          <input id="workNote" placeholder="한 줄 소개 · 메모 (선택)" maxlength="200" />
+          <button type="submit">추가</button>
+        </form>
+        <ul class="work-list" id="workList"></ul>
+      </article>
+
+      <article class="card">
+        <span class="tab-label t-3">Ideas</span>
+        <div class="card-head"><h2>글감 · 아이디어</h2></div>
+        <form class="quick-add" id="ideaForm">
+          <input id="ideaInput" placeholder="떠오른 문장·소재를 적고 Enter" maxlength="300" required />
+          <button type="submit">추가</button>
+        </form>
+        <ul class="idea-list" id="ideaList"></ul>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-research">
+    <div class="lock-panel gate-lock" data-msg="Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다."></div>
+    <div class="gate-content" hidden>
       <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다. 목록은 Firestore에만 저장되며 로그인한 소유자만 볼 수 있어요.</p>
       <button type="button" class="obs-toggle" id="paperToggleBtn">+ 자료 추가</button>
       <form class="quick-add paper-form" id="paperForm" hidden>
@@ -337,8 +390,7 @@
   </section>
 
   <footer class="page-footer">
-    이름·소개·배지·할 일·메모·일정은 <strong>Google 로그인(본인 계정)</strong> 상태에서만 보이고 수정되며, 어느 기기에서 열어도 실시간으로 동기화됩니다.
-    연구 아카이브도 로그인한 소유자만 볼 수 있으며, 목록은 화면에서 직접 추가·삭제하고 Firestore에만 저장됩니다.
+    네 섹션(대학원 논문 · 작가 · 개인일정관리 · 회사)의 모든 내용은 <strong>Google 로그인(본인 계정)</strong> 상태에서만 보이고 수정되며, Firestore에만 저장되어 어느 기기에서 열어도 실시간으로 동기화됩니다.
   </footer>
 </div>
 
@@ -352,16 +404,28 @@
 
   // ---------- tabs ----------
   var tabBtns = document.querySelectorAll(".tab-btn");
-  var panels = { work: document.getElementById("panel-work"), research: document.getElementById("panel-research") };
-  tabBtns.forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      tabBtns.forEach(function (b) { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
-      btn.classList.add("active");
-      btn.setAttribute("aria-selected", "true");
-      var target = btn.getAttribute("data-tab");
-      Object.keys(panels).forEach(function (key) { panels[key].hidden = key !== target; });
+  var panels = {
+    research: document.getElementById("panel-research"),
+    writer: document.getElementById("panel-writer"),
+    personal: document.getElementById("panel-personal"),
+    company: document.getElementById("panel-company")
+  };
+  function showTab(target) {
+    if (!panels[target]) { target = "research"; }
+    tabBtns.forEach(function (b) {
+      var on = b.getAttribute("data-tab") === target;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
     });
+    Object.keys(panels).forEach(function (key) { panels[key].hidden = key !== target; });
+    try { localStorage.setItem("hds_tab", target); } catch (e) {}
+  }
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () { showTab(btn.getAttribute("data-tab")); });
   });
+  var savedTab = "research";
+  try { savedTab = localStorage.getItem("hds_tab") || "research"; } catch (e) {}
+  showTab(savedTab);
 
   // ---------- research archive (static template, public) ----------
   var PAPERS = []; // loaded from Firestore (owner only), never stored in the repo
@@ -484,12 +548,20 @@
   var signOutBtn = document.getElementById("signOutBtn");
   var heroLocked = document.getElementById("heroLocked");
   var heroOwner = document.getElementById("heroOwner");
-  var workLock = document.getElementById("workLock");
-  var deskGrid = document.getElementById("deskGrid");
-  var researchLock = document.getElementById("researchLock");
-  var researchContent = document.getElementById("researchContent");
+  var gateLocks = document.querySelectorAll(".gate-lock");
+  var gateContents = document.querySelectorAll(".gate-content");
+  function setGate(open, deniedEmail) {
+    gateContents.forEach(function (el) { el.hidden = !open; });
+    gateLocks.forEach(function (el) {
+      el.hidden = open;
+      el.textContent = deniedEmail
+        ? "이 Google 계정(" + deniedEmail + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다."
+        : el.getAttribute("data-msg");
+    });
+  }
   var syncDot = document.getElementById("syncDot");
   var syncText = document.getElementById("syncText");
+  setGate(false, null);
 
   signInBtn.addEventListener("click", function () {
     auth.signInWithPopup(provider).catch(function (err) {
@@ -504,6 +576,109 @@
       return d.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) + " " + d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
     } catch (e) { return ""; }
   }
+
+  // ---------- writer section (Firestore only, owner only) ----------
+  var worksRef = db.collection("writer").doc("works");
+  var ideasRef = db.collection("writer").doc("ideas");
+  var WORKS = [];
+  var IDEAS = [];
+  var STATUSES = ["구상", "집필중", "퇴고", "완결"];
+  var workList = document.getElementById("workList");
+  var workCount = document.getElementById("workCount");
+  var ideaList = document.getElementById("ideaList");
+
+  function saveItems(ref, items) {
+    return ref.set({ items: items, updatedAt: new Date().toISOString() }).catch(function (err) {
+      window.alert("저장 실패: " + err.message);
+    });
+  }
+
+  function renderWorks() {
+    workList.innerHTML = "";
+    workCount.textContent = WORKS.length ? WORKS.length + "편" : "";
+    if (!WORKS.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "아직 작품이 없습니다. 위에서 추가해보세요.";
+      workList.appendChild(empty);
+      return;
+    }
+    WORKS.forEach(function (w) {
+      var li = document.createElement("li");
+      li.className = "work-item";
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "status-chip";
+      chip.setAttribute("data-status", w.status);
+      chip.textContent = w.status;
+      chip.title = "누르면 상태가 바뀝니다";
+      chip.addEventListener("click", function () {
+        var next = STATUSES[(STATUSES.indexOf(w.status) + 1) % STATUSES.length];
+        saveItems(worksRef, WORKS.map(function (x) { return x.id === w.id ? Object.assign({}, x, { status: next }) : x; }));
+      });
+      var main = document.createElement("div");
+      main.className = "work-main";
+      var title = document.createElement("div");
+      title.className = "work-title";
+      title.textContent = w.title;
+      main.appendChild(title);
+      if (w.note) {
+        var note = document.createElement("div");
+        note.className = "work-note";
+        note.textContent = w.note;
+        main.appendChild(note);
+      }
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () {
+        if (!window.confirm("이 작품을 삭제할까요?")) { return; }
+        saveItems(worksRef, WORKS.filter(function (x) { return x.id !== w.id; }));
+      });
+      li.appendChild(chip); li.appendChild(main); li.appendChild(del);
+      workList.appendChild(li);
+    });
+  }
+
+  function renderIdeas() {
+    ideaList.innerHTML = "";
+    if (!IDEAS.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty-state";
+      empty.textContent = "떠오른 글감이 아직 없습니다.";
+      ideaList.appendChild(empty);
+      return;
+    }
+    IDEAS.slice().reverse().forEach(function (idea) {
+      var li = document.createElement("li");
+      li.className = "idea-item";
+      var text = document.createElement("span");
+      text.className = "idea-text";
+      text.textContent = idea.text;
+      var date = document.createElement("span");
+      date.className = "idea-date";
+      date.textContent = fmtDate(idea.createdAt);
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () { saveItems(ideasRef, IDEAS.filter(function (x) { return x.id !== idea.id; })); });
+      li.appendChild(text); li.appendChild(date); li.appendChild(del);
+      ideaList.appendChild(li);
+    });
+  }
+
+  document.getElementById("workForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var title = document.getElementById("workTitle").value.trim();
+    if (!title) { return; }
+    var item = { id: String(Date.now()), title: title, status: document.getElementById("workStatus").value, note: document.getElementById("workNote").value.trim() };
+    saveItems(worksRef, WORKS.concat([item])).then(function () { e.target.reset(); });
+  });
+  document.getElementById("ideaForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = document.getElementById("ideaInput");
+    var text = input.value.trim();
+    if (!text) { return; }
+    saveItems(ideasRef, IDEAS.concat([{ id: String(Date.now()), text: text, createdAt: new Date().toISOString() }])).then(function () { input.value = ""; });
+  });
 
   // ---------- obsidian work log (pasted by owner, stored in Firestore only) ----------
   var obsToggleBtn = document.getElementById("obsToggleBtn");
@@ -847,8 +1022,17 @@
     unsubscribers = [];
     renderTodos([]); renderMemos([]); renderSchedule([]); renderObsLog(null); renderFlow(null);
     setPapers([]); paperStatus.textContent = "";
+    WORKS = []; IDEAS = []; renderWorks(); renderIdeas();
   }
   function subscribeAll() {
+    unsubscribers.push(worksRef.onSnapshot(function (snap) {
+      WORKS = snap.exists ? (snap.data().items || []) : [];
+      renderWorks();
+    }, function () {}));
+    unsubscribers.push(ideasRef.onSnapshot(function (snap) {
+      IDEAS = snap.exists ? (snap.data().items || []) : [];
+      renderIdeas();
+    }, function () {}));
     unsubscribers.push(papersRef.onSnapshot(function (snap) {
       setPapers(snap.exists ? snap.data().items : []);
       paperStatus.textContent = snap.exists && snap.data().updatedAt ? "마지막 업데이트: " + fmtDate(snap.data().updatedAt) : "";
@@ -882,10 +1066,7 @@
       userLabel.textContent = user.displayName || user.email;
       heroLocked.hidden = true;
       heroOwner.hidden = false;
-      workLock.hidden = true;
-      deskGrid.hidden = false;
-      researchLock.hidden = true;
-      researchContent.hidden = false;
+      setGate(true);
       syncDot.className = "sync-dot on";
       syncText.textContent = "실시간 동기화 중 · 어느 기기에서나 동일하게 보입니다";
       subscribeAll();
@@ -896,12 +1077,7 @@
       userLabel.textContent = user.displayName || user.email;
       heroLocked.hidden = false;
       heroOwner.hidden = true;
-      workLock.hidden = false;
-      workLock.textContent = "이 Google 계정(" + user.email + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다.";
-      deskGrid.hidden = true;
-      researchLock.textContent = "이 Google 계정(" + user.email + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다.";
-      researchLock.hidden = false;
-      researchContent.hidden = true;
+      setGate(false, user.email);
       syncDot.className = "sync-dot warn";
       syncText.textContent = "접근 권한이 없는 계정입니다";
     } else {
@@ -909,12 +1085,7 @@
       userChip.hidden = true;
       heroLocked.hidden = false;
       heroOwner.hidden = true;
-      workLock.hidden = false;
-      workLock.textContent = "Google 계정으로 로그인하면 이 워크스페이스의 소유자에게만 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 실시간으로 동기화됩니다.";
-      deskGrid.hidden = true;
-      researchLock.textContent = "Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다.";
-      researchLock.hidden = false;
-      researchContent.hidden = true;
+      setGate(false, null);
       syncDot.className = "sync-dot";
       syncText.textContent = "Google 로그인이 필요합니다";
     }
