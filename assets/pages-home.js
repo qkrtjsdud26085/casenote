@@ -6,16 +6,16 @@
   App.page({
     id: "home", title: "홈",
     render: function (view) {
-      var D = { todos: [], schedule: [], thesis: null, roadmap: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null };
+      var D = { todos: [], schedule: [], thesis: null, roadmap: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null, gcal: null };
 
       /* ---------- header: title, affiliation, quote of the day ---------- */
       var head = el("section", "home-head");
       var left = el("div", "home-left");
       left.appendChild(el("h1", "home-title", "Hello dear Sunny"));
-      var affil = el("p", "home-affil");
-      affil.appendChild(el("span", "", "한국가이던스 대구점"));
-      affil.appendChild(el("span", "", "영남대학교 대학원 범죄심리학과 석박사 수료"));
-      left.appendChild(affil);
+      var badges = el("div", "badges");
+      badges.appendChild(el("span", "badge company", "한국가이던스 대구점"));
+      badges.appendChild(el("span", "badge academic", "영남대학교 대학원 범죄심리학과 석·박사 수료"));
+      left.appendChild(badges);
       var quote = App.todayQuote();
       var year = String(quote.y).replace(/^(\d+)경$/, "$1년경").replace(/^(기원전 )?(\d+)$/, "$1$2년");
       var box = el("div", "quote-box");
@@ -100,11 +100,18 @@
         });
         c1.body.appendChild(el("div", "mini-title", "다가오는 일정"));
         var l2 = mini(c1.body);
-        var up = D.schedule.filter(function (s) { return s.date >= today; }).slice(0, 5);
+        var up = D.schedule.filter(function (s) { return s.date >= today; })
+          .concat(App.gcal ? App.gcal.expand(D.gcal, today, H.dateKey(H.addDays(new Date(), 60))) : [])
+          .sort(function (a, b) { var x = a.date + (a.time || ""), y = b.date + (b.time || ""); return x < y ? -1 : (x > y ? 1 : 0); })
+          .slice(0, 5);
         if (!up.length) { l2.appendChild(ui.empty("예정된 일정이 없어요.")); }
         up.forEach(function (s) {
           var chip = el("span", "cat-chip", s.cat || "개인"); chip.setAttribute("data-cat", s.cat || "개인");
-          miniItem(l2, [H.ddayEl(s.date), el("span", "grow", s.title), chip]);
+          var nodes = [H.ddayEl(s.date), el("span", "grow", s.title)];
+          if (s.time) { nodes.push(el("span", "mini-sub", s.time)); }
+          if (s.source === "google") { var g = el("span", "cat-chip", "G"); g.setAttribute("data-cat", "구글"); g.title = "Google 캘린더"; nodes.push(g); }
+          nodes.push(chip);
+          miniItem(l2, nodes);
         });
 
         /* 박사 학위논문 */
@@ -183,7 +190,7 @@
       App.watchQuery(App.col("todos").orderBy("createdAt", "asc"), function (i) { D.todos = i; draw(); });
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
       [["thesis", "research/thesis"], ["roadmap", "research/roadmap"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
-        ["works", "writer/works"], ["habits", "personal/habits"], ["worklog", "worklog/current"], ["pipeline", "company/pipeline"], ["reco", "research/reco"]]
+        ["works", "writer/works"], ["habits", "personal/habits"], ["worklog", "worklog/current"], ["pipeline", "company/pipeline"], ["reco", "research/reco"], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }
   });

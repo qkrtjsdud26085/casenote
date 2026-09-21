@@ -594,23 +594,34 @@
     });
   };
 
-  /* ---------- upcoming schedule filtered by category ---------- */
+  /* ---------- upcoming schedule (own items + synced Google Calendar events) ---------- */
   ui.upcoming = function (parent, cat, limit) {
-    var ul = el("div", "plain-list");
-    parent.appendChild(ul);
-    App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (items) {
-      clear(ul);
-      var t = H.todayStr();
-      var list = items.filter(function (s) { return (cat === "*" || (s.cat || "개인") === cat) && s.date >= t; }).slice(0, limit || 5);
-      if (!list.length) { ul.appendChild(ui.empty(cat === "*" ? "예정된 일정이 없습니다." : "예정된 일정이 없습니다. 개인 › 일정 · 캘린더에서 '" + cat + "' 분류로 추가하면 여기에도 보여요.")); return; }
+    var box = el("div", "plain-list");
+    parent.appendChild(box);
+    var local = [], gdoc = null;
+    function draw() {
+      clear(box);
+      var t = H.todayStr(), to = H.dateKey(H.addDays(new Date(), 120));
+      var list = local.filter(function (s) { return (cat === "*" || (s.cat || "개인") === cat) && s.date >= t; });
+      if (App.gcal) {
+        list = list.concat(App.gcal.expand(gdoc, t, to).filter(function (s) { return cat === "*" || s.cat === cat; }));
+      }
+      list.sort(function (a, b) { var x = a.date + (a.time || ""), y = b.date + (b.time || ""); return x < y ? -1 : (x > y ? 1 : 0); });
+      list = list.slice(0, limit || 5);
+      if (!list.length) { box.appendChild(ui.empty(cat === "*" ? "예정된 일정이 없습니다." : "예정된 일정이 없습니다. 개인 › 일정 · 캘린더에서 '" + cat + "' 분류로 추가하면 여기에도 보여요.")); return; }
       list.forEach(function (s) {
         var li = el("div", "upcoming-item");
         li.appendChild(H.ddayEl(s.date));
-        li.appendChild(el("span", "u-title", s.title));
+        var title = el("span", "u-title");
+        if (s.link) { var a = el("a", "", s.title); a.href = s.link; a.target = "_blank"; a.rel = "noopener noreferrer"; title.appendChild(a); } else { title.textContent = s.title; }
+        li.appendChild(title);
+        if (s.source === "google") { var g = el("span", "cat-chip", "G"); g.setAttribute("data-cat", "구글"); g.title = "Google 캘린더"; li.appendChild(g); }
         if (cat === "*") { var c = el("span", "cat-chip", s.cat || "개인"); c.setAttribute("data-cat", s.cat || "개인"); li.appendChild(c); }
-        li.appendChild(el("span", "u-date", s.date.slice(5).replace("-", "/")));
-        ul.appendChild(li);
+        li.appendChild(el("span", "u-date", s.date.slice(5).replace("-", "/") + (s.time ? " " + s.time : "")));
+        box.appendChild(li);
       });
-    });
+    }
+    App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (items) { local = items; draw(); });
+    App.watchDoc(App.doc("personal/gcal"), function (d) { gdoc = d; draw(); });
   };
 })(window.App);

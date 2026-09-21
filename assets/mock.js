@@ -62,7 +62,7 @@
       return { delete: function (ref) { ops.push(ref); }, commit: function () { ops.forEach(function (r) { delete store[r.path]; }); notify(); return Promise.resolve(); } };
     }
   };
-  var user = { email: "qkrtjsdud26085@gmail.com", displayName: "테스트", photoURL: "" };
+  var user = { email: "qkrtjsdud26085@gmail.com", displayName: "테스트", photoURL: "", reauthenticateWithPopup: function () { return Promise.resolve({ credential: { accessToken: "test-token" } }); } };
   var authObj = {
     currentUser: user,
     setPersistence: function () { return Promise.resolve(); },
@@ -71,7 +71,7 @@
     signInWithPopup: function () { return Promise.resolve(); }
   };
   var authFn = function () { return authObj; };
-  authFn.GoogleAuthProvider = function () {};
+  authFn.GoogleAuthProvider = function () { this.addScope = function () {}; this.setCustomParameters = function () {}; };
   authFn.Auth = { Persistence: { LOCAL: "local" } };
   window.firebase = { initializeApp: function () {}, auth: authFn, firestore: function () { return db; } };
   window.__MOCK_STORE = store;

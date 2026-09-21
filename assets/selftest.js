@@ -87,7 +87,7 @@
       ok("render " + id, view.children.length > 0 && !$(".error-card", view), $(".error-card", view) ? $(".error-card", view).textContent : "empty view");
       if (id === "home") { ok("home has no subnav", $("#subnav").hidden); }
       else {
-        var act = $("#subnav .active");
+        var act = $("#subnav a.active");
         ok("subnav-active " + id, !!act && act.getAttribute("data-page") === id, act ? act.getAttribute("data-page") : "none");
         ok("section-active " + id, !!$("#sections .active"), "no active section button");
       }
@@ -101,13 +101,16 @@
     ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인,회사", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
     ok("home quote", !!$("#view .quote-text") && $("#view .quote-text").textContent.length > 4 && /—/.test($("#view .quote-author").textContent), $("#view .quote-author") && $("#view .quote-author").textContent);
     ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
-    ok("home affiliation", /한국가이던스 대구점/.test($("#view .home-affil").textContent) && /범죄심리학과 석박사 수료/.test($("#view .home-affil").textContent));
-    ok("home old profile removed", !$("#view .badge") && !$("#view [contenteditable]") && !$("#view .bio"));
+    ok("home affiliation", /한국가이던스 대구점/.test($("#view .badges").textContent) && /범죄심리학과 석·박사 수료/.test($("#view .badges").textContent) && $$("#view .badge").length === 2);
+    ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
-    ok("subnav count writer", $$("#subnav .sub-link").length === 3, $$("#subnav .sub-link").length);
+    ok("subnav count writer", $$("#subnav a[data-page]").length === 3, $$("#subnav a[data-page]").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav .sub-link").length === 13, $$("#subnav .sub-link").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 13, $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
+    var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
+    document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
     await go("home");
 
     await go("personal-todos");
@@ -185,6 +188,59 @@
     ok("flow import", $$("#view .flow-chip").length === 2, $$("#view .flow-chip").length);
     $$("#view .flow-chip")[1].click(); await sleep(50);
     ok("flow detail", /둘째/.test($("#view .flow-detail").textContent));
+
+    /* google calendar (fake Google API responses) */
+    var realFetch = window.fetch;
+    var now = new Date();
+    function at(h) { return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, 0).toISOString(); }
+    function dk(n) { var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+    function ok200(obj) { return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve(obj); } }); }
+    var calls = [];
+    window.fetch = function (url, opts) {
+      url = String(url);
+      if (url.indexOf("https://www.googleapis.com/calendar/v3") === 0) {
+        calls.push(url);
+        if (opts && opts.headers && opts.headers.Authorization !== "Bearer test-token") { return Promise.resolve({ ok: false, status: 401, json: function () { return Promise.resolve({ error: { message: "bad token" } }); } }); }
+        if (url.indexOf("/users/me/calendarList") !== -1) { return ok200({ items: [{ id: "me@gmail.com", summary: "내 캘린더", primary: true }, { id: "hol", summary: "대한민국 휴일" }] }); }
+        if (url.indexOf("/calendars/me%40gmail.com/events") !== -1) {
+          return ok200({ items: [
+            { id: "e1", summary: "구글 회의", start: { dateTime: at(14) }, end: { dateTime: at(15) }, htmlLink: "https://calendar.google.com/e1" },
+            { id: "e2", summary: "종일 행사", start: { date: dk(0) }, end: { date: dk(2) } },
+            { id: "e3", summary: "취소된 일정", status: "cancelled", start: { date: dk(1) }, end: { date: dk(2) } }
+          ] });
+        }
+        return ok200({ items: [{ id: "h1", summary: "휴일 이벤트", start: { date: dk(3) }, end: { date: dk(4) } }] });
+      }
+      return realFetch.apply(window, arguments);
+    };
+    await go("personal-calendar");
+    var gbtn = $$("#view .btn").filter(function (b) { return b.textContent.indexOf("Google 캘린더 연결") !== -1; })[0];
+    ok("gcal connect button", !!gbtn);
+    gbtn.click(); await sleep(400);
+    var gd = window.__MOCK_STORE["personal/gcal"];
+    ok("gcal synced", !!gd && gd.events.length === 2 && gd.calendars.length === 2, gd ? gd.events.length + "/" + gd.calendars.length : "no doc");
+    ok("gcal primary on / other off", gd && gd.calendars[0].on === true && gd.calendars[1].on === false);
+    ok("gcal cancelled skipped", gd && !gd.events.some(function (e) { return e.title === "취소된 일정"; }));
+    ok("gcal all-day end inclusive", gd && gd.events.filter(function (e) { return e.title === "종일 행사"; })[0].end === dk(1), gd && JSON.stringify(gd.events.map(function (e) { return e.end; })));
+    ok("gcal day list", /구글 회의/.test($("#view .card:nth-of-type(2)") ? $("#view .card:nth-of-type(2)").textContent : "") || $$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+    ok("gcal event link", $$("#view .upcoming-item a").some(function (a) { return /calendar\.google\.com/.test(a.href); }));
+    ok("gcal status shown", /일정 2개/.test($$("#view .hint")[0].textContent + $$("#view .hint").map(function (h) { return h.textContent; }).join(" ")));
+    var cbs = $$("#view input[type=checkbox]").filter(function (c) { return /가져오기/.test(c.getAttribute("aria-label") || ""); });
+    ok("gcal calendar list", cbs.length === 2, cbs.length);
+    cbs[1].checked = true; change(cbs[1]); await sleep(400);
+    ok("gcal second calendar synced", window.__MOCK_STORE["personal/gcal"].events.length === 3, window.__MOCK_STORE["personal/gcal"].events.length);
+    var selCat = $$("#view select").filter(function (s) { return /내 캘린더 분류/.test(s.getAttribute("aria-label") || ""); })[0];
+    selCat.value = "회사"; change(selCat); await sleep(200);
+    ok("gcal category saved", window.__MOCK_STORE["personal/gcal"].calendars[0].cat === "회사");
+    await go("company-pipeline"); await sleep(150);
+    ok("gcal shows in company upcoming", $$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+    await go("thesis-writing"); await sleep(150);
+    ok("gcal not in thesis upcoming", !$$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+    await go("home"); await sleep(150);
+    ok("gcal shows on home", $$("#view .mini-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+    ok("gcal explain 403", /Calendar API/.test(App.gcal.explain({ status: 403, reason: "accessNotConfigured", message: "x" })));
+    ok("gcal explain popup", /팝업/.test(App.gcal.explain({ code: "auth/popup-blocked" })));
+    window.fetch = realFetch;
 
     await go("company-billing");
     var bf = $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0];

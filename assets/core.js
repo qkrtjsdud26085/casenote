@@ -90,11 +90,22 @@
 
   /* ---------- menu ---------- */
   App.MENU = [
-    { key: "thesis", short: "박사", label: "박사 학위논문", pages: ["thesis-overview", "thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing", "thesis-advisor", "thesis-publications", "thesis-refs"] },
+    { key: "thesis", short: "박사", label: "박사 학위논문", groups: [
+      { pages: ["thesis-overview"] },
+      { label: "문헌", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
+      { label: "연구 설계", pages: ["thesis-questions", "thesis-methods", "thesis-ethics"] },
+      { label: "분석 · 집필", pages: ["thesis-analysis", "thesis-writing"] },
+      { label: "지도 · 성과", pages: ["thesis-advisor", "thesis-publications"] },
+      { pages: ["thesis-refs"] }
+    ] },
     { key: "writer", short: "작가", label: "작가", pages: ["writer-works", "writer-ideas", "writer-log"] },
     { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-memos", "personal-habits", "personal-weekly"] },
     { key: "company", short: "회사", label: "회사", pages: ["company-pipeline", "company-billing", "company-worklog", "company-flow", "company-snippets", "company-instructors"] }
   ];
+  App.MENU.forEach(function (g) {
+    if (!g.groups) { g.groups = g.pages.map(function (p) { return { pages: [p] }; }); }
+    g.pages = [].concat.apply([], g.groups.map(function (x) { return x.pages; }));
+  });
   App.page = function (def) { App.pages[def.id] = def; };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -130,17 +141,42 @@
     clear(subnavEl);
     if (!grp) { subnavEl.hidden = true; return; }
     subnavEl.hidden = false;
-    grp.pages.forEach(function (pid) {
+    function link(pid, cls) {
       var p = App.pages[pid];
-      if (!p) { return; }
-      var a = el("a", "sub-link" + (pid === page.id ? " active" : ""), p.title);
+      if (!p) { return null; }
+      var a = el("a", cls + (pid === page.id ? " active" : ""), p.title);
       a.href = "#/" + pid; a.setAttribute("data-page", pid);
       if (pid === page.id) { a.setAttribute("aria-current", "page"); }
-      subnavEl.appendChild(a);
+      return a;
+    }
+    grp.groups.forEach(function (gr) {
+      if (!gr.label) {
+        gr.pages.forEach(function (pid) { var a = link(pid, "sub-link"); if (a) { subnavEl.appendChild(a); } });
+        return;
+      }
+      var wrap = el("div", "sub-group" + (gr.pages.indexOf(page.id) !== -1 ? " active" : ""));
+      var btn = el("button", "sub-link sub-drop", gr.label);
+      btn.type = "button"; btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
+      var menu = el("div", "sub-menu");
+      gr.pages.forEach(function (pid) { var a = link(pid, "sub-item"); if (a) { menu.appendChild(a); } });
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var wasOpen = wrap.classList.contains("open");
+        closeMenus();
+        if (!wasOpen) { wrap.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+      });
+      wrap.appendChild(btn); wrap.appendChild(menu);
+      subnavEl.appendChild(wrap);
     });
-    var act = subnavEl.querySelector(".active");
-    if (act && act.scrollIntoView) { act.scrollIntoView({ block: "nearest", inline: "center" }); }
   }
+  function closeMenus() {
+    Array.prototype.forEach.call(document.querySelectorAll(".sub-group.open"), function (g) {
+      g.classList.remove("open");
+      var b = g.querySelector(".sub-drop"); if (b) { b.setAttribute("aria-expanded", "false"); }
+    });
+  }
+  document.addEventListener("click", closeMenus);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenus(); } });
 
   function currentId() {
     var h = (location.hash || "").replace(/^#\/?/, "");

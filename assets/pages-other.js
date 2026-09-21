@@ -102,14 +102,15 @@
      ========================================================= */
   App.page({
     id: "personal-calendar", title: "일정 · 캘린더",
-    desc: "월간 캘린더에서 날짜를 눌러 일정을 보고 추가합니다. 분류(개인 · 논문 · 글쓰기 · 회사)는 다른 메뉴의 '다가오는 일정'에도 함께 나타나요.",
+    desc: "월간 캘린더에서 날짜를 눌러 일정을 보고 추가합니다. Google 캘린더를 연결하면 그 일정도 함께 보여요. 분류(개인 · 논문 · 글쓰기 · 회사)는 다른 메뉴의 다가오는 일정에도 나타납니다.",
     render: function (view) {
       var scheduleRef = App.col("schedule");
-      var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체" };
+      var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
       state.month.setDate(1);
       var g = ui.grid(view, true);
       var calCard = ui.card(g, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
       var dayCard = ui.card(g, { tab: "Day", tone: "t-2", title: "선택한 날" });
+      var gCard = ui.card(g, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동", wide: true });
       var upCard = ui.card(g, { tab: "Upcoming", tone: "t-3", title: "다가오는 일정 (전체)", wide: true });
       ui.upcoming(upCard.body, "*", 10);
 
@@ -135,7 +136,12 @@
       var dayList = el("div", "plain-list");
       [dayTitle, form, dayList].forEach(function (n) { dayCard.body.appendChild(n); });
 
-      function visible() { return state.items.filter(function (s) { return state.cat === "전체" || (s.cat || "개인") === state.cat; }); }
+      function visible() {
+        var y = state.month.getFullYear(), m = state.month.getMonth();
+        var from = H.dateKey(new Date(y, m - 1, 20)), to = H.dateKey(new Date(y, m + 2, 10));
+        var all = state.items.concat(App.gcal ? App.gcal.expand(state.gdoc, from, to) : []);
+        return all.filter(function (s) { return state.cat === "전체" || (s.cat || "개인") === state.cat; });
+      }
       function drawCal() {
         H.clear(filters);
         ["전체"].concat(App.CATS).forEach(function (c) {
@@ -177,14 +183,23 @@
         H.clear(dayList);
         var evs = visible().filter(function (s) { return s.date === state.sel; });
         if (!evs.length) { dayList.appendChild(ui.empty("이 날의 일정이 없습니다.")); return; }
+        evs.sort(function (a, b) { return (a.time || "") < (b.time || "") ? -1 : ((a.time || "") > (b.time || "") ? 1 : 0); });
         evs.forEach(function (s) {
           var row = el("div", "upcoming-item");
           var chip = el("span", "cat-chip", s.cat || "개인"); chip.setAttribute("data-cat", s.cat || "개인");
           row.appendChild(chip);
-          row.appendChild(el("span", "u-title", s.title));
-          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
-          del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function (e) { window.alert("삭제 실패: " + e.message); }); });
-          row.appendChild(del); dayList.appendChild(row);
+          if (s.source === "google") {
+            var t = el("span", "u-title");
+            if (s.link) { var a = el("a", "", s.title); a.href = s.link; a.target = "_blank"; a.rel = "noopener noreferrer"; t.appendChild(a); } else { t.textContent = s.title; }
+            row.appendChild(t);
+            row.appendChild(el("span", "u-date", (s.allDay ? "종일" : s.time) + " · Google" + (s.calName ? " · " + s.calName : "")));
+          } else {
+            row.appendChild(el("span", "u-title", s.title));
+            var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
+            del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function (e) { window.alert("삭제 실패: " + e.message); }); });
+            row.appendChild(del);
+          }
+          dayList.appendChild(row);
         });
       }
       prev.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); drawCal(); });
@@ -199,8 +214,74 @@
         state.sel = dateEl.value;
         var d = H.parseKey(state.sel); state.month = new Date(d.getFullYear(), d.getMonth(), 1);
       });
-      drawCal(); drawDay();
+      /* ---------- Google Calendar connection (read-only) ---------- */
+      var gStatus = el("p", "hint");
+      var gRow = el("div", "items-tools");
+      var gConnect = el("button", "btn", "Google 캘린더 연결 · 동기화"); gConnect.type = "button";
+      var gClear = el("button", "tool-btn", "연결 정보 지우기"); gClear.type = "button";
+      gClear.title = "이 브라우저에 저장된 1시간짜리 접근 토큰만 지워요";
+      gRow.appendChild(gConnect); gRow.appendChild(gClear);
+      var gMsg = el("p", "hint");
+      var gCals = el("div", "plain-list");
+      var help = el("details", "reco-settings");
+      help.appendChild(el("summary", "", "처음 한 번만 설정 · 안내"));
+      var steps = el("ol", "hint");
+      var s1 = el("li"); s1.appendChild(document.createTextNode("Google Cloud 콘솔에서 "));
+      var lk = el("a", "", "Google Calendar API를 사용 설정"); lk.href = "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=hello-dear-sunny"; lk.target = "_blank"; lk.rel = "noopener noreferrer";
+      s1.appendChild(lk); s1.appendChild(document.createTextNode("해 주세요 (프로젝트: hello-dear-sunny, 사용 버튼 한 번)."));
+      steps.appendChild(s1);
+      steps.appendChild(el("li", "", "처음 연결할 때 '확인되지 않은 앱' 경고가 나오면 '고급 → 이동'을 누르세요. 요청하는 권한은 캘린더 읽기 전용이에요."));
+      steps.appendChild(el("li", "", "동의 화면이 '테스트' 상태라 접근이 막히면, Google Auth Platform › 대상(Audience)에서 이 계정을 테스트 사용자로 추가하세요."));
+      steps.appendChild(el("li", "", "연결 정보(접근 토큰)는 1시간 뒤 만료돼요. 만료돼도 이미 동기화된 일정은 그대로 보이고, 새로 가져오려면 '연결 · 동기화'를 다시 누르면 됩니다. 가져온 일정은 내 Firestore에만 저장돼요."));
+      help.appendChild(steps);
+      [gStatus, gRow, gMsg, gCals, help].forEach(function (n) { gCard.body.appendChild(n); });
+
+      var gBusy = false, autoTried = false;
+      function drawG() {
+        var d = state.gdoc, tok = App.gcal.token();
+        var left = tok ? Math.max(1, Math.round((tok.exp - Date.now()) / 60000)) : 0;
+        gStatus.textContent = (tok ? "연결됨 (약 " + left + "분 더 유효)" : "연결 안 됨") + " · " +
+          (d && d.syncedAt ? "마지막 동기화 " + H.fmtDateTime(d.syncedAt) + " · 일정 " + ((d.events || []).length) + "개" : "아직 동기화한 적 없음");
+        H.clear(gCals);
+        var cals = (d && d.calendars) || [];
+        if (cals.length) { gCals.appendChild(el("div", "mini-title", "가져올 캘린더 · 분류")); }
+        cals.forEach(function (c, i) {
+          var row = el("div", "upcoming-item");
+          var cb = el("input"); cb.type = "checkbox"; cb.checked = !!c.on; cb.setAttribute("aria-label", c.name + " 가져오기");
+          var sel = el("select"); sel.setAttribute("aria-label", c.name + " 분류");
+          App.CATS.forEach(function (cat) { var o = el("option", "", cat); o.value = cat; sel.appendChild(o); });
+          sel.value = c.cat || "개인";
+          row.appendChild(cb); row.appendChild(el("span", "u-title", c.name + (c.primary ? " (기본)" : ""))); row.appendChild(sel);
+          function saveChoice(needFetch) {
+            var next = cals.map(function (x, j) { return j === i ? Object.assign({}, x, { on: cb.checked, cat: sel.value }) : x; });
+            App.gcal.saveCalendars(next).then(function () {
+              if (needFetch && App.gcal.token()) { runSync(); }
+              else { gMsg.textContent = needFetch ? "설정을 저장했어요. '연결 · 동기화'를 누르면 반영돼요." : "분류를 저장했어요."; }
+            }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+          }
+          cb.addEventListener("change", function () { saveChoice(true); });
+          sel.addEventListener("change", function () { saveChoice(false); });
+          gCals.appendChild(row);
+        });
+      }
+      async function runSync() {
+        if (gBusy) { return; }
+        gBusy = true; gConnect.disabled = true; gMsg.textContent = "Google 캘린더에서 일정을 가져오는 중…";
+        try {
+          var r = await App.gcal.sync();
+          gMsg.textContent = "동기화 완료 · 일정 " + r.events.length + "개를 가져왔어요.";
+        } catch (err) { gMsg.textContent = App.gcal.explain(err); }
+        gBusy = false; gConnect.disabled = false; drawG();
+      }
+      gConnect.addEventListener("click", runSync);
+      gClear.addEventListener("click", function () { App.gcal.clearToken(); gMsg.textContent = "이 브라우저의 연결 정보를 지웠어요. (동기화된 일정은 그대로 남아 있어요.)"; drawG(); });
+
+      drawCal(); drawDay(); drawG();
       App.watchQuery(scheduleRef.orderBy("date", "asc"), function (items) { state.items = items; drawCal(); drawDay(); });
+      App.watchDoc(App.doc("personal/gcal"), function (d) {
+        state.gdoc = d; drawCal(); drawDay(); drawG();
+        if (!autoTried && App.gcal.token() && (!d || !d.syncedAt || Date.now() - new Date(d.syncedAt).getTime() > 300000)) { autoTried = true; runSync(); }
+      });
     }
   });
 
