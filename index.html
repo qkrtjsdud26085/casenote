@@ -198,6 +198,9 @@
   .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .archive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 26px 20px; }
   .paper-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 20px 16px 16px; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .paper-card .del-btn { position: absolute; top: 6px; right: 6px; }
+  .paper-card:hover .del-btn { opacity: 1; }
+  .paper-form { margin-bottom: 20px; }
   .paper-title { font-family: var(--font-display); font-weight: 600; font-size: 1rem; line-height: 1.4; margin: 0; }
   .paper-meta { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
   .paper-note { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.55; }
@@ -315,14 +318,27 @@
   </section>
 
   <section class="panel" id="panel-research" hidden>
-    <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다 (로그인 없이 누구나 볼 수 있어요). 아래 목록은 <strong>예시 항목</strong>이며, 실제 자료 목록은 이 파일의 코드를 직접 수정해 채워 넣는 정적 템플릿입니다.</p>
-    <div class="archive-filters" id="archiveFilters"></div>
-    <div class="archive-grid" id="archiveGrid"></div>
+    <div class="lock-panel" id="researchLock">Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다.</div>
+    <div id="researchContent" hidden>
+      <p class="archive-intro">범죄심리학 관련 논문·자료를 정리하는 공간입니다. 목록은 Firestore에만 저장되며 로그인한 소유자만 볼 수 있어요.</p>
+      <button type="button" class="obs-toggle" id="paperToggleBtn">+ 자료 추가</button>
+      <form class="quick-add paper-form" id="paperForm" hidden>
+        <input id="paperCategory" placeholder="분류 (예: 프로파일링)" maxlength="40" required />
+        <input id="paperTitle" placeholder="제목" maxlength="200" required />
+        <input id="paperMeta" placeholder="저자 · 연도" maxlength="100" />
+        <textarea id="paperNote" placeholder="요약·메모" rows="3" maxlength="1000"></textarea>
+        <input id="paperTags" placeholder="태그 (쉼표로 구분)" maxlength="200" />
+        <button type="submit">저장</button>
+      </form>
+      <p class="obs-updated" id="paperStatus"></p>
+      <div class="archive-filters" id="archiveFilters"></div>
+      <div class="archive-grid" id="archiveGrid"></div>
+    </div>
   </section>
 
   <footer class="page-footer">
     이름·소개·배지·할 일·메모·일정은 <strong>Google 로그인(본인 계정)</strong> 상태에서만 보이고 수정되며, 어느 기기에서 열어도 실시간으로 동기화됩니다.
-    연구 아카이브 목록은 로그인 여부와 관계없이 누구나 볼 수 있고, <code>PAPERS</code> 배열을 코드에서 수정해 관리하세요.
+    연구 아카이브도 로그인한 소유자만 볼 수 있으며, 목록은 화면에서 직접 추가·삭제하고 Firestore에만 저장됩니다.
   </footer>
 </div>
 
@@ -348,14 +364,7 @@
   });
 
   // ---------- research archive (static template, public) ----------
-  var PAPERS = [
-    { category: "프로파일링", title: "범죄자 프로파일링 기법의 국내 적용 가능성 검토 (예시)", meta: "예: 홍길동 · 2022", note: "국내 강력범죄 사건에 지리적 프로파일링을 적용한 사례를 정리하고 한계점을 검토한 예시 항목입니다.", tags: ["지리적 프로파일링", "강력범죄"] },
-    { category: "재범 위험성 평가", title: "성범죄자 재범 위험성 평가 도구(KSORAS)의 타당도 재검토 (예시)", meta: "예: 김범죄 · 2021", note: "국내 평가도구의 예측 타당도를 재분석한 연구를 정리할 자리입니다.", tags: ["위험성 평가", "재범"] },
-    { category: "사이코패시", title: "사이코패시 성향과 도구적 공격성의 관계 (예시)", meta: "예: 이심리 · 2023", note: "PCL-R 하위요인과 공격성 유형 간 관계를 다룬 문헌을 정리하는 칸입니다.", tags: ["PCL-R", "공격성"] },
-    { category: "피해자학", title: "범죄 피해자의 2차 피해 경험에 관한 질적 연구 (예시)", meta: "예: 박연구 · 2020", note: "형사사법 절차 과정에서 나타나는 2차 피해 경험을 다룬 논문을 정리할 예시 항목입니다.", tags: ["피해자학", "질적연구"] },
-    { category: "법정 증언·감정", title: "아동 목격자 진술의 신빙성 평가 기준 (예시)", meta: "예: 최법정 · 2019", note: "법정 감정 실무에서 활용되는 진술 신빙성 평가 기법을 정리하는 자리입니다.", tags: ["진술분석", "아동증언"] },
-    { category: "교정·상담", title: "교정시설 내 인지행동치료 프로그램의 효과성 메타분석 (예시)", meta: "예: 정교정 · 2023", note: "국내외 교정 프로그램 효과크기를 비교한 메타분석 예시입니다.", tags: ["CBT", "교정프로그램"] }
-  ];
+  var PAPERS = []; // loaded from Firestore (owner only), never stored in the repo
   var archiveGrid = document.getElementById("archiveGrid");
   var archiveFilters = document.getElementById("archiveFilters");
   var tabVariants = ["t-2", "t-1", "t-3"];
@@ -386,9 +395,21 @@
         tg.textContent = t;
         tagWrap.appendChild(tg);
       });
-      card.appendChild(tab); card.appendChild(title); card.appendChild(meta); card.appendChild(note); card.appendChild(tagWrap);
+      var del = document.createElement("button");
+      del.className = "del-btn"; del.textContent = "×"; del.title = "삭제";
+      del.addEventListener("click", function () {
+        if (!window.confirm("이 자료를 삭제할까요?")) { return; }
+        savePapers(PAPERS.filter(function (x) { return x.id !== p.id; }));
+      });
+      card.appendChild(del); card.appendChild(tab); card.appendChild(title); card.appendChild(meta); card.appendChild(note); card.appendChild(tagWrap);
       archiveGrid.appendChild(card);
     });
+    if (!list.length) {
+      var empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "등록된 자료가 없습니다. '+ 자료 추가'로 채워 보세요.";
+      archiveGrid.appendChild(empty);
+    }
   }
   function renderFilters() {
     var cats = ["전체"].concat(PAPERS.map(function (p) { return p.category; }).filter(function (c, i, arr) { return arr.indexOf(c) === i; }));
@@ -420,6 +441,42 @@
   var db = firebase.firestore();
   var provider = new firebase.auth.GoogleAuthProvider();
 
+  // ---------- research archive storage (Firestore only, owner only) ----------
+  var papersRef = db.collection("research").doc("papers");
+  var paperToggleBtn = document.getElementById("paperToggleBtn");
+  var paperForm = document.getElementById("paperForm");
+  var paperStatus = document.getElementById("paperStatus");
+  paperToggleBtn.addEventListener("click", function () { paperForm.hidden = !paperForm.hidden; });
+
+  function savePapers(items) {
+    return papersRef.set({ items: items, updatedAt: new Date().toISOString() }).catch(function (err) {
+      window.alert("저장 실패: " + err.message);
+    });
+  }
+  function setPapers(items) {
+    PAPERS = items || [];
+    if (activeCategory !== "전체" && !PAPERS.some(function (p) { return p.category === activeCategory; })) { activeCategory = "전체"; }
+    renderFilters();
+    renderArchive();
+  }
+  paperForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var tags = document.getElementById("paperTags").value.split(",").map(function (t) { return t.trim(); }).filter(Boolean);
+    var item = {
+      id: String(Date.now()),
+      category: document.getElementById("paperCategory").value.trim(),
+      title: document.getElementById("paperTitle").value.trim(),
+      meta: document.getElementById("paperMeta").value.trim(),
+      note: document.getElementById("paperNote").value.trim(),
+      tags: tags
+    };
+    if (!item.category || !item.title) { return; }
+    savePapers(PAPERS.concat([item])).then(function () {
+      paperForm.reset();
+      paperForm.hidden = true;
+    });
+  });
+
   var signInBtn = document.getElementById("signInBtn");
   var userChip = document.getElementById("userChip");
   var userAvatar = document.getElementById("userAvatar");
@@ -429,6 +486,8 @@
   var heroOwner = document.getElementById("heroOwner");
   var workLock = document.getElementById("workLock");
   var deskGrid = document.getElementById("deskGrid");
+  var researchLock = document.getElementById("researchLock");
+  var researchContent = document.getElementById("researchContent");
   var syncDot = document.getElementById("syncDot");
   var syncText = document.getElementById("syncText");
 
@@ -787,8 +846,15 @@
     unsubscribers.forEach(function (u) { u(); });
     unsubscribers = [];
     renderTodos([]); renderMemos([]); renderSchedule([]); renderObsLog(null); renderFlow(null);
+    setPapers([]); paperStatus.textContent = "";
   }
   function subscribeAll() {
+    unsubscribers.push(papersRef.onSnapshot(function (snap) {
+      setPapers(snap.exists ? snap.data().items : []);
+      paperStatus.textContent = snap.exists && snap.data().updatedAt ? "마지막 업데이트: " + fmtDate(snap.data().updatedAt) : "";
+    }, function (err) {
+      paperStatus.textContent = "연구 아카이브를 불러오지 못했습니다: " + err.message;
+    }));
     unsubscribers.push(profileRef.onSnapshot(function (snap) { if (snap.exists) { applyProfile(snap.data()); } }, function () {}));
     unsubscribers.push(todosRef.orderBy("createdAt", "asc").onSnapshot(function (snap) {
       renderTodos(snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }));
@@ -818,6 +884,8 @@
       heroOwner.hidden = false;
       workLock.hidden = true;
       deskGrid.hidden = false;
+      researchLock.hidden = true;
+      researchContent.hidden = false;
       syncDot.className = "sync-dot on";
       syncText.textContent = "실시간 동기화 중 · 어느 기기에서나 동일하게 보입니다";
       subscribeAll();
@@ -831,6 +899,9 @@
       workLock.hidden = false;
       workLock.textContent = "이 Google 계정(" + user.email + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다.";
       deskGrid.hidden = true;
+      researchLock.textContent = "이 Google 계정(" + user.email + ")은 이 워크스페이스의 소유자가 아니라 접근할 수 없습니다.";
+      researchLock.hidden = false;
+      researchContent.hidden = true;
       syncDot.className = "sync-dot warn";
       syncText.textContent = "접근 권한이 없는 계정입니다";
     } else {
@@ -841,6 +912,9 @@
       workLock.hidden = false;
       workLock.textContent = "Google 계정으로 로그인하면 이 워크스페이스의 소유자에게만 할 일 · 메모 · 일정이 보이고, 어떤 기기에서 열어도 실시간으로 동기화됩니다.";
       deskGrid.hidden = true;
+      researchLock.textContent = "Google 계정으로 로그인하면 연구 아카이브를 볼 수 있습니다.";
+      researchLock.hidden = false;
+      researchContent.hidden = true;
       syncDot.className = "sync-dot";
       syncText.textContent = "Google 로그인이 필요합니다";
     }
