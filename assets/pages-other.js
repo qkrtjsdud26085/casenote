@@ -1,4 +1,4 @@
-/* Hello dear Sunny — 작가 · 개인 · 회사 pages */
+/* Hello dear Sunny — 개인 · 회사 pages (작가 pages live in pages-writer.js) */
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el;
@@ -8,94 +8,6 @@
     items.forEach(function (it) { var v = it[key] || first; m[v] = (m[v] || 0) + 1; });
     return m;
   }
-
-  /* =========================================================
-     작가
-     ========================================================= */
-  App.page({
-    id: "writer-works", title: "작품 관리",
-    desc: "구상 중인 작품부터 완결작까지, 진행 상태와 분량을 한눈에 관리합니다. 상태 칩을 누르면 구상 → 집필중 → 퇴고 → 완결로 바뀌어요.",
-    render: function (view) {
-      var g = ui.grid(view, true);
-      var c1 = ui.card(g, { tab: "Works", tone: "t-1", title: "작품 · 원고", wide: true });
-      ui.itemsPanel(c1.body, {
-        ref: doc("writer/works"), views: ["cards", "table"], search: true, statusKey: "status", filters: ["status"], grid: true,
-        addLabel: "+ 작품 추가", empty: "아직 작품이 없습니다. 첫 작품을 추가해 보세요.",
-        fields: [
-          { key: "title", label: "작품 제목", type: "text", title: true, required: true, col: true, maxLength: 120 },
-          { key: "status", label: "진행 상태", type: "select", options: ["구상", "집필중", "퇴고", "완결"], col: true },
-          { key: "genre", label: "장르", type: "text", meta: true, col: true, maxLength: 40 },
-          { key: "logline", label: "로그라인 (한 문장 요약)", type: "textarea", rows: 2 },
-          { key: "target", label: "목표 분량 (자)", type: "number", col: true, step: 100, hideInCard: true },
-          { key: "current", label: "현재 분량 (자)", type: "number", col: true, step: 100, hideInCard: true },
-          { key: "note", label: "메모 · 한 줄 소개", type: "textarea", rows: 2 }
-        ],
-        itemExtra: function (it) {
-          var t = Number(it.target) || 0;
-          if (!t) { return null; }
-          var cur = Number(it.current) || 0;
-          return ui.progress(Math.min(100, Math.round(cur / t * 100)), cur.toLocaleString("ko-KR") + " / " + t.toLocaleString("ko-KR") + "자");
-        },
-        summary: function (items) {
-          var m = countBy(items, "status", "구상");
-          return items.length ? "총 " + items.length + "편 · 집필중 " + (m["집필중"] || 0) + " · 퇴고 " + (m["퇴고"] || 0) + " · 완결 " + (m["완결"] || 0) : "";
-        }
-      });
-      var c2 = ui.card(g, { tab: "Upcoming", tone: "t-3", title: "공모전 · 투고 마감" });
-      ui.upcoming(c2.body, "글쓰기", 6);
-    }
-  });
-
-  var PLOT = [
-    { label: "3막 구조", text: "1막(약 25%) 일상 · 문제 제시 → 기폭 사건 → 1막 전환점\n2막(약 50%) 갈등 상승 → 중간 전환점 → 최악의 순간\n3막(약 25%) 클라이맥스 → 결말" },
-    { label: "로그라인 공식", text: "[주인공]이 [사건]을 겪고, [목표]를 이루려 하지만 [장애물] 때문에 [위험]에 처한다." },
-    { label: "장면 카드", text: "장면 목표 / 갈등(방해물) / 결과(성공 · 실패 · 복선) / 감정 변화 / 다음 장면으로 이어지는 질문" },
-    { label: "인물에게 던질 질문", text: "가장 원하는 것은? 가장 두려워하는 것은? 숨기고 있는 것은? 결정적 결함은? 이야기가 끝났을 때 무엇이 달라지는가?" },
-    { label: "퇴고 체크", text: "장면마다 목적이 있는가 · 정보의 과다 / 누락 · 시점 일관성 · 대사와 지문의 균형 · 첫 문장과 마지막 문장" }
-  ];
-  App.page({
-    id: "writer-ideas", title: "글감 · 설정 노트",
-    desc: "떠오른 문장과 소재, 인물 · 세계관 설정을 모아 둡니다. 플롯 템플릿은 복사해서 바로 쓸 수 있어요.",
-    render: function (view) {
-      var g = ui.grid(view, true);
-      var c1 = ui.card(g, { tab: "Ideas", tone: "t-3", title: "글감 · 아이디어" });
-      ui.itemsPanel(c1.body, {
-        ref: doc("writer/ideas"), timestamp: true, search: true, addLabel: "+ 글감 추가", empty: "떠오른 글감이 아직 없습니다.",
-        sort: function (a, b) { return String(b.createdAt || "").localeCompare(String(a.createdAt || "")); },
-        itemMeta: function (it) { return it.createdAt ? [H.fmtDateTime(it.createdAt)] : []; },
-        fields: [
-          { key: "text", label: "글감", type: "textarea", title: true, required: true, rows: 3, maxLength: 600 },
-          { key: "tags", label: "태그 (쉼표로 구분)", type: "tags", meta: true }
-        ]
-      });
-      var c2 = ui.card(g, { tab: "Characters", tone: "t-1", title: "인물 · 설정 노트" });
-      ui.itemsPanel(c2.body, {
-        ref: doc("writer/characters"), search: true, filters: ["role"], addLabel: "+ 인물·설정 추가", empty: "인물 · 세계관 설정을 추가해 보세요.",
-        fields: [
-          { key: "name", label: "이름 · 항목", type: "text", title: true, required: true, maxLength: 80 },
-          { key: "role", label: "구분", type: "select", options: ["주인공", "조연", "적대자", "장소 · 세계관", "기타"], meta: true },
-          { key: "traits", label: "성격 · 외형 · 특징", type: "textarea" },
-          { key: "motivation", label: "욕망 · 결핍", type: "textarea" },
-          { key: "arc", label: "변화(아크)", type: "textarea" },
-          { key: "notes", label: "메모", type: "textarea" }
-        ]
-      });
-      var c3 = ui.card(g, { tab: "Template", tone: "t-2", title: "플롯 · 퇴고 템플릿 (복사 가능)", wide: true });
-      ui.refList(c3.body, PLOT);
-    }
-  });
-
-  App.page({
-    id: "writer-log", title: "집필 기록",
-    desc: "매일 쓴 분량을 남기면 목표 달성률과 연속 집필 일수, 최근 7일 흐름을 보여줍니다.",
-    render: function (view) {
-      var g = ui.grid(view, true);
-      var c1 = ui.card(g, { tab: "Daily", tone: "t-2", title: "창작 집필 기록" });
-      ui.writingLog(c1.body, { ref: doc("writer/log"), goal: 1000, unit: "자" });
-      var c2 = ui.card(g, { tab: "Upcoming", tone: "t-1", title: "공모전 · 투고 마감" });
-      ui.upcoming(c2.body, "글쓰기", 6);
-    }
-  });
 
   /* =========================================================
      개인 — 일정 · 캘린더
@@ -224,16 +136,60 @@
       var gMsg = el("p", "hint");
       var gCals = el("div", "plain-list");
       var help = el("details", "reco-settings");
-      help.appendChild(el("summary", "", "처음 한 번만 설정 · 안내"));
-      var steps = el("ol", "hint");
-      var s1 = el("li"); s1.appendChild(document.createTextNode("Google Cloud 콘솔에서 "));
-      var lk = el("a", "", "Google Calendar API를 사용 설정"); lk.href = "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=hello-dear-sunny"; lk.target = "_blank"; lk.rel = "noopener noreferrer";
-      s1.appendChild(lk); s1.appendChild(document.createTextNode("해 주세요 (프로젝트: hello-dear-sunny, 사용 버튼 한 번)."));
-      steps.appendChild(s1);
-      steps.appendChild(el("li", "", "처음 연결할 때 '확인되지 않은 앱' 경고가 나오면 '고급 → 이동'을 누르세요. 요청하는 권한은 캘린더 읽기 전용이에요."));
-      steps.appendChild(el("li", "", "동의 화면이 '테스트' 상태라 접근이 막히면, Google Auth Platform › 대상(Audience)에서 이 계정을 테스트 사용자로 추가하세요."));
-      steps.appendChild(el("li", "", "연결 정보(접근 토큰)는 1시간 뒤 만료돼요. 만료돼도 이미 동기화된 일정은 그대로 보이고, 새로 가져오려면 '연결 · 동기화'를 다시 누르면 됩니다. 가져온 일정은 내 Firestore에만 저장돼요."));
-      help.appendChild(steps);
+      help.appendChild(el("summary", "", "처음 한 번만 설정 · 자세한 안내"));
+      var GUIDE = [
+        { t: "1. Google Calendar API 켜기 (1분, 한 번만)", lines: [
+          ["link", "이 링크 열기 (Google Cloud 콘솔 · Calendar API 페이지)", "https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=hello-dear-sunny"],
+          "이 사이트를 만들 때 Firebase 프로젝트를 만든 구글 계정으로 로그인돼 있어야 해요. '권한이 없습니다'가 나오면 오른쪽 위 프로필에서 다른 계정으로 바꿔 다시 열어 주세요.",
+          "화면 위쪽 프로젝트 이름이 hello-dear-sunny인지 확인하고, 파란 '사용' 버튼을 누르세요. 'API 사용 설정됨' 표시가 나오면 끝이에요.",
+          "처음 켜면 반영에 1~2분 걸릴 수 있어요."
+        ] },
+        { t: "2. (막힐 때만) 테스트 사용자 추가", lines: [
+          ["link", "OAuth 동의 화면 열기", "https://console.cloud.google.com/apis/credentials/consent?project=hello-dear-sunny"],
+          "게시 상태가 '테스트'라면 [대상(Audience)] 메뉴의 '테스트 사용자'에 이 사이트에 로그인하는 구글 계정을 추가하세요. (게시 상태가 '프로덕션'이면 이 단계는 건너뛰어도 돼요.)",
+          "연결할 때 'access_denied' 또는 '액세스 차단됨' 오류가 나면 이 단계가 필요해요."
+        ] },
+        { t: "3. 캘린더 연결하기", lines: [
+          "위의 [Google 캘린더 연결 · 동기화] 버튼을 누르면 구글 로그인 팝업이 떠요. 이 사이트에 로그인한 것과 같은 계정을 고르세요.",
+          "'Google에서 확인하지 않은 앱' 경고가 나오면 왼쪽 아래 '고급' → 'hello-dear-sunny(안전하지 않음)(으)로 이동'을 누르세요. 내가 직접 만든 앱이라 나오는 정상 경고예요.",
+          "권한 목록에서 'Google 캘린더의 모든 캘린더 보기'(읽기 전용)에 체크하고 '계속'을 누르세요. 일정을 수정하거나 지우는 권한은 요청하지 않아요.",
+          "팝업이 닫히면 잠시 뒤 '동기화 완료 · 일정 N개'가 표시돼요."
+        ] },
+        { t: "4. 가져올 캘린더와 분류 고르기", lines: [
+          "처음에는 기본 캘린더만 켜져 있어요. 아래 목록에서 더 가져올 캘린더(공휴일, 공유 캘린더 등)를 체크하세요.",
+          "캘린더마다 분류(개인 · 논문 · 글쓰기 · 회사)를 정해 두면, 그 분류의 다가오는 일정 카드에도 자동으로 나타나요. 예) 회사 캘린더 → 회사, 학교 일정 캘린더 → 논문."
+        ] },
+        { t: "5. 평소에 쓰는 법", lines: [
+          "가져온 일정은 내 Firestore에 복사돼 있어서, 다른 기기에서도 그대로 보여요.",
+          "연결 정보(접근 토큰)는 약 1시간 뒤 만료돼요. 만료되면 이미 가져온 일정은 그대로 남고, 새 일정을 보려면 [연결 · 동기화]를 다시 누르면 돼요. (이미 허용했다면 팝업이 금방 닫혀요.)",
+          "구글 캘린더에서 일정을 지우거나 바꾼 것은 다음 동기화 때 반영돼요. 이 사이트에서 구글 캘린더로 일정을 보내지는 않아요."
+        ] },
+        { t: "문제 해결", lines: [
+          "'Google Calendar API가 아직 켜져 있지 않아요' → 1번을 하고 1~2분 뒤 다시 시도하세요.",
+          "팝업이 안 뜨거나 바로 닫힘 → 주소창 오른쪽의 '팝업 차단됨'을 허용하세요. Claude 앱 내장 브라우저에서는 로그인 팝업이 막힐 수 있으니 Chrome · Edge에서 열어 주세요.",
+          "'다른 Google 계정을 선택하셨어요' → 이 사이트에 로그인한 계정과 같은 계정을 고르세요.",
+          "'연결이 만료됐어요' → [연결 · 동기화]를 다시 누르세요.",
+          "일정이 안 보임 → 아래 목록에서 해당 캘린더가 켜져 있는지, 위쪽 분류 필터가 '전체'인지 확인하세요. 동기화 범위는 지난 31일 ~ 앞으로 120일이에요."
+        ] },
+        { t: "연결 끊기 · 개인정보", lines: [
+          "[연결 정보 지우기]는 이 브라우저의 1시간짜리 토큰만 지워요.",
+          ["link", "구글 계정의 앱 권한 페이지", "https://myaccount.google.com/permissions"],
+          "에서 hello-dear-sunny를 삭제하면 권한이 완전히 취소돼요. 가져온 일정 사본은 내 Firestore(본인 계정만 접근)에만 저장돼요."
+        ] }
+      ];
+      var guideBox = el("div", "guide");
+      GUIDE.forEach(function (sec) {
+        guideBox.appendChild(el("h4", "guide-title", sec.t));
+        var ul = el("ul", "guide-list");
+        sec.lines.forEach(function (ln) {
+          var li = el("li");
+          if (Array.isArray(ln)) { var a = el("a", "", ln[1]); a.href = ln[2]; a.target = "_blank"; a.rel = "noopener noreferrer"; li.appendChild(a); }
+          else { li.textContent = ln; }
+          ul.appendChild(li);
+        });
+        guideBox.appendChild(ul);
+      });
+      help.appendChild(guideBox);
       [gStatus, gRow, gMsg, gCals, help].forEach(function (n) { gCard.body.appendChild(n); });
 
       var gBusy = false, autoTried = false;

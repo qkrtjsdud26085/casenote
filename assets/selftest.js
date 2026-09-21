@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 36, ids.length);
+    ok("page count", ids.length === 44, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -106,7 +106,7 @@
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
-    ok("subnav count writer", $$("#subnav a[data-page]").length === 3, $$("#subnav a[data-page]").length);
+    ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
     ok("subnav count thesis", $$("#subnav a[data-page]").length === 21, $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
@@ -298,6 +298,124 @@
     ok("gcal explain 403", /Calendar API/.test(App.gcal.explain({ status: 403, reason: "accessNotConfigured", message: "x" })));
     ok("gcal explain popup", /팝업/.test(App.gcal.explain({ code: "auth/popup-blocked" })));
     window.fetch = realFetch;
+
+    /* ---------- 작가 섹션 ---------- */
+    function pe(t, type, x, y) { t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, button: 0 })); }
+    function key(t, k, extra) { t.dispatchEvent(new KeyboardEvent("keydown", Object.assign({ key: k, bubbles: true, cancelable: true }, extra || {}))); }
+    function tbtn(title) { return $$("#view .cv button").filter(function (b) { return b.title === title || b.title.indexOf(title) === 0; })[0]; }
+    function nodesN() { return $$("#view .cv-node").length; }
+    function linksN() { return $$("#view .cv-link").length; }
+    function boardStore() { return window.__MOCK_STORE["writer/board_main"] || { nodes: [], links: [] }; }
+    function tap(n) { var r = n.getBoundingClientRect(); pe(n, "pointerdown", r.left + 8, r.top + 8); pe(n, "pointerup", r.left + 8, r.top + 8); }
+
+    await go("writer-desk");
+    ok("desk cards", $$("#view .card").length >= 6 && !!$("#view .desk-prompt") && $("#view .desk-prompt").textContent.length > 8, $$("#view .card").length);
+    var dq = $("#view form.quick-add");
+    setVal($$("input", dq)[0], "책상에서 적은 글감"); submit(dq); await sleep(120);
+    var ideasStore = window.__MOCK_STORE["writer/ideas"];
+    ok("desk quick capture saves idea", !!ideasStore && ideasStore.items.some(function (x) { return x.text === "책상에서 적은 글감" && x.createdAt; }), JSON.stringify(ideasStore));
+    $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.indexOf("글감함에 저장") !== -1; })[0].click(); await sleep(120);
+    ok("desk prompt -> idea", window.__MOCK_STORE["writer/ideas"].items.some(function (x) { return x.kind === "질문"; }));
+    ok("desk recent ideas shown", $$("#view .upcoming-item").some(function (r) { return /책상에서 적은 글감/.test(r.textContent); }));
+
+    await go("writer-canvas"); await sleep(150);
+    ok("canvas mounts", !!$("#view .cv-view") && !!$("#view .cv-board select"), "no canvas");
+    ok("canvas empty hint", !$("#view .cv-hint").hidden && $$("#view .cv-hint-btns .btn").length === 2);
+    $$("#view .cv-hint-btns .btn")[0].click(); await sleep(120);
+    ok("canvas starter template", nodesN() === 9 && linksN() === 8, nodesN() + "/" + linksN());
+    ok("canvas hint hidden after nodes", $("#view .cv-hint").hidden);
+    ok("canvas outline", /^- 이야기의 핵심\n {2}- /.test($("#view .cv").__outline()) && /- 인물/.test($("#view .cv").__outline()), $("#view .cv").__outline().slice(0, 80));
+
+    var vw = $("#view .cv-view"), vr = vw.getBoundingClientRect();
+    var nA = $$("#view .cv-node")[1], nB = $$("#view .cv-node")[2];
+    tap(nA);
+    ok("canvas select node", nA.classList.contains("sel") && !tbtn("선택한 아이디어에서 뻗어 나가기").disabled);
+    var x0 = parseFloat(nA.style.left), rA = nA.getBoundingClientRect();
+    pe(nA, "pointerdown", rA.left + 8, rA.top + 8);
+    pe(vw, "pointermove", rA.left + 58, rA.top + 8);
+    pe(vw, "pointerup", rA.left + 58, rA.top + 8);
+    ok("canvas drag moves node", parseFloat(nA.style.left) > x0, x0 + "→" + nA.style.left);
+    await sleep(700);
+    ok("canvas autosave", boardStore().nodes.length === 9 && boardStore().links.length === 8 && !!boardStore().view, JSON.stringify(boardStore()).slice(0, 80));
+    var l0 = linksN();
+    tap(nA);
+    tbtn("선택한 아이디어와 다른 아이디어를 선으로").click();
+    ok("canvas link mode", nA.classList.contains("link-src"));
+    tap(nB);
+    ok("canvas link added", linksN() === l0 + 1, l0 + "→" + linksN());
+    tap(nA);
+    tbtn("선택한 아이디어와 다른 아이디어를 선으로").click(); tap(nB);
+    ok("canvas link toggled off", linksN() === l0, l0 + "→" + linksN());
+    tap(nA);
+    var nBefore = nodesN(), lBefore = linksN();
+    tbtn("선택한 아이디어에서 뻗어 나가기").click();
+    var ta = $("#view .cv-edit");
+    ok("canvas child opens editor", !!ta && nodesN() === nBefore + 1 && linksN() === lBefore + 1, nodesN() + "/" + linksN());
+    ta.value = "새로 뻗은 가지"; key(ta, "Enter"); await sleep(60);
+    ok("canvas child text saved", $$("#view .cv-node .cv-text").some(function (t) { return t.textContent === "새로 뻗은 가지"; }) && !$("#view .cv-edit"));
+    var cnt = nodesN();
+    tbtn("빈 아이디어 추가").click();
+    var ta2 = $("#view .cv-edit"); ta2.value = "   "; key(ta2, "Enter"); await sleep(60);
+    ok("canvas empty node discarded", nodesN() === cnt, cnt + "→" + nodesN());
+    vw.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, clientX: vr.left + 30, clientY: vr.top + 30 }));
+    var ta3 = $("#view .cv-edit"); ok("canvas dblclick adds", !!ta3 && nodesN() === cnt + 1);
+    ta3.value = "더블클릭 아이디어"; key(ta3, "Enter"); await sleep(60);
+    var newNode = $$("#view .cv-node").filter(function (n) { return /더블클릭/.test(n.textContent); })[0];
+    tap(newNode);
+    var c2 = nodesN(); key(vw, "Tab"); ok("canvas Tab adds child", nodesN() === c2 + 1 && !!$("#view .cv-edit"));
+    var ta4 = $("#view .cv-edit"); ta4.value = "탭으로 만든 가지"; key(ta4, "Escape"); await sleep(40);
+    ok("canvas Esc on new node discards", nodesN() === c2, c2 + "→" + nodesN());
+    var pre = nodesN();
+    newNode = $$("#view .cv-node").filter(function (n) { return /더블클릭/.test(n.textContent); })[0]; tap(newNode);
+    key(vw, "Delete"); await sleep(40);
+    ok("canvas Delete removes node", nodesN() === pre - 1, pre + "→" + nodesN());
+    tbtn("되돌리기").click(); await sleep(40);
+    ok("canvas undo restores", nodesN() === pre, nodesN());
+    tap($$("#view .cv-node")[0]);
+    $$("#view .cv-sw")[2].click();
+    ok("canvas colour", $$("#view .cv-node")[0].classList.contains("cv-c2"));
+    var ideasBefore = window.__MOCK_STORE["writer/ideas"].items.length;
+    tbtn("선택한 아이디어를 글감 수집함으로").click(); await sleep(120);
+    ok("canvas send to ideas", window.__MOCK_STORE["writer/ideas"].items.length === ideasBefore + 1 && window.__MOCK_STORE["writer/ideas"].items.some(function (x) { return (x.tags || []).indexOf("캔버스") !== -1; }));
+    var z0 = $(".cv-zoom").textContent; tbtn("확대").click(); ok("canvas zoom", $(".cv-zoom").textContent !== z0, z0 + "→" + $(".cv-zoom").textContent);
+    tbtn("모든 아이디어가 보이게").click(); ok("canvas fit", /%$/.test($(".cv-zoom").textContent));
+    await sleep(700);
+    window.prompt = function () { return "두 번째 캔버스"; };
+    tbtn("새 캔버스 만들기").click(); await sleep(150);
+    ok("canvas new board", $$("#view .cv-board option").length === 2 && nodesN() === 0 && !$("#view .cv-hint").hidden, $$("#view .cv-board option").length + "/" + nodesN());
+    window.prompt = function () { return "이름 바꿈"; };
+    tbtn("캔버스 이름 바꾸기").click(); await sleep(60);
+    ok("canvas rename board", $$("#view .cv-board option").some(function (o) { return o.textContent === "이름 바꿈"; }));
+    tbtn("이 캔버스 삭제").click(); await sleep(150);
+    ok("canvas delete board", $$("#view .cv-board option").length === 1 && nodesN() > 0, $$("#view .cv-board option").length + "/" + nodesN());
+    await go("writer-desk"); await go("writer-canvas"); await sleep(150);
+    ok("canvas persists after reload", nodesN() >= 9 && linksN() >= 8, nodesN() + "/" + linksN());
+
+    await go("writer-plot"); await sleep(100);
+    ok("plot needs a work", !!$("#view .empty-state") && /작품/.test($(".proj-bar").textContent));
+    await App.doc("writer/works").set({ items: [{ id: "w1", title: "테스트 장편", form: "소설", status: "집필중", genre: "스릴러" }, { id: "w2", title: "테스트 산문", form: "에세이", status: "구상" }] });
+    await go("writer-plot"); await sleep(150);
+    ok("plot switcher excludes essays", $$(".proj-bar option").length === 1 && $(".proj-bar select").value === "w1", $$(".proj-bar option").length);
+    ok("plot renders panels", $$("#view .items-panel").length === 1 && $$("#view .fields-form").length === 1);
+    var pf = $("#view .fields-form textarea"); pf.value = "테스트 로그라인"; change(pf); await sleep(80);
+    ok("plot story saves per work", window.__MOCK_STORE["writer/wk_w1_story"] && window.__MOCK_STORE["writer/wk_w1_story"].premise === "테스트 로그라인");
+    await testPanels("writer-plot");
+    await go("writer-revise"); await sleep(150);
+    ok("revise switcher lists all works", $$(".proj-bar option").length === 2, $$(".proj-bar option").length);
+    ok("revise default checklist", $$("#view .items-panel .item-card").length === 16 && $$("#view .group-title").length === 4, $$("#view .items-panel .item-card").length + "/" + $$("#view .group-title").length);
+    await testPanels("writer-revise");
+    await go("writer-world"); await sleep(100);
+    $$("#view .items-panel")[0].querySelectorAll(".items-tools .tool-btn").forEach(function (b) { if (b.textContent.charAt(0) === "+" && !$(".item-form")) { b.click(); } });
+    await sleep(40);
+    var wo = $$("#view .item-form select[name=work] option").map(function (o) { return o.textContent; }).join("|");
+    ok("world work select lists works", wo === "(미지정)|테스트 장편|테스트 산문", wo);
+    await go("writer-submit"); await sleep(100);
+    $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0].click(); await sleep(40);
+    var sform = $("#view .item-form"); fillForm(sform); $("input[type=date]", sform).value = App.h.dateKey(App.h.addDays(new Date(), 5)); submit(sform); await sleep(100);
+    ok("submission shows dday", !!$("#view .item-card .dday"), $("#view .item-card") && $("#view .item-card").textContent);
+    await go("writer-desk"); await sleep(120);
+    ok("desk shows work + deadline", $$("#view .desk-work").length >= 1 && $$("#view .upcoming-item").some(function (r) { return /D-/.test(r.textContent); }));
+    await App.doc("writer/works").set({ items: [] });
 
     await go("company-billing");
     var bf = $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0];

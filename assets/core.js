@@ -98,7 +98,13 @@
       { label: "학위논문", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing"] },
       { pages: ["thesis-refs"] }
     ] },
-    { key: "writer", short: "작가", label: "작가", pages: ["writer-works", "writer-ideas", "writer-log"] },
+    { key: "writer", short: "작가", label: "작가", groups: [
+      { pages: ["writer-desk"] },
+      { label: "구상", pages: ["writer-canvas", "writer-ideas", "writer-quotes"] },
+      { label: "소설 · 에세이", pages: ["writer-plot", "writer-world", "writer-essay"] },
+      { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] },
+      { pages: ["writer-submit"] }
+    ] },
     { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-memos", "personal-habits", "personal-weekly"] },
     { key: "company", short: "회사", label: "회사", pages: ["company-pipeline", "company-billing", "company-worklog", "company-flow", "company-snippets", "company-instructors"] }
   ];

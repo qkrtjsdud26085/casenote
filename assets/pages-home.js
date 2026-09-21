@@ -162,7 +162,7 @@
         });
 
         /* 작가 · 습관 */
-        var c4 = ui.card(g, { tab: "Writer", tone: "t-2", title: "작가 · 습관", link: "writer-works" });
+        var c4 = ui.card(g, { tab: "Writer", tone: "t-2", title: "작가 · 습관", link: "writer-desk" });
         var works = ((D.works && D.works.items) || []).filter(function (w) { return w.status && w.status !== "완결"; }).slice(0, 3);
         c4.body.appendChild(el("div", "mini-title", "진행 중인 작품"));
         var l7 = mini(c4.body);
