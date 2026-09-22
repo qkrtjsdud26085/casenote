@@ -11,7 +11,6 @@
       /* ---------- header: title, affiliation, quote of the day ---------- */
       var head = el("section", "home-head");
       var left = el("div", "home-left");
-      left.appendChild(el("h1", "home-title", "Hello dear Sunny"));
       var badges = el("div", "badges");
       badges.appendChild(el("span", "badge company", "한국가이던스 대구점"));
       badges.appendChild(el("span", "badge academic", "영남대학교 대학원 범죄심리학과 석·박사 수료"));

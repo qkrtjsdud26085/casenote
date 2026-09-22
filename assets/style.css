@@ -213,10 +213,9 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ---------- home ---------- */
-.home-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px 48px; flex-wrap: wrap; padding: 30px 0 4px; }
-.home-title { font-family: var(--font-display); font-weight: 700; font-size: clamp(2rem, 5.5vw, 3rem); margin: 0 0 12px; line-height: 1.12; text-wrap: balance; }
+.home-head { display: flex; justify-content: space-between; align-items: center; gap: 16px 48px; flex-wrap: wrap; padding: 14px 0 4px; }
 .badges { display: flex; gap: 10px; flex-wrap: wrap; }
-.badge { display: inline-flex; align-items: center; font-size: 0.86rem; font-weight: 600; padding: 7px 13px; border-radius: 6px; }
+.badge { display: inline-flex; align-items: center; font-family: var(--font-display); font-size: 0.86rem; font-weight: 700; padding: 7px 13px; border-radius: 6px; }
 .badge.company { background: var(--accent-2-ink); color: var(--accent-2-strong); border: 1px solid color-mix(in srgb, var(--accent-2) 35%, transparent); }
 .badge.academic { background: var(--accent-ink); color: var(--accent-strong); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 .quote-box { flex: 0 1 400px; min-width: min(100%, 260px); border-left: 3px solid var(--accent); padding: 2px 0 2px 18px; }
@@ -410,7 +409,7 @@ details.group > summary { cursor: pointer; list-style: revert; }
   .page-head { padding-top: 22px; }
   .item-row { grid-template-columns: 1fr; gap: 2px; }
   .user-label { display: none; }
-  .home-head { padding-top: 20px; }
+  .home-head { padding-top: 10px; }
 }
 @media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .prog > span { transition: none; } }
