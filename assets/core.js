@@ -115,7 +115,7 @@
   App.page = function (def) { App.pages[def.id] = def; };
 
   var $ = function (id) { return document.getElementById(id); };
-  var viewEl, headEl, sectionsEl, subnavEl;
+  var viewEl, headEl, sectionsEl, subnavEl, homeStripEl;
 
   function groupOf(id) {
     for (var i = 0; i < App.MENU.length; i++) { if (App.MENU[i].pages.indexOf(id) !== -1) { return App.MENU[i]; } }
@@ -209,6 +209,7 @@
       if (page.desc) { headEl.appendChild(el("p", "page-desc", page.desc)); }
     }
     document.title = (page.id === "home" ? "" : page.title + " · ") + "Hello dear Sunny";
+    if (page.id !== "home") { homeStripEl.hidden = true; clear(homeStripEl); }
     updateSections(page);
     clear(viewEl);
     window.scrollTo(0, 0);
@@ -254,7 +255,7 @@
   }
 
   App.start = function () {
-    viewEl = $("view"); headEl = $("pageHead"); sectionsEl = $("sections"); subnavEl = $("subnav");
+    viewEl = $("view"); headEl = $("pageHead"); sectionsEl = $("sections"); subnavEl = $("subnav"); homeStripEl = $("homeStrip");
     $("signOutBtn").addEventListener("click", function () { App.auth.signOut(); });
     window.addEventListener("hashchange", route);
     if (typeof firebase === "undefined") {

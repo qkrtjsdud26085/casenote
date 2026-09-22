@@ -8,21 +8,20 @@
     render: function (view) {
       var D = { todos: [], schedule: [], projects: null, grad: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, worklog: null, pipeline: null, reco: null, gcal: null };
 
-      /* ---------- header: title, affiliation, quote of the day ---------- */
-      var head = el("section", "home-head");
-      var left = el("div", "home-left");
+      /* ---------- affiliation badges + quote of the day, shown in the topbar itself ---------- */
+      var strip = document.getElementById("homeStrip");
+      H.clear(strip);
       var badges = el("div", "badges");
       badges.appendChild(el("span", "badge company", "한국가이던스 대구점"));
       badges.appendChild(el("span", "badge academic", "영남대학교 대학원 범죄심리학과 석·박사 수료"));
-      left.appendChild(badges);
       var quote = App.todayQuote();
       var year = String(quote.y).replace(/^(\d+)경$/, "$1년경").replace(/^(기원전 )?(\d+)$/, "$1$2년");
       var box = el("div", "quote-box");
       box.appendChild(el("p", "quote-label", "오늘의 명언"));
       box.appendChild(el("p", "quote-text", "“" + quote.t + "”"));
       box.appendChild(el("p", "quote-author", "— " + quote.a + " · " + year));
-      head.appendChild(left); head.appendChild(box);
-      view.appendChild(head);
+      strip.appendChild(badges); strip.appendChild(box);
+      strip.hidden = false;
 
       /* ---------- quick capture ---------- */
       var cap = el("form", "capture");
