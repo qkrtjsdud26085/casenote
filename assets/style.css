@@ -238,6 +238,8 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .mini-title:first-child { margin-top: 0; }
 .capture { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
 .capture input { flex: 1 1 200px; }
+.capture input.cap-date, .capture input.cap-time { flex: 0 1 132px; color: var(--ink-soft); }
+.capture-hint { margin: 6px 2px 0; font-size: 0.74rem; color: var(--ink-soft); }
 
 /* ---------- todos / memos / schedule / habits ---------- */
 .todo-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 8px; border-radius: 4px; }

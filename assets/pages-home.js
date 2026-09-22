@@ -23,20 +23,36 @@
       strip.appendChild(badges); strip.appendChild(box);
       strip.hidden = false;
 
-      /* ---------- quick capture ---------- */
+      /* ---------- quick capture (optionally synced to Google Tasks/Calendar) ---------- */
       var cap = el("form", "capture");
       var qt = el("input"); qt.placeholder = "빠른 할 일 (Enter)"; qt.maxLength = 200; qt.setAttribute("aria-label", "빠른 할 일");
       var qm = el("input"); qm.placeholder = "빠른 메모 (Enter)"; qm.maxLength = 300; qm.setAttribute("aria-label", "빠른 메모");
+      var qd = el("input"); qd.type = "date"; qd.className = "cap-date"; qd.setAttribute("aria-label", "날짜 (선택, Google에 동기화)");
+      var qh = el("input"); qh.type = "time"; qh.className = "cap-time"; qh.setAttribute("aria-label", "시간 (선택)");
       var qb = el("button", "btn", "추가"); qb.type = "submit";
-      cap.appendChild(qt); cap.appendChild(qm); cap.appendChild(qb);
+      cap.appendChild(qt); cap.appendChild(qm); cap.appendChild(qd); cap.appendChild(qh); cap.appendChild(qb);
+      view.appendChild(cap);
+      view.appendChild(el("p", "capture-hint", "할 일 · 메모에 날짜를 적으면 Google 할 일에, 시간까지 적으면 Google 캘린더 일정으로 함께 등록돼요."));
+
+      function syncToGoogle(title, notes) {
+        var dateKey = qd.value, time = qh.value;
+        if (!dateKey) { return; }
+        var job = time ? App.gtasks.createEvent(title, dateKey, time, notes) : App.gtasks.createTask(title, dateKey, notes);
+        job.catch(function (err) { window.alert("Google 동기화 실패: " + App.gtasks.explain(err)); });
+      }
       cap.addEventListener("submit", function (e) {
         e.preventDefault();
         var t = qt.value.trim(), m = qm.value.trim();
-        if (t) { App.col("todos").add({ text: t, done: false, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); }); }
-        if (m) { App.col("memos").add({ title: "", body: m, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); }); }
-        qt.value = ""; qm.value = "";
+        if (t) {
+          App.col("todos").add({ text: t, done: false, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+          syncToGoogle(t, "");
+        }
+        if (m) {
+          App.col("memos").add({ title: "", body: m, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+          syncToGoogle(m, "Hello dear Sunny 메모");
+        }
+        qt.value = ""; qm.value = ""; qd.value = ""; qh.value = "";
       });
-      view.appendChild(cap);
 
       var dash = el("div"); view.appendChild(dash);
 
