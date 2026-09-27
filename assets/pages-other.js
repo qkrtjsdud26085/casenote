@@ -27,7 +27,8 @@
      ========================================================= */
   function todoCard(parent) {
     var G = App.gtasks;
-    var c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks", wide: true });
+    var c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks" });
+    c.el.classList.add("todo-card");
     var S = { cache: null, busy: false, legacy: [] };
     var status = el("p", "hint");
     var tools = el("div", "items-tools");
@@ -44,7 +45,9 @@
     var list = el("div", "plain-list");
     var doneBox = el("details", "reco-settings todo-done"); var doneSum = el("summary"); var doneList = el("div", "plain-list");
     doneBox.appendChild(doneSum); doneBox.appendChild(doneList);
-    [status, tools, form, msg, list, doneBox].forEach(function (n) { c.body.appendChild(n); });
+    var scroll = el("div", "todo-scroll");  /* the list scrolls so the card keeps the calendar's height */
+    scroll.appendChild(list); scroll.appendChild(doneBox);
+    [status, tools, form, msg, scroll].forEach(function (n) { c.body.appendChild(n); });
 
     function fail(err) { S.busy = false; msg.textContent = G.explain(err); draw(); }
     function run(label, job) {
@@ -112,6 +115,33 @@
   }
 
   /* =========================================================
+     메모 — one scratchpad that saves itself (Firestore personal/quicknote)
+     ========================================================= */
+  function memoCard(parent) {
+    var ref = App.doc("personal/quicknote");
+    var c = ui.card(parent, { tab: "Memo", tone: "t-3", title: "메모" });
+    c.el.classList.add("memo-card");
+    var ta = el("textarea", "quicknote"); ta.placeholder = "생각나는 걸 바로 적어 두세요. 자동으로 저장돼요."; ta.maxLength = 20000; ta.setAttribute("aria-label", "메모");
+    c.body.appendChild(ta);
+    var timer = null, dirty = false;
+    function save() {
+      dirty = false;
+      ref.set({ text: ta.value, updatedAt: new Date().toISOString() }, { merge: true })
+        .then(function () { c.count.textContent = "저장됨 " + H.fmtDateTime(new Date().toISOString()).slice(6); })
+        .catch(function (err) { c.count.textContent = "저장 실패"; window.alert("메모 저장 실패: " + err.message); });
+    }
+    ta.addEventListener("input", function () { dirty = true; c.count.textContent = "입력 중…"; clearTimeout(timer); timer = setTimeout(save, 700); });
+    ta.addEventListener("blur", function () { if (dirty) { clearTimeout(timer); save(); } });
+    App.unsubs.push(function () { if (dirty) { clearTimeout(timer); save(); } });  /* leaving the page flushes */
+    App.watchDoc(ref, function (d) {
+      /* never overwrite what is being typed */
+      if (document.activeElement === ta || dirty) { return; }
+      ta.value = (d && d.text) || "";
+      c.count.textContent = d && d.updatedAt ? "저장됨 " + H.fmtDateTime(d.updatedAt).slice(6) : "";
+    });
+  }
+
+  /* =========================================================
      개인 — 일정 · 캘린더
      ========================================================= */
   App.page({
@@ -120,12 +150,17 @@
       var scheduleRef = App.col("schedule");
       var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
       state.month.setDate(1);
-      var g = ui.grid(view, true);
-      var calCard = ui.card(g, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
-      var dayCard = ui.card(g, { tab: "Day", tone: "t-2", title: "선택한 날" });
-      todoCard(g);
-      var gCard = ui.card(g, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동", wide: true });
-      var upCard = ui.card(g, { tab: "Upcoming", tone: "t-3", title: "다가오는 일정 (전체)", wide: true });
+      /* calendar on the left; to-do + memo on the right, never taller than the calendar */
+      var top = el("div", "cal-top"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
+      right.appendChild(rightIn); top.appendChild(left); top.appendChild(right); view.appendChild(top);
+      var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
+      todoCard(rightIn);
+      memoCard(rightIn);
+      /* Google · Upcoming: small, side by side, folded until needed */
+      var bottom = el("div", "cal-bottom"); view.appendChild(bottom);
+      var gCard = ui.card(bottom, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동" });
+      var upCard = ui.card(bottom, { tab: "Upcoming", tone: "t-3", title: "다가오는 일정" });
+      gCard.el.classList.add("cal-mini"); upCard.el.classList.add("cal-mini");
       ui.upcoming(upCard.body, "*", 10);
       foldable(gCard, "gcal", "Google 캘린더 연동");
       foldable(upCard, "upcoming", "다가오는 일정");
@@ -150,7 +185,10 @@
       var addBtn = el("button", "btn", "추가"); addBtn.type = "submit";
       [dateEl, catEl, titleEl, addBtn].forEach(function (n) { form.appendChild(n); });
       var dayList = el("div", "plain-list");
-      [dayTitle, form, dayList].forEach(function (n) { dayCard.body.appendChild(n); });
+      /* the selected day's events and the add form sit under the month grid */
+      var dayBox = el("div", "cal-day");
+      [dayTitle, form, dayList].forEach(function (n) { dayBox.appendChild(n); });
+      calCard.body.appendChild(dayBox);
 
       function visible() {
         var y = state.month.getFullYear(), m = state.month.getMonth();

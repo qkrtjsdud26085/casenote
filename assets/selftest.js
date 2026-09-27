@@ -171,7 +171,13 @@
     $(".todo-done .icon-btn", cardBy("할 일 · Google Tasks")).click(); await sleep(250);
     window.confirm = realConfirmT;
     ok("todo delete in Google", gt.length === 1 && gt[0].title === "예전 할 일", JSON.stringify(gt));
-    var gC = cardBy("Google 캘린더 연동"), uC = cardBy("다가오는 일정 (전체)");
+    ok("no Day card; to-do + memo beside calendar", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && $("#view .cal-right").contains(cardBy("메모")) && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
+    var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
+    ok("right column not taller than calendar", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
+    var qn = $("#view textarea.quicknote"); qn.focus(); setVal(qn, "장보기: 우유"); qn.blur(); await sleep(150);
+    ok("memo autosaves", window.__MOCK_STORE["personal/quicknote"] && window.__MOCK_STORE["personal/quicknote"].text === "장보기: 우유" && /저장됨/.test(cardBy("메모").textContent), JSON.stringify(window.__MOCK_STORE["personal/quicknote"]));
+    var gC = cardBy("Google 캘린더 연동"), uC = cardBy("다가오는 일정");
+    ok("google + upcoming share a row", gC.parentNode === uC.parentNode && gC.parentNode.classList.contains("cal-bottom") && gC.classList.contains("cal-mini") && (window.innerWidth <= 640 || Math.abs(gC.getBoundingClientRect().top - uC.getBoundingClientRect().top) < 2));
     ok("google/upcoming folded", gC.classList.contains("folded") && $(".card-body", gC).hidden && uC.classList.contains("folded"));
     $(".fold-btn", gC).click(); await sleep(30);
     ok("fold opens + remembered", !$(".card-body", gC).hidden && App.h.safeGet("hds_fold_gcal") === "1");

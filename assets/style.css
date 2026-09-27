@@ -251,6 +251,40 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .todo-notes { display: block; margin-top: 1px; text-decoration: none; white-space: pre-wrap; }
 .todo-msg:empty { display: none; }
 .todo-done { margin: 10px 0 0; }
+/* 일정 · 캘린더: calendar left; to-do + memo right, sized to the calendar's height */
+.cal-top { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 22px; align-items: stretch; }
+.cal-left { min-width: 0; }
+.cal-right { position: relative; min-width: 0; min-height: 460px; }
+.cal-right-in { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.cal-right-in > .card { display: flex; flex-direction: column; min-height: 0; }
+.cal-right-in > .card > .card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cal-right-in > .todo-card { flex: 3 1 0; }
+.cal-right-in > .memo-card { flex: 2 1 0; margin-top: 26px; }
+.todo-card .hint { margin-bottom: 6px; }
+.todo-card .items-tools { margin-bottom: 8px; }
+.todo-card .quick-add { margin-bottom: 6px; }
+.todo-card .quick-add input { flex: 1 1 120px; }
+.todo-card .quick-add input.w-date { flex: 0 0 136px; }
+.todo-scroll { flex: 1; min-height: 60px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.quicknote { flex: 1; min-height: 70px; width: 100%; resize: none; line-height: 1.6; }
+.cal-day { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.cal-day .quick-add { margin-bottom: 8px; }
+/* Google · Upcoming: two small cards on one row */
+.cal-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; align-items: start; margin-top: 10px; }
+.card.cal-mini { padding: 16px 14px 12px; }
+.card.cal-mini .tab-label { font-size: 0.6rem; top: -12px; padding: 3px 8px; }
+.card.cal-mini .card-head h2 { font-size: 0.9rem; }
+.card.cal-mini .fold-btn { font-size: 0.66rem; padding: 2px 9px; }
+.card.cal-mini.folded { padding-bottom: 10px; }
+@media (max-width: 900px) {
+  .cal-top { grid-template-columns: minmax(0, 1fr); }
+  .cal-right { position: static; min-height: 0; }
+  .cal-right-in { position: static; }
+  .cal-right-in > .card { flex: none; }
+  .todo-scroll { max-height: 340px; }
+  .quicknote { min-height: 160px; }
+}
+@media (max-width: 640px) { .cal-bottom { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
 .fold-head { align-items: center; }
 .fold-head h2 { cursor: pointer; }
 .card.folded { padding-bottom: 14px; }
