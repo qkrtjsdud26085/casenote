@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 53, ids.length);
+    ok("page count", ids.length === 56, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -108,8 +108,8 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 26 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
-    ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 29 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
     var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
     await go("home");
@@ -125,7 +125,7 @@
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
-    ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 2 && /연구재단 선정/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
+    ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 2 && /연구재단 선정/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent) && $$("#subnav .sub-group")[1].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[1].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[1].textContent) && /피해상담사/.test($$("#subnav .sub-group")[1].textContent) && /임상심리사/.test($$("#subnav .sub-group")[1].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
     await go("diss-current"); ok("현재 진행중 blank page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-current");
     await go("cert-list");
@@ -137,6 +137,9 @@
     var lf = $(".quick-add", cardBy("공부 기록")); $("input[aria-label='범위 · 내용']", lf).value = "기출 1회"; $("input[aria-label='자격증']", lf).value = "임상심리사"; $("input[type=number]", lf).value = "2.5"; submit(lf); await sleep(120);
     ok("cert study log + hours", /임상심리사 2\.5h/.test(cardBy("공부 기록").textContent), cardBy("공부 기록").textContent.slice(0, 120));
     await go("cert-files"); ok("cert files page", $("#subnav a.active").getAttribute("data-page") === "cert-list" && !!cardBy("취득 증빙 파일 링크"));
+    await go("cert-crime"); ok("cert-crime page", $$("#view .page-tab").length === 3 && !!cardBy("범죄심리사 자격 정보 · 목표") && !!cardBy("취득 요건 · 수련 체크리스트"));
+    await go("cert-victim"); ok("cert-victim page", $$("#view .page-tab").length === 3 && !!cardBy("피해상담사 자격 정보 · 목표"));
+    await go("cert-clinical"); ok("cert-clinical page", $$("#view .page-tab").length === 3 && !!cardBy("임상심리사 자격 정보 · 목표"));
     await go("ai-tools"); ok("ai tabs", $$("#view .page-tab").length === 3 && !!cardBy("연구용 AI 도구") && !!cardBy("자주 쓰는 프롬프트") && $("#subnav a.active").textContent === "AI");
     await go("ai-notes"); ok("ai notes page", !!cardBy("AI · 머신러닝 공부 노트") && $("#subnav a.active").getAttribute("data-page") === "ai-tools");
     await go("ai-log"); ok("ai log page", !!cardBy("AI 활용 기록 (연구윤리 · 공개 대비)") && /공개 필요/.test($("#view").textContent));

@@ -94,7 +94,7 @@
       { pages: ["thesis-home"] },
       { pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"] },
       { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
-      { pages: ["cert-list", "cert-study", "cert-files"] },
+      { label: "자격증", pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-victim", "cert-clinical"] },
       { pages: ["ai-tools", "ai-notes", "ai-log"] },
       { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
         "proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit",

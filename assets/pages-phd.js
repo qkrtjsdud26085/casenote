@@ -36,7 +36,7 @@
   var CERT_STATUS = ["관심", "준비 중", "접수 완료", "응시 완료", "합격", "불합격", "취득"];
 
   App.page({
-    id: "cert-list", title: "자격증", navLabel: "자격증", tabLabel: "목록 · 일정",
+    id: "cert-list", title: "자격증", navLabel: "전체 현황", tabLabel: "목록 · 일정",
     render: function (view) {
       tabs(view, CERT_TABS, "cert-list");
       var c = ui.card(view, { tab: "Certificates", tone: "t-1", title: "자격증 목록 · 일정", wide: true });
@@ -120,6 +120,108 @@
         ]
       });
     }
+  });
+
+  /* =========================================================
+     자격증 세부 — 범죄심리사 / 피해상담사 / 임상심리사
+     ========================================================= */
+  var CERT_SUB_TABS = ["cert-crime", "cert-victim", "cert-clinical"];
+
+  function certDetailPage(cfg) {
+    App.page({
+      id: cfg.id,
+      title: cfg.title,
+      navLabel: cfg.title,
+      tabLabel: cfg.title,
+      render: function (view) {
+        tabs(view, CERT_SUB_TABS, cfg.id);
+        var g = ui.grid(view, true);
+
+        var o = ui.card(g, { tab: "Info", tone: "t-1", title: cfg.title + " 자격 정보 · 목표", wide: true });
+        ui.fieldsPanel(o.body, {
+          ref: R(cfg.key + "_info"), docKey: "info",
+          fields: [
+            { key: "level", label: "취득 등급", type: "text", maxLength: 60, placeholder: cfg.defaultLevel || "예: 1급 / 전문가" },
+            { key: "org", label: "주관 기관", type: "text", maxLength: 80, placeholder: cfg.defaultOrg || "주관 기관" },
+            { key: "status", label: "진행 상태", type: "select", options: ["관심", "준비 중", "수련 중", "접수 완료", "응시 완료", "합격", "취득"] },
+            { key: "targetDate", label: "목표 시험일", type: "date" },
+            { key: "note", label: "메모 · 요건 요약", type: "textarea", rows: 2, wide: true, placeholder: "응시 자격 요건, 학점/수련 기준 등 메모" }
+          ]
+        });
+
+        var r = ui.card(g, { tab: "Requirements", tone: "t-2", title: "취득 요건 · 수련 체크리스트", wide: true });
+        ui.itemsPanel(r.body, {
+          ref: R(cfg.key + "_reqs"), views: ["table", "cards"], checkKey: "done", dueKey: "due", ddayInTable: true,
+          quickFields: ["task", "area", "progress", "due"], addLabel: "+ 요건 추가",
+          sort: function (a, b) { return (!!a.done - !!b.done) || byNearest("due")(a, b); },
+          reorder: { resetLabel: "기한 가까운 순으로 정렬" },
+          empty: cfg.title + " 취득 요건(교과목 이수, 수련 시간, 필수 서류 등)을 추가하세요.",
+          summary: function (items) {
+            if (!items.length) { return null; }
+            var done = items.filter(function (x) { return x.done; }).length;
+            return "완료 " + done + "개 / 전체 " + items.length + "개 (" + Math.round(done / items.length * 100) + "%)";
+          },
+          fields: [
+            { key: "task", label: "요건 · 과제", type: "text", title: true, required: true, col: true, maxLength: 140, placeholder: "예: 필수 과목 이수, 수련 시간 충족" },
+            { key: "area", label: "구분", type: "select", options: ["교과목 이수", "수련 · 실습", "필기시험", "실기 · 면접", "서류 제출", "기타"], meta: true, col: true },
+            { key: "progress", label: "진행도", type: "text", col: true, maxLength: 40, placeholder: "예: 60/100시간" },
+            { key: "due", label: "목표 기한", type: "date", col: true },
+            { key: "memo", label: "메모", type: "text", col: true, maxLength: 160 }
+          ]
+        });
+
+        var p = ui.card(g, { tab: "Plan", tone: "t-3", title: "공부 계획 · 시험 일정" });
+        ui.itemsPanel(p.body, {
+          ref: R(cfg.key + "_plan"), views: ["table"], checkKey: "done", dueKey: "due", ddayInTable: true,
+          quickFields: ["goal", "due"], addLabel: "+ 계획 추가",
+          sort: function (a, b) { return (!!a.done - !!b.done) || byNearest("due")(a, b); },
+          reorder: { resetLabel: "기한 가까운 순으로 정렬" },
+          empty: "시험 대비 공부 계획과 일정을 추가하세요.",
+          fields: [
+            { key: "goal", label: "목표 · 과목", type: "text", title: true, required: true, col: true, maxLength: 140, placeholder: "예: 기출문제 3개년 풀이" },
+            { key: "due", label: "기한", type: "date", col: true },
+            { key: "memo", label: "메모", type: "text", col: true, maxLength: 160 }
+          ]
+        });
+
+        var f = ui.card(g, { tab: "Files", tone: "t-1", title: "자료 · 증빙 링크" });
+        ui.itemsPanel(f.body, {
+          ref: R(cfg.key + "_files"), views: ["table", "cards"], titleLink: "url", addLabel: "+ 링크 추가",
+          quickFields: ["name", "url"],
+          empty: "수련 일지, 기출 자료, 합격 증빙 링크를 모아 두세요.",
+          fields: [
+            { key: "name", label: "이름", type: "text", title: true, required: true, col: true, maxLength: 100, placeholder: "예: 수련 증명서 양식" },
+            { key: "url", label: "링크", type: "url", col: true, required: true },
+            { key: "date", label: "날짜", type: "date", col: true },
+            { key: "memo", label: "메모", type: "text", col: true, maxLength: 160 }
+          ]
+        });
+      }
+    });
+  }
+
+  certDetailPage({
+    id: "cert-crime",
+    title: "범죄심리사",
+    key: "cert_crime",
+    defaultLevel: "전문가 / 1급 / 2급",
+    defaultOrg: "한국심리학회 / 한국범죄심리학회"
+  });
+
+  certDetailPage({
+    id: "cert-victim",
+    title: "피해상담사",
+    key: "cert_victim",
+    defaultLevel: "1급 / 2급",
+    defaultOrg: "한국피해자지원협회(KOVA) / 한국피해자학회"
+  });
+
+  certDetailPage({
+    id: "cert-clinical",
+    title: "임상심리사",
+    key: "cert_clinical",
+    defaultLevel: "정신건강임상심리사 1급·2급 / 임상심리사 1급·2급",
+    defaultOrg: "보건복지부 / 한국산업인력공단"
   });
 
   /* =========================================================
