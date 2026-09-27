@@ -40,9 +40,9 @@
         return { version: 1, exportedAt: new Date().toISOString(), docs: docs };
       });
     };
-    K.importCard = function (parent, hint) {
-      var c = ui.card(parent, { tab: "Data", tone: "t-3", title: "자료 불러오기 · 백업", wide: true });
-      c.body.appendChild(el("p", "hint", hint + " 불러오면 같은 영역의 기존 내용은 파일 내용으로 바뀌니, 먼저 '내보내기'로 백업해 두세요."));
+    K.importCard = function (parent, hint, title) {
+      var c = ui.card(parent, { tab: "Data", tone: "t-3", title: title || "자료 불러오기 · 백업", wide: true });
+      if (hint) { c.body.appendChild(el("p", "hint", hint + " 불러오면 같은 영역의 기존 내용은 파일 내용으로 바뀌니, 먼저 '내보내기'로 백업해 두세요.")); }
       var row = el("div", "ias-import");
       var file = el("input"); file.type = "file"; file.accept = ".json,application/json"; file.setAttribute("aria-label", cfg.name + " 자료 JSON 파일");
       var exp = el("button", "tool-btn", "현재 자료 내보내기 (백업)"); exp.type = "button";

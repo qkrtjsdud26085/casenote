@@ -4,7 +4,7 @@
   "use strict";
   var ui = App.ui, H = App.h, el = H.el, RK = App.rkit;
   var DOCS = ["meta", "keystats", "flow", "schedule", "next", "decisions", "files", "vars", "models", "experts", "anacheck",
-    "lit", "concepts", "nrf", "nrfdocs", "prep", "log"];
+    "lit", "concepts", "nrf", "nrfdocs", "prep", "log", "plan"];
   var STAGES = ["연구 계획", "연구재단 신청", "선행연구 · 변수 선정", "설문 구성 · IRB", "패널 자료 수집", "전처리 · 모델링",
     "SHAP · SMOTE 해석", "델파이 1라운드", "델파이 2라운드 · CVR", "논문 작성", "심사", "학위 취득"];
   var CHECK_FIELDS = App.tpl.CHECK_FIELDS;
@@ -374,6 +374,75 @@
         empty: "파일 경로를 추가하세요.", itemExtra: RK.pathActions, fields: RK.FILE_FIELDS,
         hint: "내 컴퓨터(Google Drive 동기화) 경로는 '경로 복사' 후 탐색기 주소창에 붙여넣어 여세요."
       });
+    }
+  });
+
+  /* =========================================================
+     연구계획서 내용 전체 — 연구재단 연구활동계획서(hwpx)를 빠짐없이 옮긴 문서.
+     본문은 research/diss_plan 에만 있습니다 ('연구계획서_전체_홈페이지자료.json' 불러오기).
+     ========================================================= */
+  var NL = "\n";
+  function planCell(c, tag) {
+    var td = el(c.h ? "th" : tag);
+    String(c.t || "").split(NL).forEach(function (line, i) { if (i) { td.appendChild(el("br")); } td.appendChild(document.createTextNode(line)); });
+    if (c.rs > 1) { td.rowSpan = c.rs; }
+    if (c.cs > 1) { td.colSpan = c.cs; }
+    return td;
+  }
+  function planBlock(b) {
+    var t = b.type;
+    if (t === "h1" || t === "h2" || t === "h3" || t === "h4" || t === "h5") { return el(t === "h1" ? "h2" : (t === "h2" ? "h3" : (t === "h3" ? "h4" : (t === "h4" ? "h5" : "h6"))), "plan-" + t, b.text); }
+    if (t === "note") { return el("p", "plan-note", b.text); }
+    if (t === "caption") { return el("p", "plan-caption", b.text); }
+    if (t === "footnote") { return el("p", "plan-footnote", b.text); }
+    if (t === "table") {
+      var wrap = el("div", "table-wrap"), table = el("table", "plan-table"), tb = el("tbody");
+      (b.rows || []).forEach(function (r) { var tr = el("tr"); (r.cells || []).forEach(function (c) { tr.appendChild(planCell(c, "td")); }); tb.appendChild(tr); });
+      table.appendChild(tb); wrap.appendChild(table); return wrap;
+    }
+    if (t === "toc") {
+      var box = el("div", "plan-toc");
+      if (b.title) { box.appendChild(el("div", "plan-toc-title", b.title)); }
+      (b.items || []).forEach(function (x) { box.appendChild(el("div", "", x)); });
+      return box;
+    }
+    if (t === "refs") {
+      var ul = el("ol", "plan-refs");
+      (b.items || []).forEach(function (x) { ul.appendChild(el("li", "", x)); });
+      return ul;
+    }
+    var p = el("p", "plan-p");
+    if (b.lead) { p.appendChild(el("strong", "", b.lead + " : ")); }
+    p.appendChild(document.createTextNode(b.text || ""));
+    return p;
+  }
+  function planText(d) {
+    return (d && d.blocks ? d.blocks : []).map(function (b) {
+      if (b.type === "table") { return (b.rows || []).map(function (r) { return (r.cells || []).map(function (c) { return String(c.t || "").split(NL).join(" "); }).join(" | "); }).join(NL); }
+      if (b.type === "toc") { return [b.title || ""].concat(b.items || []).join(NL); }
+      if (b.type === "refs") { return (b.items || []).join(NL); }
+      return (b.lead ? b.lead + " : " : "") + (b.text || "");
+    }).join(NL + NL);
+  }
+
+  App.page({
+    id: "diss-plan", title: "연구계획서 내용 전체", navLabel: "연구계획서 내용 전체",
+    render: function (view) {
+      var c = ui.card(view, { tab: "Proposal", tone: "t-1", title: "연구활동계획서", wide: true });
+      var tools = el("div", "items-tools");
+      var copy = el("button", "copy-btn", "전체 복사"); copy.type = "button";
+      tools.appendChild(copy);
+      var doc = el("div", "plan-doc");
+      c.body.appendChild(tools); c.body.appendChild(doc);
+      var cur = null;
+      App.watchDoc(D("plan"), function (d) {
+        cur = d; H.clear(doc);
+        tools.hidden = !(d && d.blocks && d.blocks.length);
+        if (tools.hidden) { doc.appendChild(ui.empty("아직 연구계획서를 불러오지 않았어요.")); return; }
+        d.blocks.forEach(function (b) { doc.appendChild(planBlock(b)); });
+      });
+      copy.addEventListener("click", function () { H.copyText(planText(cur), copy); });
+      K.importCard(view, "", "연구계획서 불러오기 · 백업");
     }
   });
 })(window.App);

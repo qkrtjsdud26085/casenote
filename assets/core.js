@@ -93,8 +93,8 @@
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
       { pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"] },
-      { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
-      { label: "자격증", pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-victim", "cert-clinical"] },
+      { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
+      { label: "자격증", pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },
       { pages: ["ai-tools", "ai-notes", "ai-log"] },
       { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
         "proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit",
@@ -260,9 +260,29 @@
     route();
   }
 
+  /* ---------- light / dark switch (remembered per browser; default follows the system) ---------- */
+  function isDark() {
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t) { return t === "dark"; }
+    return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+  function paintThemeBtn() {
+    var b = $("themeBtn"); if (!b) { return; }
+    var dark = isDark();
+    b.textContent = dark ? "☀ 라이트" : "☾ 다크";
+    b.title = dark ? "밝은 화면으로 바꾸기" : "어두운 화면으로 바꾸기";
+  }
+  App.toggleTheme = function () {
+    var next = isDark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    safeSet("hds_theme", next);
+    paintThemeBtn();
+  };
+
   App.start = function () {
     viewEl = $("view"); headEl = $("pageHead"); sectionsEl = $("sections"); subnavEl = $("subnav"); homeStripEl = $("homeStrip");
     $("signOutBtn").addEventListener("click", function () { App.auth.signOut(); });
+    if ($("themeBtn")) { $("themeBtn").addEventListener("click", App.toggleTheme); paintThemeBtn(); }
     window.addEventListener("hashchange", route);
     if (typeof firebase === "undefined") {
       var box = $("landing"); box.hidden = false;

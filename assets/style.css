@@ -704,4 +704,57 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .diss-gantt-bar { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); opacity: 0.55; }
 .diss-gantt-bar.now { opacity: 1; }
 .diss-gantt-bar.done { background: var(--accent-2); opacity: 1; }
-.diss-gantt-today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.diss-gantt-today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }/* light / dark switch (top bar) */
+.theme-btn { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; white-space: nowrap; }
+.theme-btn:hover { color: var(--accent); border-color: var(--accent); }
+/* 자격증 switcher beside the title */
+.cert-head-tabs { margin-bottom: 8px; }
+/* 범죄심리사 */
+.crime-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr)); gap: 10px; margin-bottom: 16px; }
+.crime-tile { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--surface-2); min-width: 0; }
+.crime-tile small { display: block; font-size: 0.74rem; color: var(--ink-soft); }
+.crime-tile b { display: block; font-family: var(--font-display); font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.crime-tile.hi { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.crime-tile.hi small { color: var(--accent-ink); opacity: 0.85; }
+.crime-bars { display: flex; gap: 5px; align-items: stretch; height: 118px; margin-top: 6px; }
+.crime-bar-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.crime-bar-wrap { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.crime-bar { width: 100%; background: var(--accent-2); border-radius: 3px 3px 0 0; min-height: 0; }
+.crime-bar-v { font-size: 0.66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; margin-bottom: 2px; }
+.crime-bar-label { text-align: center; font-size: 0.66rem; color: var(--ink-soft); margin-top: 4px; }
+.crime-sched { display: grid; gap: 8px; }
+.crime-sched-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.crime-sched-row > input { flex: 1 1 120px; min-width: 0; }
+.crime-sched-sep { color: var(--ink-soft); }
+.crime-people { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.crime-people input { width: 76px; }
+.crime-sched-status { font-size: 0.8rem; color: var(--accent-2-strong); margin: 8px 0 0; min-height: 1.2em; }
+.crime-up-title { margin-top: 18px; }
+.crime-areas { margin-bottom: 12px; }
+.phrase-text { margin: 0; font-size: 0.88rem; line-height: 1.7; white-space: pre-wrap; }
+.chip-n { margin-left: 5px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.copy-btn.danger:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.text-btns .item-btns > .copy-btn:not(.icon-btn) { background: var(--accent-2); color: var(--accent-2-ink); border-color: var(--accent-2); }
+.crime-prompt { white-space: pre-wrap; font-family: var(--font-body); font-size: 0.86rem; line-height: 1.7; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 10px 0 0; max-height: 70vh; overflow: auto; }
+.crime-prompt-edit { width: 100%; margin-top: 10px; font-size: 0.86rem; line-height: 1.6; }
+/* 연구계획서 내용 전체 */
+.plan-doc { line-height: 1.8; font-size: 0.93rem; }
+.plan-doc h2, .plan-doc h3, .plan-doc h4, .plan-doc h5, .plan-doc h6 { font-family: var(--font-display); line-height: 1.4; }
+.plan-h1 { text-align: center; font-size: 1.5rem; margin: 6px 0 16px; }
+.plan-h2 { font-size: 1.25rem; margin: 30px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.plan-h3 { font-size: 1.1rem; margin: 26px 0 10px; }
+.plan-h4 { font-size: 1rem; margin: 20px 0 8px; color: var(--accent); }
+.plan-h5 { font-size: 0.95rem; margin: 16px 0 6px; }
+.plan-p { margin: 0 0 12px; text-align: justify; }
+.plan-note { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); margin: 0 0 4px; }
+.plan-caption { text-align: center; font-weight: 600; font-size: 0.86rem; margin: 18px 0 6px; }
+.plan-footnote { font-size: 0.8rem; color: var(--ink-soft); border-top: 1px dashed var(--line); padding-top: 6px; margin: -4px 0 14px; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin: 0 0 16px; }
+.plan-table th, .plan-table td { border: 1px solid var(--line); padding: 8px 10px; vertical-align: top; text-align: left; line-height: 1.65; }
+.plan-table th { background: var(--surface-2); font-weight: 600; white-space: nowrap; text-align: center; vertical-align: middle; }
+.plan-toc { border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; margin: 0 0 16px; background: var(--surface-2); font-size: 0.88rem; }
+.plan-toc-title { font-weight: 700; margin-bottom: 4px; }
+.plan-refs { padding-left: 1.4em; font-size: 0.84rem; overflow-wrap: anywhere; }
+.plan-refs li { margin-bottom: 6px; }
+@media (max-width: 640px) { .plan-table th { white-space: normal; } }
+.text-btns .icon-btn.copy-btn { opacity: 1; border: 1px solid var(--line); background: var(--surface); line-height: normal; padding: 3px 10px; border-radius: 999px; font-size: 0.66rem; }

@@ -50,7 +50,7 @@
       input = el("input"); input.type = "checkbox"; input.checked = !!value;
     } else {
       input = el("input");
-      input.type = f.type === "number" ? "number" : (f.type === "date" ? "date" : (f.type === "url" ? "url" : "text"));
+      input.type = f.type === "number" ? "number" : (f.type === "date" ? "date" : (f.type === "url" ? "url" : (f.type === "time" ? "time" : "text")));
       if (f.type === "number") { input.min = f.min != null ? f.min : 0; input.step = f.step || "any"; }
       input.value = value == null ? "" : (Array.isArray(value) ? value.join(", ") : value);
     }
@@ -102,7 +102,7 @@
     var scope = cfg.scope || null;
     function scoped() { return scope ? state.items.filter(function (it) { return it[scope.key] === scope.value; }) : state.items; }
 
-    var root = el("div", "items-panel");
+    var root = el("div", "items-panel" + (cfg.textBtns ? " text-btns" : ""));
     var toolsEl = el("div", "items-tools");
     var filtersEl = el("div");
     var hintEl = cfg.hint ? el("p", "hint", cfg.hint) : null;
@@ -170,7 +170,10 @@
         var row = el("div", "archive-filters");
         ["전체"].concat(values).forEach(function (v) {
           var on = (v === "전체" && !state.filters[k]) || state.filters[k] === v;
+          var n = cfg.filterCounts ? (v === "전체" ? scoped().length : scoped().filter(function (it) { return valueFor(it, k) === v; }).length) : -1;
+          if (cfg.filterCounts && !n && v !== "전체") { return; }
           var b = el("button", "chip" + (on ? " active" : ""), v); b.type = "button";
+          if (n >= 0) { b.appendChild(el("span", "chip-n", String(n))); }
           b.addEventListener("click", function () { state.filters[k] = v === "전체" ? "" : v; renderFilters(); renderList(); });
           row.appendChild(b);
         });
@@ -324,9 +327,10 @@
         b.addEventListener("click", function () { a.run(it, b); });
         box.appendChild(b);
       });
-      var ed = el("button", "icon-btn", "✎"); ed.type = "button"; ed.title = "수정";
+      /* cfg.textBtns: written 수정 / 삭제 buttons instead of ✎ × (same titles, so tests and tooltips stay) */
+      var ed = el("button", cfg.textBtns ? "icon-btn copy-btn" : "icon-btn", cfg.textBtns ? "수정" : "✎"); ed.type = "button"; ed.title = "수정";
       ed.addEventListener("click", function () { state.formOpen = true; state.editId = it.id; renderTools(); renderForm(); formHost.scrollIntoView && formHost.scrollIntoView({ block: "nearest" }); });
-      var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
+      var del = el("button", cfg.textBtns ? "icon-btn copy-btn danger" : "icon-btn", cfg.textBtns ? "삭제" : "×"); del.type = "button"; del.title = "삭제";
       del.addEventListener("click", function () {
         if (!window.confirm("'" + String(titleText(it)).slice(0, 40) + "' 항목을 삭제할까요?")) { return; }
         persist(state.items.filter(function (x) { return x.id !== it.id; }));

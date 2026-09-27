@@ -125,7 +125,20 @@
   /* =========================================================
      자격증 세부 — 범죄심리사 / 피해상담사 / 임상심리사
      ========================================================= */
-  var CERT_SUB_TABS = ["cert-crime", "cert-victim", "cert-clinical"];
+  var CERT_SUB = [["cert-crime", "범죄심리사"], ["cert-victim", "피해상담사"], ["cert-clinical", "임상심리사"]];
+  /* 범죄심리사 / 피해상담사 / 임상심리사 switcher, placed beside the big page title */
+  function certHeadTabs(active) {
+    var head = document.getElementById("pageHead"), h1 = head && head.querySelector(".page-title");
+    if (!h1) { return; }
+    head.classList.add("has-tabs");
+    var nav = el("nav", "bud-tabs cert-head-tabs"); nav.setAttribute("aria-label", "자격증 선택");
+    CERT_SUB.forEach(function (t) {
+      var a = el("a", "bud-tab" + (t[0] === active ? " on" : ""), t[1]); a.href = "#/" + t[0];
+      if (t[0] === active) { a.setAttribute("aria-current", "page"); }
+      nav.appendChild(a);
+    });
+    h1.insertAdjacentElement("afterend", nav);
+  }
 
   function certDetailPage(cfg) {
     App.page({
@@ -134,7 +147,7 @@
       navLabel: cfg.title,
       tabLabel: cfg.title,
       render: function (view) {
-        tabs(view, CERT_SUB_TABS, cfg.id);
+        certHeadTabs(cfg.id);
         var g = ui.grid(view, true);
 
         var o = ui.card(g, { tab: "Info", tone: "t-1", title: cfg.title + " 자격 정보 · 목표", wide: true });
@@ -201,14 +214,6 @@
   }
 
   certDetailPage({
-    id: "cert-crime",
-    title: "범죄심리사",
-    key: "cert_crime",
-    defaultLevel: "전문가 / 1급 / 2급",
-    defaultOrg: "한국심리학회 / 한국범죄심리학회"
-  });
-
-  certDetailPage({
     id: "cert-victim",
     title: "피해상담사",
     key: "cert_victim",
@@ -222,6 +227,293 @@
     key: "cert_clinical",
     defaultLevel: "정신건강임상심리사 1급·2급 / 임상심리사 1급·2급",
     defaultOrg: "보건복지부 / 한국산업인력공단"
+  });
+
+  /* =========================================================
+     범죄심리사 — 면담 기록 / 선도 대책 / 자주 쓰는 문구 / 보고서 프롬프트 / 자격 정보
+     면담 기록에는 이름을 두지 않고 날짜 · 인원 · 죄명만 둡니다. 문구와 프롬프트는
+     research/crime_* 에만 있고, 처음 한 번 '자격 정보 › 자료 불러오기'로 채웁니다.
+     ========================================================= */
+  var CRIME_TABS = ["cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info"];
+  var CK = App.rkit({ prefix: "crime", docs: ["sessions", "guide", "phrases", "prompt", "info"], stages: ["기록", "완료"],
+    name: "범죄심리사", fileName: "범죄심리사_홈페이지자료", homeId: "cert-crime-info" });
+  var CD = CK.D;
+  var SESSION_STATUS = ["예정", "1차 작성", "최종 제출"];
+  var CRIMES = ["공통", "절도·재산", "도박", "성 관련", "디지털·정보통신", "주거침입·재물손괴", "무면허·교통", "주민등록·공문서",
+    "폭력·학교폭력", "스토킹", "경범(화재)", "기타"];
+  var AREAS = ["면담 태도", "PAI 검사", "가정환경", "비행환경"];
+  var RK = App.rkit;
+  function crimeHead(view, id) { certHeadTabs("cert-crime"); RK.pageTabs(view, CRIME_TABS, id); }
+  function phraseText(it) { return el("p", "phrase-text", it.text || ""); }
+  function crimePage(def) {
+    App.page(Object.assign({ title: "범죄심리사" }, def, { navHidden: def.id !== "cert-crime", navParent: def.id === "cert-crime" ? undefined : "cert-crime" }));
+  }
+  /* completed sessions only (예정 is not counted yet) */
+  function doneSessions(items) { return items.filter(function (x) { return (x.status || SESSION_STATUS[0]) !== "예정"; }); }
+  function peopleOf(x) { return Math.max(0, Number(x.people) || 0); }
+  function sessionLabel(x) {
+    var d = x.date ? H.parseKey(x.date) : null;
+    return (x.date ? x.date.slice(5).replace("-", "/") + " (" + H.DOW[d.getDay()] + ")" : "") + (x.time ? " " + x.time + (x.end ? "–" + x.end : "") : "");
+  }
+
+  function sessionStats(parent) {
+    var tiles = el("div", "crime-tiles"), chartHead = el("div", "mini-title", "월별 면담 인원 · 최근 12개월"), bars = el("div", "crime-bars");
+    [tiles, chartHead, bars].forEach(function (n) { parent.appendChild(n); });
+    return function (items) {
+      H.clear(tiles); H.clear(bars);
+      var done = doneSessions(items), total = 0, byYear = {}, byMonth = {};
+      done.forEach(function (x) {
+        var n = peopleOf(x); total += n;
+        var y = String(x.date || "").slice(0, 4), m = String(x.date || "").slice(0, 7);
+        if (y) { byYear[y] = (byYear[y] || 0) + n; }
+        if (m) { byMonth[m] = (byMonth[m] || 0) + n; }
+      });
+      var t = el("div", "crime-tile hi");
+      t.appendChild(el("small", "", "전체 면담")); t.appendChild(el("b", "", total + "건"));
+      tiles.appendChild(t);
+      Object.keys(byYear).sort().slice(-3).forEach(function (y) {
+        var yt = el("div", "crime-tile");
+        yt.appendChild(el("small", "", y + "년")); yt.appendChild(el("b", "", String(byYear[y])));
+        tiles.appendChild(yt);
+      });
+      var months = [], now = new Date();
+      for (var i = 11; i >= 0; i--) { var d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.getFullYear() + "-" + H.pad2(d.getMonth() + 1)); }
+      var max = Math.max.apply(null, months.map(function (m) { return byMonth[m] || 0; }).concat([1]));
+      months.forEach(function (m) {
+        var v = byMonth[m] || 0;
+        var col = el("div", "crime-bar-col"), wrap = el("div", "crime-bar-wrap"), bar = el("div", "crime-bar");
+        bar.style.height = Math.round(v / max * 100) + "%"; bar.title = m + " · " + v + "명";
+        if (v) { wrap.appendChild(el("span", "crime-bar-v", String(v))); }
+        wrap.appendChild(bar); col.appendChild(wrap);
+        col.appendChild(el("div", "crime-bar-label", String(Number(m.slice(5)))));
+        bars.appendChild(col);
+      });
+    };
+  }
+
+  function upcomingList(parent) {
+    var box = el("div", "plain-list"); parent.appendChild(box);
+    return function (items) {
+      H.clear(box);
+      var t = H.todayStr();
+      var up = items.filter(function (x) { return (x.status || "예정") === "예정" && x.date >= t; })
+        .sort(function (a, b) { return (a.date + (a.time || "")) < (b.date + (b.time || "")) ? -1 : 1; }).slice(0, 6);
+      if (!up.length) { box.appendChild(ui.empty("예정된 면담이 없어요.")); return; }
+      up.forEach(function (x) {
+        var li = el("div", "upcoming-item");
+        li.appendChild(H.ddayEl(x.date));
+        li.appendChild(el("span", "u-title", sessionLabel(x) + " · " + peopleOf(x) + "명" + (x.place ? " · " + x.place : "")));
+        if (x.gcal) { var g = el("span", "cat-chip", "G"); g.setAttribute("data-cat", "구글"); g.title = "Google 캘린더에 추가됨"; li.appendChild(g); }
+        box.appendChild(li);
+      });
+    };
+  }
+
+  /* new session → saved as 예정 + Google Calendar event "범죄심리사 면담 N명" */
+  function scheduleForm(parent) {
+    var form = el("form", "crime-sched");
+    function inp(type, label, extra) {
+      var i = el("input"); i.type = type; i.setAttribute("aria-label", label); i.title = label;
+      Object.keys(extra || {}).forEach(function (k) { i[k] = extra[k]; });
+      return i;
+    }
+    var date = inp("date", "날짜", { required: true, value: H.todayStr() });
+    var start = inp("time", "시작 시간", { required: true, value: "10:00" });
+    var end = inp("time", "끝 시간", { value: "" });
+    var people = inp("number", "인원", { required: true, min: 1, step: 1, value: 1, placeholder: "인원" });
+    var place = inp("text", "장소", { value: H.safeGet("hds_crime_place") || "", placeholder: "장소", maxLength: 60 });
+    var memo = inp("text", "메모", { placeholder: "메모 (선택)", maxLength: 160 });
+    var btn = el("button", "btn", "일정 추가"); btn.type = "submit";
+    var r1 = el("div", "crime-sched-row"), r2 = el("div", "crime-sched-row"), r3 = el("div", "crime-sched-row");
+    r1.appendChild(date); r1.appendChild(start); r1.appendChild(el("span", "crime-sched-sep", "~")); r1.appendChild(end);
+    var pw = el("label", "crime-people"); pw.appendChild(people); pw.appendChild(el("span", "", "명"));
+    r2.appendChild(pw); r2.appendChild(place);
+    r3.appendChild(memo); r3.appendChild(btn);
+    [r1, r2, r3].forEach(function (r) { form.appendChild(r); });
+    var status = el("p", "crime-sched-status");
+    parent.appendChild(form); parent.appendChild(status);
+
+    function update(fn) {
+      return CD("sessions").get().then(function (snap) {
+        var items = snap.exists && Array.isArray(snap.data().items) ? snap.data().items : [];
+        return CD("sessions").set({ items: fn(items), updatedAt: new Date().toISOString() }, { merge: true });
+      });
+    }
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (!date.value || !start.value) { return; }
+      var n = Math.max(1, Number(people.value) || 1);
+      var item = { id: H.uid(), date: date.value, time: start.value, end: end.value, people: n, crimes: "", place: place.value.trim(),
+        status: "예정", memo: memo.value.trim(), gcal: false };
+      H.safeSet("hds_crime_place", item.place);
+      btn.disabled = true; status.textContent = "저장 중…";
+      update(function (items) { return items.concat([item]); }).then(function () {
+        status.textContent = "Google 캘린더에 추가하는 중…";
+        return App.gtasks.createEvent("범죄심리사 면담 " + n + "명", item.date, item.time, item.memo, { end: item.end, location: item.place });
+      }).then(function () {
+        status.textContent = "추가됨 · Google 캘린더 ✓";
+        memo.value = "";
+        return update(function (items) { return items.map(function (x) { return x.id === item.id ? Object.assign({}, x, { gcal: true }) : x; }); });
+      }).catch(function (err) {
+        status.textContent = "기록은 저장됐어요 · 캘린더 추가 실패";
+        window.alert("Google 캘린더에 추가하지 못했어요: " + (App.gtasks.explain ? App.gtasks.explain(err) : err.message));
+      }).then(function () { btn.disabled = false; });
+    });
+  }
+
+  crimePage({
+    id: "cert-crime", navLabel: "범죄심리사", tabLabel: "면담 기록",
+    render: function (view) {
+      crimeHead(view, "cert-crime");
+      var g = ui.grid(view, true);
+      var rec = ui.card(g, { tab: "Record", tone: "t-2", title: "면담 기록" });
+      var drawStats = sessionStats(rec.body);
+      var sch = ui.card(g, { tab: "Schedule", tone: "t-3", title: "새 면담 일정 → Google 캘린더" });
+      scheduleForm(sch.body);
+      sch.body.appendChild(el("div", "mini-title crime-up-title", "다가오는 면담"));
+      var drawUp = upcomingList(sch.body);
+      var list = ui.card(view, { tab: "Log", tone: "t-1", title: "면담 목록", wide: true });
+      ui.itemsPanel(list.body, {
+        ref: CD("sessions"), views: ["table"], statusKey: "status", search: true, addLabel: "+ 기록 추가",
+        statusTones: { "예정": 0, "1차 작성": 1, "최종 제출": 3 },
+        sort: function (a, b) { return String(b.date + (b.time || "")).localeCompare(String(a.date + (a.time || ""))); },
+        itemTitle: function (it) { return it.date ? sessionLabel(it).replace(/^(\d\d)\/(\d\d)/, it.date.slice(0, 4) + ".$1.$2") : "(날짜 없음)"; },
+        empty: "아직 기록이 없어요.",
+        summary: function (items) {
+          var d = doneSessions(items), p = d.reduce(function (s, x) { return s + peopleOf(x); }, 0);
+          return items.length ? "면담 " + d.length + "일 · " + p + "명" + (items.length > d.length ? " · 예정 " + (items.length - d.length) + "건" : "") : null;
+        },
+        onItems: function (items) { drawStats(items); drawUp(items); },
+        fields: [
+          { key: "date", label: "날짜", type: "date", title: true, required: true, col: true, today: true },
+          { key: "time", label: "시작", type: "time" },
+          { key: "end", label: "끝", type: "time" },
+          { key: "people", label: "인원", type: "number", col: true, step: 1, default: 1 },
+          { key: "crimes", label: "죄명", type: "text", col: true, maxLength: 120 },
+          { key: "place", label: "장소", type: "text", col: true, maxLength: 60 },
+          { key: "status", label: "보고서", type: "select", options: SESSION_STATUS, col: true },
+          { key: "memo", label: "메모", type: "text", col: true, maxLength: 160 }
+        ]
+      });
+    }
+  });
+
+  crimePage({
+    id: "cert-crime-guide", tabLabel: "선도 대책",
+    render: function (view) {
+      crimeHead(view, "cert-crime-guide");
+      var c = ui.card(view, { tab: "Guidance", tone: "t-1", title: "죄명별 선도 대책", wide: true });
+      ui.itemsPanel(c.body, {
+        ref: CD("guide"), grid: true, search: true, filters: ["crime"], filterCounts: true, textBtns: true, addLabel: "+ 문구 추가",
+        actions: RK.copyAction("text"), itemExtra: phraseText, empty: "아직 문구가 없어요.",
+        sort: function (a, b) { return CRIMES.indexOf(a.crime) - CRIMES.indexOf(b.crime); },
+        fields: [
+          { key: "title", label: "제목", type: "text", title: true, required: true, maxLength: 80 },
+          { key: "crime", label: "죄명", type: "select", options: CRIMES, meta: true },
+          { key: "text", label: "문구", type: "textarea", required: true, rows: 5, maxLength: 3000, hideInCard: true }
+        ]
+      });
+    }
+  });
+
+  crimePage({
+    id: "cert-crime-phrase", tabLabel: "자주 쓰는 문구",
+    render: function (view) {
+      crimeHead(view, "cert-crime-phrase");
+      var c = ui.card(view, { tab: "Phrases", tone: "t-2", title: "자주 쓰는 문구", wide: true });
+      var sw = el("div", "archive-filters crime-areas"); c.body.appendChild(sw);
+      var cur = H.safeGet("hds_crime_area");
+      if (AREAS.indexOf(cur) === -1) { cur = AREAS[0]; }
+      var boxes = {}, btns = {};
+      function show(a) {
+        cur = a; H.safeSet("hds_crime_area", a);
+        AREAS.forEach(function (x) { boxes[x].hidden = x !== a; btns[x].classList.toggle("active", x === a); });
+      }
+      AREAS.forEach(function (a) {
+        var b = el("button", "chip", a); b.type = "button"; b.setAttribute("data-area", a);
+        b.addEventListener("click", function () { show(a); });
+        btns[a] = b; sw.appendChild(b);
+        var box = el("div", "crime-area"); boxes[a] = box; c.body.appendChild(box);
+        ui.itemsPanel(box, {
+          ref: CD("phrases"), scope: { key: "area", value: a }, grid: true, search: true, filters: ["tag"], filterCounts: true, textBtns: true,
+          addLabel: "+ 문구 추가", actions: RK.copyAction("text"), itemExtra: phraseText, empty: "아직 문구가 없어요.",
+          onItems: function (items) { btns[a].textContent = a + " " + items.length; },
+          fields: [
+            { key: "title", label: "제목", type: "text", title: true, required: true, maxLength: 80 },
+            { key: "tag", label: "분류", type: "text", meta: true, maxLength: 40 },
+            { key: "text", label: "문구", type: "textarea", required: true, rows: 5, maxLength: 3000, hideInCard: true }
+          ]
+        });
+      });
+      show(cur);
+    }
+  });
+
+  crimePage({
+    id: "cert-crime-prompt", tabLabel: "보고서 프롬프트",
+    render: function (view) {
+      crimeHead(view, "cert-crime-prompt");
+      var c = ui.card(view, { tab: "Prompt", tone: "t-1", title: "보고서 작성 프롬프트 (내 말투)", wide: true });
+      var tools = el("div", "items-tools");
+      var copy = el("button", "copy-btn", "전체 복사"); copy.type = "button";
+      var dl = el("button", "tool-btn", "파일로 내려받기 (.md)"); dl.type = "button";
+      var edit = el("button", "tool-btn", "수정"); edit.type = "button";
+      [copy, dl, edit].forEach(function (b) { tools.appendChild(b); });
+      var pre = el("pre", "crime-prompt");
+      var ta = el("textarea", "crime-prompt-edit"); ta.rows = 24; ta.hidden = true; ta.setAttribute("aria-label", "프롬프트");
+      var acts = el("div", "actions"); acts.hidden = true;
+      var save = el("button", "btn", "저장"); save.type = "button";
+      var cancel = el("button", "btn ghost", "취소"); cancel.type = "button";
+      acts.appendChild(save); acts.appendChild(cancel);
+      [tools, pre, ta, acts].forEach(function (n) { c.body.appendChild(n); });
+      var text = "";
+      function mode(editing) { pre.hidden = editing; ta.hidden = !editing; acts.hidden = !editing; edit.classList.toggle("on", editing); }
+      App.watchDoc(CD("prompt"), function (d) {
+        text = d && d.text ? d.text : "";
+        pre.textContent = text || "아직 프롬프트가 없어요.";
+        if (ta.hidden) { ta.value = text; }
+      });
+      copy.addEventListener("click", function () { H.copyText(text, copy); });
+      dl.addEventListener("click", function () {
+        var url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+        var a = el("a"); a.href = url; a.download = "비행성예측보고서_작성지침.md";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      });
+      edit.addEventListener("click", function () { ta.value = text; mode(ta.hidden); });
+      cancel.addEventListener("click", function () { mode(false); });
+      save.addEventListener("click", function () { App.setDoc(CD("prompt"), { text: ta.value }).then(function () { mode(false); }); });
+    }
+  });
+
+  crimePage({
+    id: "cert-crime-info", tabLabel: "자격 정보",
+    render: function (view) {
+      crimeHead(view, "cert-crime-info");
+      var o = ui.card(view, { tab: "Info", tone: "t-1", title: "자격 정보", wide: true });
+      ui.fieldsPanel(o.body, {
+        ref: CD("info"), docKey: "info",
+        fields: [
+          { key: "level", label: "자격", type: "text", maxLength: 60 },
+          { key: "org", label: "발급 기관", type: "text", maxLength: 80 },
+          { key: "certNo", label: "자격인증번호", type: "text", maxLength: 40 },
+          { key: "issued", label: "취득일", type: "date" },
+          { key: "status", label: "상태", type: "select", options: ["취득", "갱신 필요", "준비 중"] }
+        ]
+      });
+      var f = ui.card(view, { tab: "Files", tone: "t-2", title: "자료 · 증빙 링크", wide: true });
+      ui.itemsPanel(f.body, {
+        ref: R("cert_crime_files"), views: ["table", "cards"], titleLink: "url", addLabel: "+ 링크 추가",
+        quickFields: ["name", "url"], empty: "아직 링크가 없어요.",
+        fields: [
+          { key: "name", label: "이름", type: "text", title: true, required: true, col: true, maxLength: 100 },
+          { key: "url", label: "링크", type: "url", col: true, required: true },
+          { key: "date", label: "날짜", type: "date", col: true },
+          { key: "memo", label: "메모", type: "text", col: true, maxLength: 160 }
+        ]
+      });
+      CK.importCard(view, "");
+    }
   });
 
   /* =========================================================

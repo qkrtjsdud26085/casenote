@@ -122,18 +122,26 @@
   };
   G.add = function (title, dateKey, notes) { return G.createTask(title, dateKey, notes).then(G.sync); };
 
-  /* date+time item -> Google Calendar event (1 hour, primary calendar, device timezone) */
-  G.createEvent = function (title, dateKey, timeStr, notes) {
+  /* date+time item -> Google Calendar event (primary calendar, device timezone).
+     opts.end ("HH:MM") sets the end time (default: 1 hour later); opts.location fills the place. */
+  G.createEvent = function (title, dateKey, timeStr, notes, opts) {
+    opts = opts || {};
     return ensureToken().then(function (t) {
       var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Seoul";
       var parts = String(timeStr).split(":");
       var start = H.parseKey(dateKey);
       start.setHours(Number(parts[0]) || 0, Number(parts[1]) || 0, 0, 0);
       var end = new Date(start.getTime() + 60 * 60 * 1000);
+      if (opts.end) {
+        var ep = String(opts.end).split(":"), e2 = H.parseKey(dateKey);
+        e2.setHours(Number(ep[0]) || 0, Number(ep[1]) || 0, 0, 0);
+        if (e2 > start) { end = e2; }
+      }
       function iso(d) { return d.getFullYear() + "-" + H.pad2(d.getMonth() + 1) + "-" + H.pad2(d.getDate()) + "T" + H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes()) + ":00"; }
       return api(CAL_API, "/calendars/primary/events", t.at, {
         method: "POST",
-        body: { summary: title, description: notes || "", start: { dateTime: iso(start), timeZone: tz }, end: { dateTime: iso(end), timeZone: tz } }
+        body: Object.assign({ summary: title, description: notes || "", start: { dateTime: iso(start), timeZone: tz }, end: { dateTime: iso(end), timeZone: tz } },
+          opts.location ? { location: opts.location } : {})
       });
     });
   };
