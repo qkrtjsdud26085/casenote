@@ -109,7 +109,20 @@
       r.date = y + "-" + H.pad2(mo) + "-" + H.pad2(da);
       if (dm[3]) { r.time = H.pad2(Number(dm[3])) + ":" + dm[4]; }
     } else { r.date = H.dateKey(now); }
-    var after = dm ? s.slice(s.indexOf(dm[0]) + dm[0].length) : s;
+    /* card companies and banks put the merchant in different places, so strip every known part and keep the rest */
+    function leftover(x) {
+      if (dm) { x = x.replace(dm[0], " "); }
+      return x.replace(/\(주\)|㈜/g, " ")
+        .replace(/\[[^\]]*\]/g, " ")
+        .replace(/[가-힣A-Za-z]*(카드|뱅크|은행)(\s*[A-Z](?![A-Za-z가-힣]))?\s*\(?\d{0,4}\)?/g, " ")
+        .replace(/누적\s*[\d,]+\s*원?|잔액\s*[\d,]+\s*원?|잔여\s*한도\s*[\d,]+\s*원?|사용\s*한도\s*[\d,]+\s*원?/g, " ")
+        .replace(/[가-힣A-Za-z]*(입금|출금|지급|이체)\s*[\d,]+\s*원?/g, " ")
+        .replace(/[\d,]+\s*원/g, " ")
+        .replace(/\d+\*+\d+/g, " ")
+        .replace(/[가-힣]{1,2}\*+[가-힣]{0,2}/g, " ")
+        .replace(/승인|취소|일시불|할부\s*\d*\s*(개월)?|체크|신용|해외|국내/g, " ")
+        .replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+    }
     var bank = s.match(/(입금|출금|지급|이체)\s*([\d,]+)\s*원?/);
     if (/카드/.test(s) && /승인|취소/.test(s) && !bank) {
       var am = s.match(/([\d,]+)\s*원/);
@@ -117,15 +130,12 @@
       r.amount = num(am[1]); r.type = "지출"; r.method = "카드"; r.cancel = /취소/.test(s);
       var cm = s.match(/([가-힣A-Za-z]*카드)\s*\(?(\d{3,4})?\)?/);
       r.source = cm ? cm[1] + (cm[2] ? "(" + cm[2] + ")" : "") : "카드";
-      r.merchant = after.replace(/누적.*$|잔여.*$|잔액.*$/, "").replace(/\((일시불|할부[^)]*|체크)\)/g, "").trim();
-      if (!r.merchant) { r.merchant = s.replace(am[0], " ").replace(/.*(승인|취소)\s*[^\s]*\s*/, "").replace(/\(.*?\)/g, "").trim(); }
     } else if (bank) {
       r.amount = num(bank[2]); r.type = bank[1] === "입금" ? "수입" : "지출"; r.method = "계좌이체";
-      var bm = s.match(/^([^\s]*(?:뱅크|은행|뱅킹))/) || s.match(/([가-힣A-Za-z]+(?:뱅크|은행))/);
+      var bm = s.match(/\[KB\]|KB국민|국민은행/) ? ["", "KB국민은행"] : (s.match(/iM뱅크|대구은행|DGB/i) ? ["", "iM뱅크"] : s.match(/([가-힣A-Za-z]+(?:뱅크|은행))/));
       r.source = bm ? bm[1] : "은행";
-      var tail = s.match(/잔액\s*[\d,]+\s*원?\s*(.*)$/);
-      r.merchant = (tail ? tail[1] : "").trim();
     } else { return r; }
+    r.merchant = leftover(s);
     if (!r.amount) { return r; }
     r.merchant = (r.merchant || r.source || "").slice(0, 60);
     r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");

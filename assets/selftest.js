@@ -506,6 +506,18 @@
     var n4 = PN("iM뱅크 12/30 10:00 50813*03093 출금 55,000 잔액 1,134,248 관리비", new Date(2027, 0, 3));
     ok("notice withdrawal + year rollover", n4.ok && n4.type === "지출" && n4.date === "2026-12-30" && n4.merchant === "관리비", JSON.stringify(n4));
     ok("notice unreadable", !PN("안녕하세요 광고 문자입니다").ok);
+    var h1 = PN("[Web발신]\n현대카드 승인\n박*영\n45,000원 일시불\n09/27 18:20\n(주)이마트 성수점\n누적 1,234,567원", sep);
+    ok("notice hyundai multiline", h1.ok && h1.type === "지출" && h1.amount === 45000 && h1.merchant === "이마트 성수점" && h1.source === "현대카드" && h1.time === "18:20", JSON.stringify(h1));
+    var h2 = PN("현대카드(5678) 승인 박*영 12,000원 할부 3개월 09/26 11:05 쿠팡 누적1,000원", sep);
+    ok("notice hyundai one line + 할부", h2.ok && h2.amount === 12000 && h2.merchant === "쿠팡" && h2.source === "현대카드(5678)", JSON.stringify(h2));
+    var h3 = PN("현대카드 M 취소 박*영 45,000원 09/28 10:00 이마트 성수점", sep);
+    ok("notice hyundai cancel", h3.ok && h3.cancel && h3.amount === 45000 && h3.merchant === "이마트 성수점", JSON.stringify(h3));
+    var k1 = PN("[KB]09/27 13:52\n801202**178\n박선영\n전자금융입금\n1,000,000\n잔액1,189,248", sep);
+    ok("notice KB deposit", k1.ok && k1.type === "수입" && k1.amount === 1000000 && k1.merchant === "박선영" && k1.source === "KB국민은행", JSON.stringify(k1));
+    var k2 = PN("[KB]09/26 08:10 801202**178 스타벅스 체크카드출금 5,600 잔액1,183,648", sep);
+    ok("notice KB check-card withdrawal", k2.ok && k2.type === "지출" && k2.amount === 5600 && k2.merchant === "스타벅스" && k2.source === "KB국민은행", JSON.stringify(k2));
+    var d1 = PN("DGB대구은행 09/25 09:00 508-13-***093 출금 30,000원 잔액 159,248원 SKT통신요금", sep);
+    ok("notice DGB -> iM뱅크", d1.ok && d1.type === "지출" && d1.amount === 30000 && d1.source === "iM뱅크" && /SKT통신요금/.test(d1.merchant), JSON.stringify(d1));
     var now2 = new Date(), md = String(now2.getMonth() + 1).padStart(2, "0") + "/" + String(now2.getDate()).padStart(2, "0");
     var shTxt = "신한카드(1234)승인 박*영 8,900원(일시불)" + md + " 12:01 메가MGC커피 누적1,000원";
     await App.col("budgetInbox").add({ text: shTxt, k: "x" });
