@@ -177,11 +177,19 @@
     dayForm = $("#view .cal-day form.quick-add");
     $("select", dayForm).value = "할 일"; setVal($("input[placeholder='일정 제목']", dayForm), "달력에서 만든 할 일"); submit(dayForm); await sleep(300);
     ok("calendar day form -> Google Task", gt.some(function (q) { return q.title === "달력에서 만든 할 일" && q.due === todayK + "T00:00:00.000Z"; }) && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("schedule/") === 0 && window.__MOCK_STORE[k].title === "달력에서 만든 할 일"; }), JSON.stringify(gt));
-    ok("task shows on calendar", !!$("#view .cal-cell.today .cal-dot[data-cat='할 일']") && $$("#view .cal-day .upcoming-item").some(function (r) { return /달력에서 만든 할 일/.test(r.textContent) && /Google 할 일/.test(r.textContent) && r.querySelector("input[type=checkbox]"); }));
+    ok("task shows on calendar", !!$("#view .cal-cell.today .cal-dot[data-kind='task']") && $$("#view .cal-day .upcoming-item").some(function (r) { return /달력에서 만든 할 일/.test(r.textContent) && /Google 할 일/.test(r.textContent) && r.querySelector("input[type=checkbox]"); }));
     var dayTaskCb = $$("#view .cal-day .upcoming-item").filter(function (r) { return /달력에서 만든 할 일/.test(r.textContent); })[0].querySelector("input[type=checkbox]");
     dayTaskCb.checked = true; change(dayTaskCb); await sleep(300);
     ok("task checked from calendar", gt.filter(function (q) { return q.title === "달력에서 만든 할 일"; })[0].status === "completed");
-    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
+    /* one dot per item: add two events today → 2 yellow + 1 blue */
+    await App.col("schedule").add({ date: todayK, title: "점 테스트 1", cat: "개인" });
+    await App.col("schedule").add({ date: todayK, title: "점 테스트 2", cat: "논문" });
+    await sleep(150);
+    var tc = $("#view .cal-cell.today");
+    ok("dot per item, yellow events + blue tasks", $$(".cal-dot[data-kind='event']", tc).length === 2 && $$(".cal-dot[data-kind='task']", tc).length === 1 && /일정 2 · 할 일 1/.test(tc.title) && !!$("#view .cal-legend"), $$(".cal-dot", tc).length + " / " + tc.title.split("\n")[0]);
+    var dotCol = function (k) { return getComputedStyle($(".cal-dot[data-kind='" + k + "']", tc)).backgroundColor; };
+    ok("dot colors differ", dotCol("event") !== dotCol("task") && dotCol("event") !== "rgba(0, 0, 0, 0)", dotCol("event") + " / " + dotCol("task"));
+    ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
     ok("no Day card; to-do + memo beside calendar", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && $("#view .cal-right").contains(cardBy("메모")) && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
     var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
     ok("right column not taller than calendar", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);

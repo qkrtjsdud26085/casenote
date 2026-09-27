@@ -77,7 +77,7 @@
       var done = items.filter(function (t) { return t.status === "completed"; })
         .sort(function (a, b) { return a.completed < b.completed ? 1 : -1; }).slice(0, 30);
       var tok = G.token();
-      status.textContent = (tok ? "Google 연결됨" : "Google 연결 안 됨 · 추가 · 체크하면 로그인 창이 한 번 떠요") + " · " +
+      status.textContent = (tok ? "Google 연결됨" : "Google 연결 안 됨 · 아래 버튼을 한 번 누르면 캘린더와 할 일이 함께 연결돼요") + " · " +
         (S.cache && S.cache.syncedAt ? "마지막 동기화 " + H.fmtDateTime(S.cache.syncedAt) : "아직 동기화한 적 없음");
       c.count.textContent = items.length ? open.length + "개 남음" : "";
       sync.disabled = add.disabled = S.busy;
@@ -175,7 +175,9 @@
       [prev, today, next].forEach(function (b) { nav.appendChild(b); });
       head.appendChild(title); head.appendChild(nav);
       var grid = el("div", "cal-grid");
-      [filters, head, grid].forEach(function (n) { calCard.body.appendChild(n); });
+      var legend = el("div", "cal-legend");
+      legend.innerHTML = '<span><i class="event"></i>일정</span><span><i class="task"></i>Google 할 일</span>';
+      [filters, head, grid, legend].forEach(function (n) { calCard.body.appendChild(n); });
 
       var dayTitle = el("div", "mini-title");
       var form = el("form", "quick-add");
@@ -226,11 +228,16 @@
             cell.appendChild(el("span", "", String(day)));
             var evs = byDate[key] || [];
             if (evs.length) {
-              var dots = el("span", "cal-dots");
-              var seen = {};
-              evs.forEach(function (s) { var c = s.cat || "개인"; if (!seen[c] && Object.keys(seen).length < 4) { seen[c] = true; var dot = el("span", "cal-dot"); dot.setAttribute("data-cat", c); dots.appendChild(dot); } });
+              /* one dot per item: yellow = calendar event, blue = Google Task */
+              var dots = el("span", "cal-dots"), MAX = 6;
+              evs.slice().sort(function (a, b) { return (a.source === "tasks") - (b.source === "tasks"); }).slice(0, MAX).forEach(function (s) {
+                var dot = el("span", "cal-dot"); dot.setAttribute("data-kind", s.source === "tasks" ? "task" : "event");
+                dots.appendChild(dot);
+              });
+              if (evs.length > MAX) { dots.appendChild(el("span", "cal-more", "+" + (evs.length - MAX))); }
               cell.appendChild(dots);
-              cell.title = evs.map(function (s) { return s.title; }).join("\n");
+              var nT = evs.filter(function (s) { return s.source === "tasks"; }).length;
+              cell.title = "일정 " + (evs.length - nT) + " · 할 일 " + nT + "\n" + evs.map(function (s) { return (s.source === "tasks" ? "☐ " : "• ") + s.title; }).join("\n");
             }
             cell.addEventListener("click", function () { state.sel = key; dateEl.value = key; drawCal(); drawDay(); });
             grid.appendChild(cell);
@@ -387,6 +394,11 @@
         try {
           var r = await App.gcal.sync();
           gMsg.textContent = "동기화 완료 · 일정 " + r.events.length + "개를 가져왔어요.";
+          /* the same connection also brings in Google Tasks */
+          try {
+            var tasks = await App.gtasks.sync();
+            gMsg.textContent += " · 할 일 " + tasks.length + "개";
+          } catch (terr) { gMsg.textContent += " · 할 일은 못 가져왔어요: " + App.gtasks.explain(terr); }
         } catch (err) { gMsg.textContent = App.gcal.explain(err); }
         gBusy = false; gConnect.disabled = false; drawG();
       }

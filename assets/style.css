@@ -267,7 +267,21 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .todo-card .quick-add input.w-date { flex: 0 0 136px; }
 .todo-scroll { flex: 1; min-height: 60px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
 .quicknote { flex: 1; min-height: 70px; width: 100%; resize: none; line-height: 1.6; }
-.cal-dot[data-cat="할 일"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent-2); }
+/* calendar dots: one per item — yellow = event, blue = Google Task (validated for contrast / CVD on both surfaces) */
+:root { --dot-event: #a8790a; --dot-task: #2f6fd6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --dot-event: #b5850e; --dot-task: #4f86ea; } }
+:root[data-theme="dark"] { --dot-event: #b5850e; --dot-task: #4f86ea; }
+.cal-dots { gap: 2px; align-items: center; }
+.cal-dot[data-kind="event"] { background: var(--dot-event); }
+.cal-dot[data-kind="task"] { background: var(--dot-task); }
+.cal-cell.sel .cal-dot { outline: none; box-shadow: 0 0 0 1px var(--bg); }
+.cal-more { font-family: var(--font-mono); font-size: 0.56rem; line-height: 1; color: var(--ink-soft); }
+.cal-cell.sel .cal-more { color: var(--bg); }
+.cal-legend { display: flex; gap: 12px; font-size: 0.7rem; color: var(--ink-soft); margin: 8px 0 0; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.cal-legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.cal-legend i.event { background: var(--dot-event); }
+.cal-legend i.task { background: var(--dot-task); }
 .cat-chip[data-cat="할 일"] { background: var(--accent-2-ink); color: var(--accent-2-strong); border-color: color-mix(in srgb, var(--accent-2) 35%, transparent); }
 .cal-day .upcoming-item input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }
 .cal-day .upcoming-item.done .u-title { text-decoration: line-through; color: var(--ink-soft); }

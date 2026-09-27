@@ -21,7 +21,9 @@
   };
   G.clearToken = function () { try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ } };
 
+  /* the same popup as gcal.js (calendar read + tasks + events), so one connection serves both */
   G.connect = function () {
+    if (App.gcal && App.gcal.connect) { return App.gcal.connect(); }
     var provider = new firebase.auth.GoogleAuthProvider();
     SCOPES.forEach(function (s) { provider.addScope(s); });
     if (App.user && App.user.email) { provider.setCustomParameters({ login_hint: App.user.email }); }

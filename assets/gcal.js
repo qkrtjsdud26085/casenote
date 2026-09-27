@@ -5,7 +5,9 @@
   "use strict";
   var H = App.h;
   var SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
-  var TOKEN_KEY = "hds_gtoken";
+  /* one consent covers calendar reading and Google Tasks, so connecting either connects both */
+  var EXTRA = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/calendar.events"];
+  var TOKEN_KEY = "hds_gtoken", RW_KEY = "hds_gtoken_rw";
   var API = "https://www.googleapis.com/calendar/v3";
   var G = App.gcal = {};
 
@@ -20,16 +22,17 @@
 
   G.connect = function () {
     var provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope(SCOPE);
+    [SCOPE].concat(EXTRA).forEach(function (s) { provider.addScope(s); });
     if (App.user && App.user.email) { provider.setCustomParameters({ login_hint: App.user.email }); }
     return App.auth.currentUser.reauthenticateWithPopup(provider).then(function (res) {
       var at = res && res.credential && res.credential.accessToken;
       if (!at) { throw new Error("액세스 토큰을 받지 못했어요."); }
       var t = { at: at, exp: Date.now() + 55 * 60 * 1000 };
-      try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
+      try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t)); sessionStorage.setItem(RW_KEY, JSON.stringify(t)); } catch (e) { /* ignore */ }
       return t;
     });
   };
+  G.scopes = [SCOPE].concat(EXTRA);
 
   function api(path, token) {
     return fetch(API + path, { headers: { Authorization: "Bearer " + token } }).then(function (r) {
