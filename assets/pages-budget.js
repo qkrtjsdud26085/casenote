@@ -76,7 +76,63 @@
     });
     return out;
   }
-  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed };
+  /* ---------- phone payment notifications (MacroDroid → Firestore budgetInbox) ----------
+     The phone sends the raw SMS / push text; parsing lives here so formats can be fixed without touching the phone.
+       신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원
+       iM뱅크 09/27 13:52 50813*03093 입금 1,000,000 잔액 1,189,248 토스박선영 */
+  var MERCHANT_HINTS = [
+    [/스타벅스|커피|카페|이디야|투썸|메가MGC|메가커피|빽다방|컴포즈|폴바셋|할리스|베이커리|파리바게뜨|뚜레쥬르|배스킨|던킨/i, "카페 · 간식"],
+    [/배달의민족|배민|요기요|쿠팡이츠|식당|김밥|분식|치킨|피자|버거|맥도날드|롯데리아|맘스터치|마트|이마트|홈플러스|롯데마트|GS25|CU|세븐일레븐|이마트24|편의점|정육|반찬/i, "식비"],
+    [/주유|오일|에너지|칼텍스|S-OIL|현대오일|택시|카카오T|티머니|코레일|SRT|고속|버스|주차|하이패스/i, "교통"],
+    [/약국|병원|의원|치과|한의원|내과|안과|피부과/, "의료 · 건강"],
+    [/다이소|쿠팡|올리브영|생활/, "생활용품"],
+    [/CGV|메가박스|롯데시네마|영화|티켓|넷플릭스|멜론|유튜브|게임/i, "문화 · 여가"],
+    [/서점|교보|yes24|알라딘|영풍/i, "교육 · 도서"],
+    [/미용|헤어|네일|유니클로|무신사|자라|H&M/i, "의류 · 미용"],
+    [/SKT|KT|LG ?U\+|통신/i, "통신"]
+  ];
+  function guessMerchantCat(name, type, history) {
+    if (type === "수입") { return /급여|월급/.test(name) ? "급여" : (/환급|환불/.test(name) ? "환급" : "기타"); }
+    var seen = (history || []).filter(function (it) { return it.type !== "수입" && it.memo && it.memo === name; })[0];
+    if (seen && seen.cat) { return seen.cat; }
+    for (var i = 0; i < MERCHANT_HINTS.length; i++) { if (MERCHANT_HINTS[i][0].test(name)) { return MERCHANT_HINTS[i][1]; } }
+    return "기타";
+  }
+  function parseNotice(raw, now) {
+    now = now || new Date();
+    var s = String(raw || "").replace(/\[?Web발신\]?/g, " ").replace(/\s+/g, " ").trim();
+    var r = { ok: false, raw: s };
+    var dm = s.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/) || s.match(/(\d{1,2})\/(\d{1,2})/);
+    if (dm) {
+      var mo = Number(dm[1]), da = Number(dm[2]), y = now.getFullYear();
+      if (mo > now.getMonth() + 2) { y -= 1; }  /* a December notice read in January */
+      r.date = y + "-" + H.pad2(mo) + "-" + H.pad2(da);
+      if (dm[3]) { r.time = H.pad2(Number(dm[3])) + ":" + dm[4]; }
+    } else { r.date = H.dateKey(now); }
+    var after = dm ? s.slice(s.indexOf(dm[0]) + dm[0].length) : s;
+    var bank = s.match(/(입금|출금|지급|이체)\s*([\d,]+)\s*원?/);
+    if (/카드/.test(s) && /승인|취소/.test(s) && !bank) {
+      var am = s.match(/([\d,]+)\s*원/);
+      if (!am) { return r; }
+      r.amount = num(am[1]); r.type = "지출"; r.method = "카드"; r.cancel = /취소/.test(s);
+      var cm = s.match(/([가-힣A-Za-z]*카드)\s*\(?(\d{3,4})?\)?/);
+      r.source = cm ? cm[1] + (cm[2] ? "(" + cm[2] + ")" : "") : "카드";
+      r.merchant = after.replace(/누적.*$|잔여.*$|잔액.*$/, "").replace(/\((일시불|할부[^)]*|체크)\)/g, "").trim();
+      if (!r.merchant) { r.merchant = s.replace(am[0], " ").replace(/.*(승인|취소)\s*[^\s]*\s*/, "").replace(/\(.*?\)/g, "").trim(); }
+    } else if (bank) {
+      r.amount = num(bank[2]); r.type = bank[1] === "입금" ? "수입" : "지출"; r.method = "계좌이체";
+      var bm = s.match(/^([^\s]*(?:뱅크|은행|뱅킹))/) || s.match(/([가-힣A-Za-z]+(?:뱅크|은행))/);
+      r.source = bm ? bm[1] : "은행";
+      var tail = s.match(/잔액\s*[\d,]+\s*원?\s*(.*)$/);
+      r.merchant = (tail ? tail[1] : "").trim();
+    } else { return r; }
+    if (!r.amount) { return r; }
+    r.merchant = (r.merchant || r.source || "").slice(0, 60);
+    r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
+    r.ok = true;
+    return r;
+  }
+  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat };
 
   function select(options, value, label) {
     var s = el("select"); if (label) { s.setAttribute("aria-label", label); }
@@ -118,6 +174,10 @@
       view.appendChild(bar);
       var tiles = el("div", "tiles bud-tiles"); view.appendChild(tiles);
       var budRow = el("div", "bud-budget-row"); view.appendChild(budRow);
+
+      /* notifications captured on the phone, waiting to be confirmed */
+      var inbox = el("section", "bud-inbox"); inbox.hidden = true; view.appendChild(inbox);
+      state.inbox = [];
 
       /* two independent columns so the ledger fills the space under the fixed card, beside the tall calendar */
       var cols = el("div", "bud-cols"), colL = el("div", "bud-col"), colR = el("div", "bud-col");
@@ -693,7 +753,16 @@
       var bHint = el("p", "hint", "매달 쓸 수 있는 총 지출 한도예요. 고정지출을 포함한 금액으로 정하면 위 '예산 잔여'가 정확해져요.");
       var mTitleEl = el("div", "mini-title", "결제수단별 지출");
       var mBars = el("div", "bud-bars");
-      [bForm, bHint, mTitleEl, mBars].forEach(function (n) { setCard.body.appendChild(n); });
+      var notiHelp = el("details", "reco-settings bud-noti-help");
+      notiHelp.appendChild(el("summary", "", "휴대폰 결제 알림 자동 연동 (안드로이드)"));
+      var notiUl = el("ul", "guide-list");
+      ["갤럭시에 MacroDroid 앱을 깔고, 신한카드 승인 문자 · iM뱅크 입출금 알림이 오면 그 내용을 이 사이트로 보내도록 매크로를 만들어요.",
+        "들어온 알림은 이 페이지 맨 위 '휴대폰 결제 알림'에 쌓여요. 금액 · 가맹점 · 분류를 확인하고 [추가]를 누르면 내역에 들어가요.",
+        "같은 결제가 문자와 앱 알림으로 두 번 와도 한 건으로 묶여요. 승인 취소 알림은 원래 결제를 찾아 지울 수 있어요.",
+        "설정 방법(보안 규칙 · 매크로 만드는 법)은 Claude가 알려준 안내를 따라 주세요. 비밀 키는 이 사이트 코드에 넣지 않아요."
+      ].forEach(function (t) { notiUl.appendChild(el("li", "", t)); });
+      notiHelp.appendChild(notiUl);
+      [bForm, bHint, mTitleEl, mBars, notiHelp].forEach(function (n) { setCard.body.appendChild(n); });
       bForm.addEventListener("submit", function (e) { e.preventDefault(); saveSettings({ budget: num(bAmt.value) }); });
       function drawBudget() {
         var b = Number(state.settings.budget) || 0;
@@ -717,8 +786,107 @@
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
 
+      /* ---------- 휴대폰 결제 알림 (budgetInbox) ---------- */
+      var inboxRef = App.col("budgetInbox");
+      state.inboxCat = {};
+      function inboxGroups() {
+        var out = [], bySig = {};
+        state.inbox.forEach(function (d) {
+          var p = parseNotice(d.text);
+          if (!p.ok) { out.push({ ids: [d.id], p: p }); return; }
+          if (bySig[p.sig]) { bySig[p.sig].ids.push(d.id); return; }  /* same payment via SMS and app push */
+          var g = { ids: [d.id], p: p };
+          if (p.cancel) {
+            g.match = state.items.filter(function (it) { return it.type !== "수입" && Number(it.amount) === p.amount && (it.memo === p.merchant || it.src); })[0] || null;
+          } else {
+            g.dup = state.items.some(function (it) { return it.src === "noti:" + p.sig; });
+            g.cat = state.inboxCat[p.sig] || guessMerchantCat(p.merchant, p.type, state.items);
+          }
+          bySig[p.sig] = g; out.push(g);
+        });
+        return out.sort(function (a, b) { var x = (a.p.date || "") + (a.p.time || ""), y = (b.p.date || "") + (b.p.time || ""); return x < y ? 1 : (x > y ? -1 : 0); });
+      }
+      function dropInbox(ids) {
+        state.inbox = state.inbox.filter(function (d) { return ids.indexOf(d.id) === -1; }); drawInbox();
+        return Promise.all(ids.map(function (id) { return inboxRef.doc(id).delete(); })).catch(function (err) { window.alert("알림 삭제 실패: " + err.message); });
+      }
+      function inboxItem(g) {
+        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: g.p.method, memo: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
+      }
+      /* entries may belong to other months: merge each month's document, skipping ones already added */
+      function addFromInbox(groups) {
+        var byMonth = {};
+        groups.forEach(function (g) { var mk = g.p.date.slice(0, 7); (byMonth[mk] = byMonth[mk] || []).push(inboxItem(g)); });
+        var jobs = Object.keys(byMonth).map(function (mk) {
+          function merge(cur) {
+            var have = {}; cur.forEach(function (it) { if (it.src) { have[it.src] = true; } });
+            return cur.concat(byMonth[mk].filter(function (it) { return !have[it.src]; }));
+          }
+          if (mk === state.mk) { return saveItems(merge(state.items)); }
+          return ledgerRef(mk).get().then(function (snap) { return saveMonth(mk, merge((snap.exists && snap.data().items) || [])); });
+        });
+        var ids = [].concat.apply([], groups.map(function (g) { return g.ids; }));
+        return Promise.all(jobs).then(function () { return dropInbox(ids); }).catch(function (err) { window.alert("추가 실패: " + err.message); });
+      }
+      function drawInbox() {
+        var groups = inboxGroups();
+        H.clear(inbox); inbox.hidden = !groups.length;
+        if (!groups.length) { return; }
+        var addable = groups.filter(function (g) { return g.p.ok && !g.p.cancel && !g.dup; });
+        var head = el("div", "bud-inbox-head");
+        head.appendChild(el("h2", "", "휴대폰 결제 알림 " + groups.length + "건"));
+        head.appendChild(el("span", "hint", "확인하고 추가하면 내역에 들어가요. 내 계좌끼리 옮긴 돈처럼 가계부에 넣지 않을 건 버리세요."));
+        var acts = el("div", "items-tools");
+        var allAdd = el("button", "btn", "모두 추가 (" + addable.length + ")"); allAdd.type = "button"; allAdd.disabled = !addable.length;
+        allAdd.addEventListener("click", function () { addFromInbox(addable); });
+        var allDrop = el("button", "tool-btn", "모두 버리기"); allDrop.type = "button";
+        allDrop.addEventListener("click", function () {
+          if (window.confirm("알림 " + groups.length + "건을 모두 버릴까요? (가계부 내역은 그대로예요)")) { dropInbox([].concat.apply([], groups.map(function (g) { return g.ids; }))); }
+        });
+        acts.appendChild(allAdd); acts.appendChild(allDrop); head.appendChild(acts);
+        inbox.appendChild(head);
+        var list = el("div", "bud-inbox-list");
+        groups.forEach(function (g) {
+          var p = g.p, row = el("div", "bud-noti" + (p.ok && p.type === "수입" ? " inc" : "") + (!p.ok ? " bad" : ""));
+          if (!p.ok) {
+            row.appendChild(el("span", "bud-noti-when", "읽지 못함"));
+            var rawEl = el("span", "bud-noti-main"); rawEl.appendChild(el("span", "bud-noti-raw", p.raw)); rawEl.appendChild(el("span", "mini-sub", "금액을 찾지 못한 알림이에요. 필요하면 아래 내역 입력에서 직접 추가해 주세요."));
+            row.appendChild(rawEl);
+          } else {
+            var d = H.parseKey(p.date);
+            row.appendChild(el("span", "bud-noti-when", (d.getMonth() + 1) + "/" + d.getDate() + (p.time ? " " + p.time : "")));
+            var main = el("span", "bud-noti-main");
+            main.appendChild(el("span", "bud-noti-name", p.merchant || "(내용 없음)"));
+            main.appendChild(el("span", "mini-sub", [p.source, p.type, p.cancel ? "승인 취소" : "", g.dup ? "이미 추가됨" : ""].filter(Boolean).join(" · ")));
+            row.appendChild(main);
+            if (!p.cancel && !g.dup) {
+              var cat = select(p.type === "수입" ? INC_CATS : EXP_CATS, g.cat, "분류");
+              cat.addEventListener("change", function () { state.inboxCat[p.sig] = cat.value; });
+              row.appendChild(cat);
+            }
+            row.appendChild(el("span", "bud-amt" + (p.type === "수입" ? " inc" : ""), (p.type === "수입" ? "+" : (p.cancel ? "취소 " : "−")) + won(p.amount)));
+            if (p.cancel) {
+              if (g.match) {
+                var undo = el("button", "tool-btn", "원 결제 지우기"); undo.type = "button"; undo.title = g.match.date + " " + (g.match.memo || "") + " " + won(g.match.amount);
+                undo.addEventListener("click", function () { saveItems(state.items.filter(function (it) { return it.id !== g.match.id; })).then(function () { dropInbox(g.ids); }); });
+                row.appendChild(undo);
+              }
+            } else if (!g.dup) {
+              var add = el("button", "tool-btn on", "추가"); add.type = "button";
+              add.addEventListener("click", function () { g.cat = cat.value; addFromInbox([g]); });
+              row.appendChild(add);
+            }
+          }
+          var drop = el("button", "icon-btn", "×"); drop.type = "button"; drop.title = "버리기"; drop.setAttribute("aria-label", "알림 버리기");
+          drop.addEventListener("click", function () { dropInbox(g.ids); });
+          row.appendChild(drop);
+          list.appendChild(row);
+        });
+        inbox.appendChild(list);
+      }
+
       /* ---------- month navigation ---------- */
-      function drawAll() { drawSummary(); drawFixed(); drawDaily(); drawList(); drawCats(); drawBudget(); }
+      function drawAll() { drawSummary(); drawFixed(); drawDaily(); drawList(); drawCats(); drawBudget(); drawInbox(); }
       function setMonth(mk) {
         state.mk = mk;
         if (state.sel.slice(0, 7) !== mk) { state.sel = mk === today.slice(0, 7) ? today : mk + "-01"; }
@@ -734,6 +902,7 @@
 
       setType("지출"); drawFilters();
       App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); drawAll(); });
+      App.watchQuery(inboxRef, function (docs) { state.inbox = docs; drawInbox(); });
       setMonth(state.mk);
     }
   });

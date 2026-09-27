@@ -495,7 +495,32 @@
     $$("#view .tool-btn").filter(function (b) { return /^선택 삭제/.test(b.textContent); })[0].click(); await sleep(120);
     window.confirm = realConfirm;
     ok("fixed pick delete", window.__MOCK_STORE["personal/budget"].fixed.length === 1 && !$("#view .bud-fixed .bud-pick"), JSON.stringify(window.__MOCK_STORE["personal/budget"].fixed));
-    $$("#view .bud-arr")[0].click(); await sleep(40);    await go("home");
+    $$("#view .bud-arr")[0].click(); await sleep(40);    /* phone payment notifications */
+    var PN = App.budget.parseNotice, sep = new Date(2026, 8, 28);
+    var n1 = PN("iM뱅크 09/27 13:52\n50813*03093\n입금 1,000,000\n잔액 1,189,248\n토스박선영", sep);
+    ok("notice iM deposit", n1.ok && n1.type === "수입" && n1.amount === 1000000 && n1.date === "2026-09-27" && n1.time === "13:52" && n1.merchant === "토스박선영" && n1.source === "iM뱅크" && n1.method === "계좌이체", JSON.stringify(n1));
+    var n2 = PN("[Web발신]\n신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원", sep);
+    ok("notice shinhan approval", n2.ok && n2.type === "지출" && n2.amount === 12500 && n2.merchant === "스타벅스" && n2.source === "신한카드(1234)" && !n2.cancel && App.budget.guessMerchantCat(n2.merchant, "지출") === "카페 · 간식", JSON.stringify(n2));
+    var n3 = PN("신한카드(1234)취소 박*영 12,500원(일시불)09/28 09:10 스타벅스 누적1,222,067원", sep);
+    ok("notice shinhan cancel", n3.ok && n3.cancel && n3.amount === 12500, JSON.stringify(n3));
+    var n4 = PN("iM뱅크 12/30 10:00 50813*03093 출금 55,000 잔액 1,134,248 관리비", new Date(2027, 0, 3));
+    ok("notice withdrawal + year rollover", n4.ok && n4.type === "지출" && n4.date === "2026-12-30" && n4.merchant === "관리비", JSON.stringify(n4));
+    ok("notice unreadable", !PN("안녕하세요 광고 문자입니다").ok);
+    var now2 = new Date(), md = String(now2.getMonth() + 1).padStart(2, "0") + "/" + String(now2.getDate()).padStart(2, "0");
+    var shTxt = "신한카드(1234)승인 박*영 8,900원(일시불)" + md + " 12:01 메가MGC커피 누적1,000원";
+    await App.col("budgetInbox").add({ text: shTxt, k: "x" });
+    await App.col("budgetInbox").add({ text: "[Web발신] " + shTxt, k: "x" });
+    await App.col("budgetInbox").add({ text: "iM뱅크 " + md + " 09:00 50813*03093 입금 400,000 잔액 1,589,248 마테마타", k: "x" });
+    await App.col("budgetInbox").add({ text: "광고입니다", k: "x" });
+    await sleep(150);
+    ok("inbox shown + SMS/push merged", !$("#view .bud-inbox").hidden && $$("#view .bud-noti").length === 3 && $$("#view .bud-noti.bad").length === 1, $$("#view .bud-noti").length);
+    var nBefore = window.__MOCK_STORE[lk].items.length;
+    $$("#view .bud-inbox .btn").filter(function (b) { return /^모두 추가/.test(b.textContent); })[0].click(); await sleep(200);
+    var ledNow = window.__MOCK_STORE[lk].items;
+    ok("inbox add all", ledNow.length === nBefore + 2 && ledNow.some(function (i) { return i.memo === "메가MGC커피" && i.amount === 8900 && i.cat === "카페 · 간식" && /^noti:/.test(i.src); }) && ledNow.some(function (i) { return i.type === "수입" && i.amount === 400000; }), JSON.stringify(ledNow.slice(-2)));
+    ok("inbox leaves unreadable only", Object.keys(window.__MOCK_STORE).filter(function (k) { return k.indexOf("budgetInbox/") === 0; }).length === 1 && $$("#view .bud-noti").length === 1);
+    $("#view .bud-noti .icon-btn").click(); await sleep(120);
+    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));    await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
 
