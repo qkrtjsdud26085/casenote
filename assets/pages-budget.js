@@ -165,12 +165,28 @@
   /* =========================================================
      개인 — 가계부
      ========================================================= */
+  /* 가계부 · 월별 리포트 switcher, placed beside the page title */
+  function headTabs(active) {
+    var head = document.getElementById("pageHead"), h1 = head && head.querySelector(".page-title");
+    if (!h1) { return; }
+    head.classList.add("has-tabs");
+    var nav = el("nav", "bud-tabs"); nav.setAttribute("aria-label", "가계부 보기");
+    [["personal-budget", "가계부"], ["personal-budget-report", "월별 리포트"]].forEach(function (t) {
+      var a = el("a", "bud-tab" + (t[0] === active ? " on" : ""), t[1]); a.href = "#/" + t[0];
+      if (t[0] === active) { a.setAttribute("aria-current", "page"); }
+      nav.appendChild(a);
+    });
+    h1.insertAdjacentElement("afterend", nav);
+  }
+
   App.page({
     id: "personal-budget", title: "가계부",
-    desc: "매달 나가는 고정지출을 등록해 두고, 날짜별로 얼마를 썼는지 달력으로 확인합니다. 수입 · 지출 내역, 분류별 통계, 월 예산까지 한곳에서 관리해요.",
     render: function (view) {
+      headTabs("personal-budget");
       var today = H.todayStr();
-      var state = { mk: monthKey(new Date()), sel: today, settings: { fixed: [], budget: 0 }, items: [], editId: null, type: "지출", fType: "전체", fCat: "전체", q: "", fixedEdit: null };
+      /* the report can open a specific month */
+      var goto = H.safeGet("hds_bud_goto"); H.safeSet("hds_bud_goto", "");
+      var state = { mk: /^\d{4}-\d{2}$/.test(goto || "") ? goto : monthKey(new Date()), sel: today, settings: { fixed: [], budget: 0 }, items: [], editId: null, type: "지출", fType: "전체", fCat: "전체", q: "", fixedEdit: null };
       var unsubMonth = null;
 
       /* ---------- month bar + summary ---------- */
@@ -189,15 +205,15 @@
       var inbox = el("section", "bud-inbox"); inbox.hidden = true; view.appendChild(inbox);
       state.inbox = [];
 
-      /* two independent columns so the ledger fills the space under the fixed card, beside the tall calendar */
+      /* two independent columns: the ledger on the left, calendar → fixed → stats on the right */
       var cols = el("div", "bud-cols"), colL = el("div", "bud-col"), colR = el("div", "bud-col");
       cols.appendChild(colL); cols.appendChild(colR); view.appendChild(cols);
-      var fixedCard = ui.card(colL, { tab: "Fixed", tone: "t-1", title: "고정 수입 · 지출" });
       var listCard = ui.card(colL, { tab: "Ledger", tone: "t-3", title: "수입 · 지출 내역" });
       var dayCard = ui.card(colR, { tab: "Daily", tone: "t-2", title: "날짜별 지출" });
+      var fixedCard = ui.card(colR, { tab: "Fixed", tone: "t-1", title: "고정 수입 · 지출" });
       var catCard = ui.card(colR, { tab: "Category", tone: "t-2", title: "분류별 지출" });
       var setCard = ui.card(colR, { tab: "Budget", tone: "t-1", title: "월 예산 · 결제수단" });
-      [fixedCard, dayCard, listCard, catCard, setCard].forEach(function (c, i) { c.el.style.setProperty("--m-order", String(i)); });
+      [listCard, dayCard, fixedCard, catCard, setCard].forEach(function (c, i) { c.el.style.setProperty("--m-order", String(i)); });
       state.ledSel = {}; state.fxSel = {}; state.fxPicking = false;
 
       /* ---------- saving ---------- */
@@ -686,7 +702,7 @@
       function filtered() {
         return state.items.filter(function (it) {
           var type = it.type || "지출";
-          if (state.fType === "지출" && type !== "지출") { return false; }
+          if (state.fType === "지출" && (type !== "지출" || it.fixedId)) { return false; }
           if (state.fType === "수입" && type !== "수입") { return false; }
           if (state.fType === "고정지출" && (!it.fixedId || it.type === "수입")) { return false; }
           if (state.fCat !== "전체" && it.cat !== state.fCat) { return false; }
@@ -914,6 +930,204 @@
       App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); drawAll(); });
       App.watchQuery(inboxRef, function (docs) { state.inbox = docs; drawInbox(); });
       setMonth(state.mk);
+    }
+  });
+
+  /* =========================================================
+     개인 — 월별 리포트 (꺾은선: 월별 지출 · 수입)
+     ========================================================= */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function svg(tag, attrs, text) {
+    var n = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    if (text != null) { n.textContent = text; }
+    return n;
+  }
+  function niceMax(v) {
+    if (v <= 0) { return 100000; }
+    var p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+    var steps = [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10];  /* each ÷4 gives round gridlines */
+    for (var i = 0; i < steps.length; i++) { if (f <= steps[i]) { return steps[i] * p; } }
+    return 10 * p;
+  }
+  function monthLabel(mk, withYear) { var p = mk.split("-"); return (withYear ? p[0].slice(2) + "." : "") + Number(p[1]) + "월"; }
+
+  App.page({
+    id: "personal-budget-report", title: "월별 리포트",
+    render: function (view) {
+      headTabs("personal-budget-report");
+      var cur = monthKey(new Date());
+      var SERIES = [
+        { key: "exp", label: "지출", cls: "exp" },
+        { key: "inc", label: "수입", cls: "inc" }
+      ];
+      var state = { range: H.safeGet("hds_bud_range") || "12", data: {}, show: { exp: true, inc: true }, hover: null };
+
+      var filters = el("div", "archive-filters bud-rep-filters");
+      var tiles = el("div", "tiles bud-tiles");
+      var card = ui.card(view, { tab: "Monthly", tone: "t-1", title: "월별 지출 추이" });
+      var legend = el("div", "bud-legend");
+      var chartWrap = el("div", "bud-chart");
+      var tip = el("div", "bud-tip"); tip.hidden = true;
+      chartWrap.appendChild(tip);
+      card.body.appendChild(legend); card.body.appendChild(chartWrap);
+      var tCard = ui.card(view, { tab: "Table", tone: "t-3", title: "월별 합계" });
+      var tWrap = el("div", "table-wrap"); tCard.body.appendChild(tWrap);
+      tCard.body.appendChild(el("p", "hint", "월을 누르면 그 달의 가계부로 이동해요."));
+      view.insertBefore(tiles, card.el); view.insertBefore(filters, tiles);
+
+      function months() {
+        var n = state.range === "year" ? Number(cur.slice(5)) : Number(state.range), out = [];
+        for (var i = n - 1; i >= 0; i--) { out.push(shiftMonth(cur, -i)); }
+        return out;
+      }
+      function rows() {
+        return months().map(function (mk) {
+          var items = state.data[mk] || [], t = totals(items);
+          return { mk: mk, exp: t.exp, inc: t.inc, fixed: t.fixed, loaded: state.data[mk] !== undefined };
+        });
+      }
+      function drawFilters() {
+        H.clear(filters);
+        [["6", "최근 6개월"], ["12", "최근 12개월"], ["year", "올해"]].forEach(function (r) {
+          var b = el("button", "chip" + (state.range === r[0] ? " active" : ""), r[1]); b.type = "button";
+          b.addEventListener("click", function () { state.range = r[0]; H.safeSet("hds_bud_range", r[0]); watchAll(); drawAll(); });
+          filters.appendChild(b);
+        });
+      }
+      function tile(label, value, sub) {
+        var t = el("div", "tile"); t.appendChild(el("div", "tile-label", label)); t.appendChild(el("div", "tile-value", value)); t.appendChild(el("div", "tile-sub", sub || ""));
+        return t;
+      }
+      function drawTiles(rs) {
+        H.clear(tiles);
+        var withData = rs.filter(function (r) { return r.exp || r.inc; });
+        var totalExp = rs.reduce(function (s, r) { return s + r.exp; }, 0);
+        var totalInc = rs.reduce(function (s, r) { return s + r.inc; }, 0);
+        var maxR = rs.reduce(function (m, r) { return !m || r.exp > m.exp ? r : m; }, null);
+        var last = rs[rs.length - 1], prevR = rs[rs.length - 2];
+        tiles.appendChild(tile("기간 총 지출", won(totalExp), rs.length + "개월 · 수입 " + won(totalInc)));
+        tiles.appendChild(tile("월평균 지출", withData.length ? won(totalExp / withData.length) : "—", withData.length ? "기록 있는 " + withData.length + "개월 기준" : "아직 기록이 없어요"));
+        tiles.appendChild(tile("가장 많이 쓴 달", maxR && maxR.exp ? monthLabel(maxR.mk, true) : "—", maxR && maxR.exp ? won(maxR.exp) : ""));
+        var diff = last && prevR ? last.exp - prevR.exp : 0;
+        tiles.appendChild(tile("이번 달 vs 지난달", prevR && prevR.exp ? (diff > 0 ? "+" : diff < 0 ? "−" : "") + won(Math.abs(diff)) : "—", prevR && prevR.exp ? (diff > 0 ? Math.round(diff / prevR.exp * 100) + "% 더 썼어요" : diff < 0 ? Math.round(-diff / prevR.exp * 100) + "% 덜 썼어요" : "지난달과 같아요") : "지난달 기록이 없어요"));
+        var net = totalInc - totalExp;
+        tiles.appendChild(tile("기간 잔액", (net < 0 ? "−" : "") + won(Math.abs(net)), "수입 − 지출"));
+        tiles.appendChild(tile("평균 고정지출", withData.length ? won(rs.reduce(function (s, r) { return s + r.fixed; }, 0) / withData.length) : "—", "체크해 반영한 고정지출 기준"));
+      }
+      function drawLegend() {
+        H.clear(legend);
+        SERIES.forEach(function (s) {
+          var b = el("button", "bud-legend-item " + s.cls + (state.show[s.key] ? " on" : "")); b.type = "button";
+          b.setAttribute("aria-pressed", state.show[s.key] ? "true" : "false");
+          b.appendChild(el("span", "bud-legend-swatch")); b.appendChild(document.createTextNode(s.label));
+          b.addEventListener("click", function () {
+            var others = SERIES.filter(function (x) { return x.key !== s.key && state.show[x.key]; });
+            if (state.show[s.key] && !others.length) { return; }  /* keep at least one line */
+            state.show[s.key] = !state.show[s.key]; drawAll();
+          });
+          legend.appendChild(b);
+        });
+      }
+      function drawChart(rs) {
+        Array.prototype.slice.call(chartWrap.querySelectorAll("svg")).forEach(function (n) { n.remove(); });
+        /* drawn at the real width so dots and labels are never stretched */
+        var W = Math.max(300, Math.round(chartWrap.clientWidth || 900)), narrow = W < 560;
+        var Hh = narrow ? 240 : 320, L = narrow ? 48 : 64, R = narrow ? 16 : 56, T = 16, B = 34;
+        var shown = SERIES.filter(function (s) { return state.show[s.key]; });
+        var max = niceMax(Math.max.apply(null, [0].concat([].concat.apply([], shown.map(function (s) { return rs.map(function (r) { return r[s.key]; }); })))));
+        var n = rs.length, pw = W - L - R, ph = Hh - T - B;
+        function x(i) { return L + (n === 1 ? pw / 2 : i * pw / (n - 1)); }
+        function y(v) { return T + ph - v / max * ph; }
+        var root = svg("svg", { viewBox: "0 0 " + W + " " + Hh, width: W, height: Hh, role: "img", "aria-label": "월별 지출 · 수입 꺾은선 그래프" });
+        var g = svg("g", { class: "bud-grid" });
+        for (var k = 0; k <= 4; k++) {
+          var v = max * k / 4, yy = y(v);
+          g.appendChild(svg("line", { x1: L, x2: W - R, y1: yy, y2: yy, class: k === 0 ? "base" : "" }));
+          g.appendChild(svg("text", { x: L - 8, y: yy + 4, "text-anchor": "end", class: "bud-axis" }, v >= 10000 ? (v / 10000).toLocaleString("ko-KR") + "만" : Math.round(v).toLocaleString("ko-KR")));
+        }
+        root.appendChild(g);
+        var step = narrow && n > 7 ? 2 : 1;
+        rs.forEach(function (r, i) {
+          var yearTurn = i === 0 || r.mk.slice(5) === "01";
+          if ((n - 1 - i) % step) { return; }  /* thin labels on phones, always keeping the latest month */
+          root.appendChild(svg("text", { x: x(i), y: Hh - 10, "text-anchor": "middle", class: "bud-axis" + (r.mk === cur ? " cur" : "") }, monthLabel(r.mk, yearTurn)));
+        });
+        var cross = svg("line", { y1: T, y2: T + ph, class: "bud-cross", visibility: "hidden" });
+        root.appendChild(cross);
+        shown.forEach(function (s) {
+          var d = rs.map(function (r, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(r[s.key]).toFixed(1); }).join(" ");
+          root.appendChild(svg("path", { d: d, class: "bud-line " + s.cls }));
+          rs.forEach(function (r, i) {
+            root.appendChild(svg("circle", { cx: x(i), cy: y(r[s.key]), r: state.hover === i ? 5.5 : 4, class: "bud-dot-pt " + s.cls }));
+          });
+          /* direct label at the last point */
+          var lr = rs[n - 1];
+          if (!narrow) { root.appendChild(svg("text", { x: x(n - 1) + 10, y: y(lr[s.key]) + 4, class: "bud-direct" }, s.label)); }
+        });
+        /* hover layer: one wide column per month */
+        rs.forEach(function (r, i) {
+          var half = n === 1 ? pw / 2 : pw / (n - 1) / 2;
+          var hit = svg("rect", { x: x(i) - half, y: T, width: half * 2, height: ph, class: "bud-hit" });
+          function on() {
+            state.hover = i;
+            cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+            Array.prototype.forEach.call(root.querySelectorAll(".bud-dot-pt"), function (c) { c.setAttribute("r", Number(c.getAttribute("cx")) === x(i) ? 5.5 : 4); });
+            H.clear(tip);
+            tip.appendChild(el("div", "bud-tip-title", monthLabel(r.mk, true)));
+            shown.forEach(function (s) {
+              var line = el("div", "bud-tip-row"); line.appendChild(el("span", "bud-legend-swatch " + s.cls));
+              line.appendChild(el("span", "", s.label)); line.appendChild(el("strong", "", won(r[s.key]))); tip.appendChild(line);
+            });
+            var net = r.inc - r.exp, nl = el("div", "bud-tip-row"); nl.appendChild(el("span", "", "잔액")); nl.appendChild(el("strong", "", (net < 0 ? "−" : "") + won(Math.abs(net)))); tip.appendChild(nl);
+            tip.hidden = false;
+            var pct = x(i) / W * 100;
+            tip.style.left = pct + "%"; tip.classList.toggle("flip", pct > 62);
+          }
+          hit.addEventListener("mouseenter", on); hit.addEventListener("click", on);
+          root.appendChild(hit);
+        });
+        root.addEventListener("mouseleave", function () { state.hover = null; tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+        chartWrap.insertBefore(root, tip);
+      }
+      function drawTable(rs) {
+        H.clear(tWrap);
+        var tb = el("table", "items-table bud-rep-table"), thead = el("thead"), hr = el("tr");
+        ["월", "수입", "지출", "고정지출", "변동지출", "잔액", "전월 대비 지출"].forEach(function (h) { hr.appendChild(el("th", "", h)); });
+        thead.appendChild(hr); tb.appendChild(thead);
+        var body = el("tbody");
+        rs.slice().reverse().forEach(function (r) {
+          var i = rs.indexOf(r), p = rs[i - 1], tr = el("tr");
+          var a = el("a", "", monthLabel(r.mk, true) + (r.mk === cur ? " (이번 달)" : "")); a.href = "#/personal-budget";
+          a.addEventListener("click", function () { H.safeSet("hds_bud_goto", r.mk); });
+          var td0 = el("td", "narrow"); td0.appendChild(a); tr.appendChild(td0);
+          var net = r.inc - r.exp, d = p ? r.exp - p.exp : null;
+          [won(r.inc), won(r.exp), won(r.fixed), won(r.exp - r.fixed), (net < 0 ? "−" : "") + won(Math.abs(net)),
+            d === null || !p.exp ? "—" : (d > 0 ? "▲ " : d < 0 ? "▼ " : "") + won(Math.abs(d))].forEach(function (v, j) {
+            tr.appendChild(el("td", "narrow num" + (j === 5 && d > 0 ? " up" : j === 5 && d < 0 ? " down" : ""), v));
+          });
+          body.appendChild(tr);
+        });
+        tb.appendChild(body); tWrap.appendChild(tb);
+      }
+      function drawAll() { var rs = rows(); drawFilters(); drawTiles(rs); drawLegend(); drawChart(rs); drawTable(rs); }
+
+      /* one live listener per month in range */
+      var unsubs = [];
+      function watchAll() {
+        unsubs.forEach(function (u) { u(); }); unsubs = [];
+        months().forEach(function (mk) {
+          unsubs.push(App.watchDoc(ledgerRef(mk), function (d) { state.data[mk] = (d && d.items) || []; drawAll(); }));
+        });
+      }
+      watchAll(); drawAll();
+      var lastW = 0, rt = null;
+      function onResize() {
+        clearTimeout(rt);
+        rt = setTimeout(function () { var w = chartWrap.clientWidth; if (w && Math.abs(w - lastW) > 8) { lastW = w; drawChart(rows()); } }, 120);
+      }
+      window.addEventListener("resize", onResize);
+      App.unsubs.push(function () { window.removeEventListener("resize", onResize); });
     }
   });
 })(window.App);

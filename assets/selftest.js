@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 43, ids.length);
+    ok("page count", ids.length === 44, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -473,7 +473,17 @@
     ok("clear fixed expenses keeps income", fxs.length === 2 && fxs.every(function (f) { return f.kind === "수입"; }), JSON.stringify(fxs));
     ok("clear removes recorded fixed expenses only", led.items.filter(function (i) { return i.fixedId && i.type !== "수입"; }).length === 0 && led.items.some(function (i) { return i.fixedId && i.type === "수입"; }) && led.items.some(function (i) { return !i.fixedId; }), JSON.stringify(led.items));
     /* layout: ledger sits under the fixed card in the left column */
-    ok("ledger under fixed card", $("#view .bud-col").contains($("#view .bud-sw")) && $("#view .bud-col").contains($("#view form.bud-form")) && !$("#view .bud-col").contains($("#view .bud-cal")));
+    var bcols = $$("#view .bud-col");
+    ok("ledger left, calendar then fixed right", bcols[0].contains($("#view form.bud-form")) && !bcols[0].contains($("#view .bud-sw")) && bcols[1].contains($("#view .bud-cal")) && bcols[1].contains($("#view .bud-sw")) && (bcols[1].querySelector(".bud-cal").compareDocumentPosition(bcols[1].querySelector(".bud-sw")) & 4));
+    ok("budget head: tabs, no desc", !$("#pageHead .page-desc") && $$("#pageHead .bud-tab").length === 2 && /on/.test($("#pageHead .bud-tab").className));
+    /* 지출 filter hides fixed expenses; 고정지출 shows only them */
+    var fixItem = { id: "fxT", date: App.budget.fixedDate(mk, 2), type: "지출", cat: "통신", amount: 30000, method: "카드", memo: "통신비", fixedId: "zzz" };
+    await App.budget.ledgerRef(mk).set({ items: window.__MOCK_STORE[lk].items.concat([fixItem]) }, { merge: true }); await sleep(120);
+    $$("#view .bud-ftypes .chip").filter(function (b) { return b.textContent === "지출"; })[0].click(); await sleep(40);
+    ok("지출 filter excludes fixed", !$$("#view .bud-list .bud-entry").some(function (r) { return /통신비/.test(r.textContent); }) && $$("#view .bud-list .bud-entry").length > 0);
+    $$("#view .bud-ftypes .chip").filter(function (b) { return b.textContent === "고정지출"; })[0].click(); await sleep(40);
+    ok("고정지출 filter only fixed", $$("#view .bud-list .bud-entry").length >= 1 && $$("#view .bud-list .bud-entry").every(function (r) { return /고정지출/.test(r.textContent); }));
+    $$("#view .bud-ftypes .chip").filter(function (b) { return b.textContent === "전체"; })[0].click(); await sleep(40);
     /* ledger: select all / select delete */
     var n0 = window.__MOCK_STORE[lk].items.length;
     var sa = $("#view .bud-selall input"); sa.checked = true; change(sa); await sleep(40);
@@ -492,7 +502,7 @@
     ok("fixed pick all", $$("#view .bud-fixed .bud-pick:checked").length === 2 && $$("#view .tool-btn").some(function (b) { return b.textContent === "전체 해제"; }));
     $$("#view .tool-btn").filter(function (b) { return b.textContent === "전체 해제"; })[0].click(); await sleep(40);
     var fp = $("#view .bud-fixed .bud-pick"); fp.checked = true; change(fp); await sleep(40);
-    $$("#view .tool-btn").filter(function (b) { return /^선택 삭제/.test(b.textContent); })[0].click(); await sleep(120);
+    Array.prototype.filter.call($("#view .bud-sw").closest(".card").querySelectorAll(".tool-btn"), function (b) { return /^선택 삭제/.test(b.textContent); })[0].click(); await sleep(120);
     window.confirm = realConfirm;
     ok("fixed pick delete", window.__MOCK_STORE["personal/budget"].fixed.length === 1 && !$("#view .bud-fixed .bud-pick"), JSON.stringify(window.__MOCK_STORE["personal/budget"].fixed));
     $$("#view .bud-arr")[0].click(); await sleep(40);    /* phone payment notifications */
@@ -532,7 +542,21 @@
     ok("inbox add all", ledNow.length === nBefore + 2 && ledNow.some(function (i) { return i.memo === "메가MGC커피" && i.amount === 8900 && i.cat === "카페 · 간식" && /^noti:/.test(i.src); }) && ledNow.some(function (i) { return i.type === "수입" && i.amount === 400000; }), JSON.stringify(ledNow.slice(-2)));
     ok("inbox leaves unreadable only", Object.keys(window.__MOCK_STORE).filter(function (k) { return k.indexOf("budgetInbox/") === 0; }).length === 1 && $$("#view .bud-noti").length === 1);
     $("#view .bud-noti .icon-btn").click(); await sleep(120);
-    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));    await go("home");
+    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));    /* 월별 리포트 */
+    await App.budget.ledgerRef(App.budget.monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))).set({ items: [{ id: "pm1", date: "2000-01-01", type: "지출", cat: "식비", amount: 200000, method: "카드", memo: "지난달" }] });
+    $$("#pageHead .bud-tab")[1].click(); await sleep(250);
+    ok("report page", location.hash === "#/personal-budget-report" && $("#pageHead .bud-tab.on").textContent === "월별 리포트" && !$("#pageHead .page-desc"));
+    ok("report chart lines", $$("#view .bud-chart path.bud-line").length === 2 && $$("#view .bud-chart circle.bud-dot-pt.exp").length === 12 && $$("#view .bud-rep-table tbody tr").length === 12, $$("#view .bud-chart path.bud-line").length + "/" + $$("#view .bud-chart circle.bud-dot-pt.exp").length);
+    ok("report tiles", $$("#view .bud-tiles .tile").length === 6 && /200,000원/.test($("#view .bud-tiles").textContent), $("#view .bud-tiles").textContent);
+    $$("#view .bud-rep-filters .chip").filter(function (b) { return b.textContent === "최근 6개월"; })[0].click(); await sleep(150);
+    ok("report range 6", $$("#view .bud-chart circle.bud-dot-pt.exp").length === 6 && $$("#view .bud-rep-table tbody tr").length === 6);
+    $$("#view .bud-legend-item")[1].click(); await sleep(60);
+    ok("report legend toggle", $$("#view .bud-chart path.bud-line").length === 1);
+    var hit = $$("#view .bud-hit").pop(); hit.dispatchEvent(new Event("mouseenter")); await sleep(30);
+    ok("report tooltip", !$("#view .bud-tip").hidden && /지출/.test($("#view .bud-tip").textContent));
+    $$("#view .bud-rep-table tbody a")[1].click(); await sleep(250);
+    ok("report row opens that month", location.hash === "#/personal-budget" && /지난달/.test($("#view .bud-list").textContent), $("#view .bud-month").textContent);
+    App.h.safeSet("hds_bud_range", "12");    await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
 

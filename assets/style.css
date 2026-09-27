@@ -392,6 +392,45 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .bud-money { font-variant-numeric: tabular-nums; text-align: right; }
 .bud-amt { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.86rem; white-space: nowrap; }
 .bud-amt.inc { color: var(--accent-2-strong); }
+.page-head.has-tabs .page-title { display: inline-block; margin-right: 14px; vertical-align: middle; }
+.bud-tabs { display: inline-flex; gap: 4px; vertical-align: middle; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.bud-tab { font-size: 0.82rem; font-weight: 600; text-decoration: none; color: var(--ink-soft); padding: 5px 14px; border-radius: 999px; }
+.bud-tab:hover { color: var(--accent); }
+.bud-tab.on { background: var(--ink); color: var(--bg); }
+/* monthly report chart — series colors validated for CVD / contrast on both surfaces */
+:root { --chart-exp: #b3462c; --chart-inc: #0f8468; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --chart-exp: #cf5f3d; --chart-inc: #2f9470; } }
+:root[data-theme="dark"] { --chart-exp: #cf5f3d; --chart-inc: #2f9470; }
+.bud-rep-filters { margin: 14px 0 0; }
+.bud-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.bud-legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.bud-legend-item.on { color: var(--ink); }
+.bud-legend-item:not(.on) .bud-legend-swatch { opacity: 0.3; }
+.bud-legend-swatch { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--chart-exp); flex-shrink: 0; }
+.bud-legend-item.inc .bud-legend-swatch, .bud-legend-swatch.inc { background: var(--chart-inc); background-image: linear-gradient(90deg, var(--chart-inc) 60%, transparent 60%); background-size: 6px 3px; }
+.bud-chart { position: relative; }
+.bud-chart svg { display: block; max-width: 100%; overflow: visible; }
+.bud-grid line { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.bud-grid line.base { stroke: var(--ink-soft); }
+.bud-axis { font-family: var(--font-mono); font-size: 11px; fill: var(--ink-soft); }
+.bud-axis.cur { fill: var(--ink); font-weight: 600; }
+.bud-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.bud-line.exp { stroke: var(--chart-exp); }
+.bud-line.inc { stroke: var(--chart-inc); stroke-dasharray: 6 4; }
+.bud-dot-pt { stroke: var(--surface); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.bud-dot-pt.exp { fill: var(--chart-exp); }
+.bud-dot-pt.inc { fill: var(--chart-inc); }
+.bud-direct { font-size: 12px; font-weight: 600; fill: var(--ink-soft); }
+.bud-cross { stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.bud-hit { fill: transparent; cursor: crosshair; }
+.bud-tip { position: absolute; top: 8px; transform: translateX(12px); min-width: 150px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; box-shadow: 0 4px 14px rgba(var(--shadow-rgb), 0.18); pointer-events: none; font-size: 0.8rem; z-index: 2; }
+.bud-tip.flip { transform: translateX(calc(-100% - 12px)); }
+.bud-tip-title { font-weight: 700; margin-bottom: 4px; }
+.bud-tip-row { display: flex; align-items: center; gap: 7px; }
+.bud-tip-row strong { margin-left: auto; font-variant-numeric: tabular-nums; }
+.bud-rep-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bud-rep-table td.up { color: var(--accent-strong); }
+.bud-rep-table td.down { color: var(--accent-2-strong); }
 .bud-inbox { margin-top: 18px; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); padding: 14px 16px; }
 .bud-inbox-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 10px; }
 .bud-inbox-head h2 { font-family: var(--font-display); font-size: 1rem; margin: 0; }
