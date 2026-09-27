@@ -438,6 +438,8 @@
     var pr = App.budget.parseFixed(pasted);
     ok("bulk parse", pr.length === 9 && pr.reduce(function (s, r) { return s + r.amount; }, 0) === 538590, JSON.stringify(pr));
     ok("bulk parse names", pr[2].name === "클로드" && pr[7].name === "T우주 (구글 AI 플러스)" && pr[8].name === "쓱7클럽" && pr[3].day === 15 && pr[0].cat === "주거 · 관리비" && pr[3].cat === "통신" && pr[4].cat === "구독", JSON.stringify(pr));
+    var pr2 = App.budget.parseFixed("기름값 120,000원 1일\n차량관리비 30,000원 1일\n쿠팡 와우 7,890원 16일");
+    ok("bulk parse car + day", pr2.length === 3 && pr2[0].cat === "교통" && pr2[1].cat === "교통" && pr2[1].day === 1 && pr2[2].day === 16 && pr2[2].name === "쿠팡 와우", JSON.stringify(pr2));
     $$("#view .tool-btn").filter(function (b) { return b.textContent === "여러 개 붙여넣기"; })[0].click(); await sleep(40);
     var realAlert = window.alert; window.alert = function () {};
     var bulk = $("#view form.obs-import"); $("textarea", bulk).value = pasted; submit(bulk); await sleep(120);
