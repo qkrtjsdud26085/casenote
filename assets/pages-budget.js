@@ -41,7 +41,36 @@
       .map(function (f) { return Object.assign({}, f, { date: fixedDate(mk, f.day) }); })
       .sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   }
-  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate };
+  /* bulk paste: one item per line — "월세 400,000원 25일", "클로드	약 31,000원", "| 유독 | 12,900원 |" */
+  var CAT_HINTS = [
+    [/월세|관리비|전세|대출|이자|렌탈|정수기|가스|전기|수도/, "주거 · 관리비"],
+    [/통신|휴대폰|핸드폰|인터넷|알뜰폰/, "통신"],
+    [/보험/, "보험"],
+    [/적금|저축|청약|투자|연금/, "저축 · 투자"],
+    [/교통|버스|지하철|주유|주차/, "교통"],
+    [/학원|강의|도서|교재/, "교육 · 도서"],
+    [/헬스|병원|약국|필라테스|요가/, "의료 · 건강"]
+  ];
+  function guessCat(name) {
+    for (var i = 0; i < CAT_HINTS.length; i++) { if (CAT_HINTS[i][0].test(name)) { return CAT_HINTS[i][1]; } }
+    return "구독";
+  }
+  function parseFixed(raw) {
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function (line) {
+      var s = line.replace(/[|\t]/g, " ").replace(/\s+/g, " ").trim();
+      if (!s || /^(항목|합계|총계|계)(?=\s|$)|^[\s:-]+$/.test(s)) { return; }
+      var day = null, amount = 0;
+      s = s.replace(/(?:매월|매달)?\s*(\d{1,2})\s*일(?![가-힣])/, function (m, d) { day = Number(d); return " "; });
+      var am = s.match(/(\d[\d,]*)\s*원/) || s.match(/(\d[\d,]{2,})\s*$/);
+      if (am) { amount = num(am[1]); s = s.replace(am[0], " "); }
+      var name = s.replace(/(^|\s)약(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
+      if (!name || !amount) { return; }
+      out.push({ name: name.slice(0, 40), amount: amount, day: day && day >= 1 && day <= 31 ? day : 1, dayGiven: !!day, cat: guessCat(name) });
+    });
+    return out;
+  }
+  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed };
 
   function select(options, value, label) {
     var s = el("select"); if (label) { s.setAttribute("aria-label", label); }
@@ -153,7 +182,38 @@
       var fxTools = el("div", "items-tools");
       var fxAdd = el("button", "tool-btn", "+ 고정지출 추가"); fxAdd.type = "button";
       var fxAll = el("button", "tool-btn", "미반영 모두 이번 달에 반영"); fxAll.type = "button";
-      fxTools.appendChild(fxAdd); fxTools.appendChild(fxAll);
+      var fxBulkBtn = el("button", "tool-btn", "여러 개 붙여넣기"); fxBulkBtn.type = "button";
+      fxTools.appendChild(fxAdd); fxTools.appendChild(fxBulkBtn); fxTools.appendChild(fxAll);
+      var fxBulk = el("form", "obs-import"); fxBulk.hidden = true;
+      fxBulk.appendChild(el("p", "hint", "한 줄에 하나씩 '항목명 금액 (결제일)'을 적거나, 표를 그대로 복사해 붙여넣으세요. 결제일을 안 적으면 1일로 들어가니 나중에 ✎로 고쳐 주세요. 같은 이름이 이미 있으면 금액만 바뀌어요."));
+      var fxBulkTa = el("textarea"); fxBulkTa.rows = 7; fxBulkTa.placeholder = "월세 400,000원 25일\n통신비 30,000원 15일\n넷플릭스 17,000원";
+      var fxBulkActs = el("div", "items-tools");
+      var fxBulkGo = el("button", "btn", "추가"); fxBulkGo.type = "submit";
+      var fxBulkX = el("button", "btn ghost", "닫기"); fxBulkX.type = "button";
+      fxBulkActs.appendChild(fxBulkGo); fxBulkActs.appendChild(fxBulkX);
+      fxBulk.appendChild(fxBulkTa); fxBulk.appendChild(fxBulkActs);
+      fxBulkBtn.addEventListener("click", function () { fxBulk.hidden = !fxBulk.hidden; if (!fxBulk.hidden) { fxBulkTa.focus(); } });
+      fxBulkX.addEventListener("click", function () { fxBulk.hidden = true; });
+      fxBulk.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var rows = parseFixed(fxBulkTa.value);
+        if (!rows.length) { window.alert("'항목명 금액' 형식의 줄을 찾지 못했어요. 예: 월세 400,000원 25일"); return; }
+        var list = (state.settings.fixed || []).slice(), added = 0, updated = 0;
+        rows.forEach(function (r) {
+          var hit = list.filter(function (f) { return f.name === r.name; })[0];
+          if (hit) {
+            var i = list.indexOf(hit);
+            list[i] = Object.assign({}, hit, { amount: r.amount }, r.dayGiven ? { day: r.day } : {});
+            updated++;
+          } else {
+            list.push({ id: H.uid(), name: r.name, amount: r.amount, day: r.day, cat: r.cat, method: r.cat === "주거 · 관리비" ? "계좌이체" : "카드", memo: "" });
+            added++;
+          }
+        });
+        saveSettings({ fixed: list });
+        fxBulkTa.value = ""; fxBulk.hidden = true;
+        window.alert("고정지출 " + added + "개 추가" + (updated ? ", " + updated + "개 금액 수정" : "") + "했어요.");
+      });
       var fxForm = el("form", "item-form"); fxForm.hidden = true;
       var fxName = el("input"); fxName.placeholder = "예: 월세, 통신비, 넷플릭스"; fxName.maxLength = 40; fxName.required = true;
       var fxAmt = moneyInput("금액", "고정지출 금액"); fxAmt.required = true;
@@ -167,7 +227,7 @@
       fxActs.appendChild(fxSave); fxActs.appendChild(fxCancel);
       [field("항목명", fxName), field("금액", fxAmt), field("매월 결제일", fxDay), field("분류", fxCat), field("결제수단", fxMethod), field("메모", fxMemo, true), fxActs].forEach(function (n) { fxForm.appendChild(n); });
       var fxList = el("div", "plain-list bud-fixed-list");
-      [fxSum, fxTools, fxForm, fxList, el("p", "hint", "체크하면 이 달의 결제일에 지출로 기록되어 날짜별 지출 · 합계에 반영돼요. 결제일이 그 달에 없으면(예: 31일) 말일로 들어갑니다.")].forEach(function (n) { fixedCard.body.appendChild(n); });
+      [fxSum, fxTools, fxBulk, fxForm, fxList, el("p", "hint", "체크하면 이 달의 결제일에 지출로 기록되어 날짜별 지출 · 합계에 반영돼요. 결제일이 그 달에 없으면(예: 31일) 말일로 들어갑니다.")].forEach(function (n) { fixedCard.body.appendChild(n); });
 
       function openFixedForm(f) {
         state.fixedEdit = f ? f.id : null;

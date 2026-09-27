@@ -434,6 +434,16 @@
     ok("budget tiles", $$("#view .bud-tiles .tile").length === 6 && /512,500원/.test($("#view .bud-tiles").textContent), $("#view .bud-tiles").textContent);
     fcb = $("#view .bud-fixed input[type=checkbox]"); fcb.checked = false; change(fcb); await sleep(120);
     ok("fixed unreflected", window.__MOCK_STORE[lk].items.length === 1);
+    var pasted = "항목\t월 금액\n월세\t400,000원\n정수기 렌탈\t40,000원\n클로드\t약 31,000원\n통신비\t30,000원 15일\n유독\t12,900원\n쿠팡 와우\t7,890원\n옵시디언\t약 7,000원\nT우주 (구글 AI 플러스)\t6,900원\n쓱7클럽\t2,900원\n합계\t약 538,600원";
+    var pr = App.budget.parseFixed(pasted);
+    ok("bulk parse", pr.length === 9 && pr.reduce(function (s, r) { return s + r.amount; }, 0) === 538590, JSON.stringify(pr));
+    ok("bulk parse names", pr[2].name === "클로드" && pr[7].name === "T우주 (구글 AI 플러스)" && pr[8].name === "쓱7클럽" && pr[3].day === 15 && pr[0].cat === "주거 · 관리비" && pr[3].cat === "통신" && pr[4].cat === "구독", JSON.stringify(pr));
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "여러 개 붙여넣기"; })[0].click(); await sleep(40);
+    var realAlert = window.alert; window.alert = function () {};
+    var bulk = $("#view form.obs-import"); $("textarea", bulk).value = pasted; submit(bulk); await sleep(120);
+    window.alert = realAlert;
+    var fxs = window.__MOCK_STORE["personal/budget"].fixed;
+    ok("bulk add (월세 dedup keeps 1)", fxs.length === 9 && fxs.filter(function (f) { return f.name === "월세"; })[0].amount === 400000, fxs.length);
     await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
