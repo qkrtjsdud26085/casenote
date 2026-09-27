@@ -4,7 +4,7 @@
   "use strict";
   var ui = App.ui, H = App.h, el = H.el, RK = App.rkit;
   var DOCS = ["meta", "keystats", "flow", "schedule", "next", "decisions", "files", "vars", "models", "experts", "anacheck",
-    "lit", "concepts", "nrf", "nrfdocs", "prep", "log", "plan"];
+    "lit", "concepts", "nrf", "nrfdocs", "prep", "log", "plan", "process", "startcheck"];
   var STAGES = ["연구 계획", "연구재단 신청", "선행연구 · 변수 선정", "설문 구성 · IRB", "패널 자료 수집", "전처리 · 모델링",
     "SHAP · SMOTE 해석", "델파이 1라운드", "델파이 2라운드 · CVR", "논문 작성", "심사", "학위 취득"];
   var CHECK_FIELDS = App.tpl.CHECK_FIELDS;
@@ -12,7 +12,7 @@
   var K = RK({ prefix: "diss", docs: DOCS, stages: STAGES, name: "박사학위논문", fileName: "박사학위논문_홈페이지자료", homeId: "diss-overview" });
   var D = K.D, byDate = RK.byDate;
   function head(view, id) { RK.pageTabs(view, TABS, id); K.emptyNotice(view); }
-  App.diss = { importData: K.importData, exportData: K.exportData, DOCS: DOCS, STAGES: STAGES };
+  App.diss = { importData: K.importData, exportData: K.exportData, importCard: K.importCard, D: D, DOCS: DOCS, STAGES: STAGES };
   App.dissSummaryCard = function (parent) {
     K.summaryCard(parent, { tab: "Dissertation", tone: "t-1", title: "박사학위논문 · 비선형 공격성 임계점 (SHAP · SMOTE)" });
   };

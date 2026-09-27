@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 61, ids.length);
+    ok("page count", ids.length === 62, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -100,7 +100,7 @@
     await go("home");
     ok("home tiles", $$("#view .tile").length === 6, $$("#view .tile").length);
     ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
-    ok("home quote", !!$(".quote-text") && $(".quote-text").textContent.length > 4 && /—/.test($(".quote-author").textContent), $(".quote-author") && $(".quote-author").textContent);
+    ok("logo quote", !!$("#brandQuote .quote-text") && $("#brandQuote .quote-text").textContent.length > 4 && /— .+ · .+/.test($("#brandQuote .quote-author").textContent) && !$("#homeStrip .quote-box"), $("#brandQuote").textContent);
     ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
     ok("home affiliation", /한국가이던스 대구점/.test($(".badges").textContent) && /범죄심리학과 석·박사 수료/.test($(".badges").textContent) && $$(".badge").length === 2);
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
@@ -127,7 +127,37 @@
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
     ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 3 && /연구계획서 내용 전체/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && /연구재단 선정/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent) && $$("#subnav .sub-group")[1].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[1].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[1].textContent) && /피해상담사/.test($$("#subnav .sub-group")[1].textContent) && /임상심리사/.test($$("#subnav .sub-group")[1].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
-    await go("diss-current"); ok("현재 진행중 blank page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-current");
+    /* 연구 흐름도 (research-flow.js): template, accordion, editing, sub-steps */
+    await go("diss-current");
+    ok("diss-current flow", $$("#view .rf-track > .rf-step").length === 6 && $$("#view .rf-sub").length === 3 && !!$("#view .rf-feedback") && $("#subnav a.active").getAttribute("data-page") === "diss-current" && !!cardBy("연구 시작 체크리스트"));
+    ok("flow template placeholders", /\[분석 1\]/.test($("#view .rf-track").textContent) && $$("#view .rf-step")[4].classList.contains("has-sub"));
+    $$("#view .rf-node")[1].click(); await sleep(40);
+    ok("flow accordion opens", !$("#view .rf-panel").hidden && /선행연구 검토/.test($("#view .rf-panel").textContent) && $$("#view .rf-node")[1].getAttribute("aria-expanded") === "true");
+    $$("#view .rf-node")[1].click(); await sleep(40);
+    ok("flow accordion closes", $("#view .rf-panel").hidden);
+    $$("#view .rf-sub")[1].click(); await sleep(40);
+    ok("flow sub opens", /5-2/.test($("#view .rf-panel").textContent));
+    $("#view .rf-feedback").click(); await sleep(40);
+    ok("flow feedback opens", /지속적 피드백/.test($("#view .rf-panel").textContent));
+    $$("#view .rf-tools .tool-btn")[0].click(); await sleep(40);
+    ok("flow edit mode", $("#view .rf").classList.contains("editing") && !!$("#view .rf-sub-add"));
+    $("#view .rf-sub-add").click(); await sleep(120);
+    var fdoc = window.__MOCK_STORE["research/diss_process"];
+    ok("flow add sub saves", !!fdoc && fdoc.steps[4].sub.length === 4 && $$("#view .rf-track .rf-sub:not(.rf-sub-add)").length === 4, fdoc && fdoc.steps[4].sub.length);
+    var tIn = $("#view .rf-panel input[type=text]"); tIn.value = "문턱값 분석"; change(tIn); await sleep(120);
+    ok("flow edit title saves", window.__MOCK_STORE["research/diss_process"].steps[4].sub[3].title === "문턱값 분석");
+    var stSel = $("#view .rf-panel select"); stSel.value = "done"; change(stSel); await sleep(120);
+    ok("flow status saves", window.__MOCK_STORE["research/diss_process"].steps[4].sub[3].status === "done" && $$("#view .rf-track .rf-sub")[3].getAttribute("data-status") === "done");
+    var delSub = $$("#view .rf-panel .tool-btn").filter(function (b) { return /삭제/.test(b.textContent); })[0]; delSub.click(); await sleep(120);
+    ok("flow delete sub", window.__MOCK_STORE["research/diss_process"].steps[4].sub.length === 3);
+    await App.diss.importData({ docs: { process: { steps: [{ key: "a", title: "하나", hint: "h", detail: "d", status: "done" }, { key: "b", title: "둘", hint: "", detail: "", status: "now", sub: [] }], feedback: { title: "검증", detail: "x" } } } });
+    await sleep(150);
+    ok("flow import", $$("#view .rf-track > .rf-step").length === 2 && $$("#view .rf-step")[0].getAttribute("data-status") === "done" && /검증/.test($("#view .rf-feedback").textContent));
+    await go("ias-flow");
+    ok("ias flow tab", $("#view .page-tab.active").textContent === "연구 흐름" && $$("#view .rf-step").length === 6 && !!cardBy("IRT 재분석 체크리스트") && $("#subnav a.active").getAttribute("data-page") === "ias-home");
+    await go("ias-results");
+    ok("ias IRT card", !!cardBy("IRT 등급반응모형 (GRM) — 재분석") && !!cardBy("Rasch 평정척도모형 (이전 분석 · 참고)") && /IRT 전체 적합도/.test(cardBy("판단 기준 (복사 가능)").textContent));
+
     await go("cert-list");
     await App.doc("research/certs").set({ items: [{ id: "c1", name: "먼 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 60)) }, { id: "c2", name: "가까운 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 5)), status: "접수 완료" }] }); await sleep(150);
     var certF = cardBy("자격증 목록 · 일정");
@@ -213,7 +243,7 @@
     await go("ai-notes"); ok("ai notes page", !!cardBy("AI · 머신러닝 공부 노트") && $("#subnav a.active").getAttribute("data-page") === "ai-tools");
     await go("ai-log"); ok("ai log page", !!cardBy("AI 활용 기록 (연구윤리 · 공개 대비)") && /공개 필요/.test($("#view").textContent));
     await go("ias-results");
-    ok("ias tabs", $$("#view .page-tab").length === 4 && $("#view .page-tab.active").textContent === "분석 결과" && $("#subnav a.active").getAttribute("data-page") === "ias-home");
+    ok("ias tabs", $$("#view .page-tab").length === 5 && $("#view .page-tab.active").textContent === "분석 결과" && $("#subnav a.active").getAttribute("data-page") === "ias-home");
     await go("diss-overview");
     ok("diss empty notice", !!$("#view .ias-notice") && $$("#view .page-tab").length === 5);
     await App.diss.importData({ docs: { meta: { stage: "선행연구 · 변수 선정", info: { title: "테스트 박사" } }, schedule: { items: [{ id: "s1", task: "선행연구", start: "2026-09-01", end: "2027-01-31" }, { id: "s2", task: "델파이", start: "2027-08-01", end: "2028-02-01" }] }, flow: { items: [{ id: "f1", label: "연구 1" }, { id: "f2", label: "연구 2" }] } } });

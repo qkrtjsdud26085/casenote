@@ -4,12 +4,12 @@
   "use strict";
   var ui = App.ui, H = App.h, el = H.el, TSTAT = App.TSTAT, RK = App.rkit;
   var DOCS = ["meta", "keystats", "timeline", "next", "decisions", "files", "items", "translog", "sample", "models", "bifactor",
-    "rel", "rasch", "corr", "interp", "sentences", "sections", "discussion", "lit", "qa", "submit", "log"];
+    "rel", "rasch", "corr", "interp", "sentences", "sections", "discussion", "lit", "qa", "submit", "log", "process", "irt", "irtcheck"];
   var STAGES = ["원척도 검토", "번안", "자료 수집", "분석", "원고 작성", "지도교수 검토", "투고", "심사 · 수정", "게재 확정"];
   var FACTORS = ["사회적 배제", "악의적 유머", "죄책감 유발"];
   var FLAGS = ["적합", "과적합 검토", "삭제 검토"];
   var CHECK_FIELDS = App.tpl.CHECK_FIELDS;
-  var TABS = ["ias-home", "ias-items", "ias-results", "ias-manuscript"];
+  var TABS = ["ias-home", "ias-flow", "ias-items", "ias-results", "ias-manuscript"];
   var K = RK({ prefix: "ias", docs: DOCS, stages: STAGES, name: "IAS", fileName: "IAS_홈페이지자료", homeId: "ias-home" });
   var D = K.D, byDate = RK.byDate, copyAction = RK.copyAction;
   function byNo(a, b) { return (Number(a.no) || 0) - (Number(b.no) || 0); }
@@ -189,6 +189,30 @@
   });
 
   /* =========================================================
+     1-1. 연구 흐름 (research-flow.js · research/ias_process)
+     ========================================================= */
+  App.page({
+    id: "ias-flow", title: "IAS 연구 흐름", navHidden: true, navParent: "ias-home", tabLabel: "연구 흐름",
+    render: function (view) {
+      head(view, "ias-flow");
+      var c = ui.card(view, { tab: "Process", tone: "t-1", title: "연구 프로세스", wide: true });
+      ui.researchFlow(c.body, { ref: D("process") });
+      var n = ui.card(view, { tab: "IRT", tone: "t-2", title: "IRT 재분석 체크리스트", wide: true });
+      ui.itemsPanel(n.body, {
+        ref: D("irtcheck"), checkKey: "done", views: ["table", "cards"], filters: ["step"], addLabel: "+ 항목 추가", reorder: { resetLabel: "기본 순서로" },
+        empty: "아직 항목이 없어요.",
+        fields: [
+          { key: "text", label: "할 일", type: "text", title: true, required: true, col: true, maxLength: 200 },
+          { key: "step", label: "단계", type: "text", meta: true, col: true, maxLength: 30 },
+          { key: "tool", label: "도구 · 코드", type: "text", col: true, maxLength: 120 },
+          { key: "note", label: "판단 기준 · 메모", type: "textarea", rows: 2 }
+        ]
+      });
+      K.importCard(view, "", "자료 불러오기 · 백업");
+    }
+  });
+
+  /* =========================================================
      3. 분석 결과
      ========================================================= */
   var CRITERIA = [
@@ -198,7 +222,14 @@
     { label: "Rasch 일차원성 (PCAR)", text: "측정치 설명분산 ≥ 40%가 양호 · 첫 번째 잔차 대비 고유값 < 2.0 (Linacre)" },
     { label: "Rasch 분리지수 · 신뢰도", text: "분리지수 ≥ 2.0 (Bond & Fox, 2007) · 분리신뢰도 ≥ .80 우수" },
     { label: "응답범주 기능", text: "범주별 관측 ≥ 10회 · 평균 측정치와 단계조정값이 단조 증가 · 범주 Outfit < 2.0 (Linacre, 2002)" },
-    { label: "CFA 적합도", text: "CFI · TLI ≥ .95 · RMSEA ≤ .06 · SRMR ≤ .08 (Hu & Bentler, 1999). 모형 비교는 같은 추정법(WLSMV)으로, 차이검정은 DIFFTEST" }
+    { label: "CFA 적합도", text: "CFI · TLI ≥ .95 · RMSEA ≤ .06 · SRMR ≤ .08 (Hu & Bentler, 1999). 모형 비교는 같은 추정법(WLSMV)으로, 차이검정은 DIFFTEST" },
+    { label: "IRT 전체 적합도 (M2)", text: "M2 통계량의 RMSEA2 ≤ .05 양호 · ≤ .089 수용 (Maydeu-Olivares & Joe, 2014), SRMSR ≤ .05, CFI ≥ .95" },
+    { label: "IRT 문항 적합도", text: "S-X² (Orlando & Thissen, 2000) 다중비교 보정 후 p ≥ .01 · 문항별 RMSEA(S-X²) ≤ .05" },
+    { label: "국소독립성", text: "Yen의 Q3 잔차상관: 평균 Q3보다 .20 이상 크면 국소의존 의심 (Christensen, Makransky, & Horton, 2017) · LD-χ² > 10 주의 (Chen & Thissen, 1997)" },
+    { label: "변별도 a (로지스틱 척도)", text: "0.65~1.34 보통 · 1.35~1.69 높음 · ≥ 1.70 매우 높음 (Baker, 2001)" },
+    { label: "GRM 문턱값 b", text: "b1 < b2 < b3 < b4 순서가 지켜져야 함(GRM은 구조상 항상 순서). 범주 반응곡선에서 최빈 구간이 없는 범주는 통합 검토" },
+    { label: "DIF (성별)", text: "순서형 로지스틱 회귀 McFadden 의사 R² 변화 ≥ .02 · 또는 다집단 IRT 우도비 검정 + 효과크기(ETSSD 등) (Choi, Gibbons, & Crane, 2011)" },
+    { label: "모형 비교 (GRM · GPCM · PCM)", text: "내포 모형은 우도비 검정, 비내포는 AIC · BIC. 변별도가 문항마다 다르면 Rasch(PCM · RSM)보다 GRM 채택 근거" }
   ];
   App.page({
     id: "ias-results", title: "IAS 분석 결과", navHidden: true, navParent: "ias-home", tabLabel: "분석 결과",
@@ -206,6 +237,42 @@
     render: function (view) {
       head(view, "ias-results");
       var g = ui.grid(view, true);
+
+      var ir = ui.card(g, { tab: "IRT", tone: "t-2", title: "IRT 등급반응모형 (GRM) — 재분석", wide: true });
+      ui.fieldsPanel(ir.body, {
+        ref: D("irt"), docKey: "info",
+        fields: [
+          { key: "model", label: "모형 · 추정", type: "text", wide: true, maxLength: 200 },
+          { key: "software", label: "프로그램 · 패키지", type: "text", maxLength: 120 },
+          { key: "cats", label: "응답범주", type: "text", maxLength: 120 },
+          { key: "assume", label: "가정 점검 (일차원성 · 국소독립 · 단조성)", type: "textarea", rows: 2 },
+          { key: "fit", label: "전체 적합도 (M2 · RMSEA2 · CFI · SRMSR)", type: "text", wide: true, maxLength: 200 },
+          { key: "compare", label: "모형 비교 (GRM vs GPCM vs PCM)", type: "text", wide: true, maxLength: 200 },
+          { key: "info", label: "검사정보함수 · 측정오차 (어느 θ 구간에서 정밀한가)", type: "textarea", rows: 2 },
+          { key: "rel", label: "경험적 신뢰도 · EAP θ", type: "text", maxLength: 120 },
+          { key: "dif", label: "성별 DIF", type: "text", maxLength: 200 },
+          { key: "note", label: "해석 · 결정", type: "textarea", rows: 3 }
+        ]
+      });
+      ir.body.appendChild(el("div", "mini-title", "문항 모수 (a · b1~b4 · S-X²)"));
+      ui.itemsPanel(ir.body, {
+        ref: D("irt"), views: ["table", "cards"], filters: ["flag"], search: true, addLabel: "+ 문항 추가", empty: "IRT 분석 후 문항 모수를 채워 넣으세요.",
+        sort: byNo,
+        fields: [
+          { key: "no", label: "번호", type: "number", col: true, step: 1 },
+          { key: "item", label: "문항", type: "text", title: true, required: true, col: true, maxLength: 160 },
+          { key: "a", label: "a", type: "text", col: true, maxLength: 10 },
+          { key: "b1", label: "b1", type: "text", col: true, maxLength: 10 },
+          { key: "b2", label: "b2", type: "text", col: true, maxLength: 10 },
+          { key: "b3", label: "b3", type: "text", col: true, maxLength: 10 },
+          { key: "b4", label: "b4", type: "text", col: true, maxLength: 10 },
+          { key: "sx2", label: "S-X² p", type: "text", col: true, maxLength: 12 },
+          { key: "dif", label: "DIF", type: "text", col: true, maxLength: 20 },
+          { key: "flag", label: "판단", type: "select", options: ["분석 전", "적합", "검토", "삭제 검토"], col: true },
+          { key: "note", label: "메모", type: "text", maxLength: 200 }
+        ]
+      });
+
 
       var s = ui.card(g, { tab: "Sample", tone: "t-1", title: "표본 · 자료 수집" });
       ui.fieldsPanel(s.body, {
@@ -285,7 +352,7 @@
         ]
       });
 
-      var ra = ui.card(g, { tab: "Rasch", tone: "t-1", title: "Rasch 평정척도모형", wide: true });
+      var ra = ui.card(g, { tab: "Rasch", tone: "t-3", title: "Rasch 평정척도모형 (이전 분석 · 참고)", wide: true });
       ui.fieldsPanel(ra.body, {
         ref: D("rasch"), docKey: "summary",
         fields: [

@@ -9,19 +9,13 @@
       var B = App.budget, curMonth = B.monthKey(new Date());
       var D = { todos: [], schedule: [], projects: null, grad: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, budget: null, ledger: null, reco: null, gcal: null };
 
-      /* ---------- affiliation badges + quote of the day, shown in the topbar itself ---------- */
+      /* ---------- affiliation badges, shown in the topbar itself (today's quote sits beside the logo) ---------- */
       var strip = document.getElementById("homeStrip");
       H.clear(strip);
       var badges = el("div", "badges");
       badges.appendChild(el("span", "badge company", "한국가이던스 대구점"));
       badges.appendChild(el("span", "badge academic", "영남대학교 대학원 범죄심리학과 석·박사 수료"));
-      var quote = App.todayQuote();
-      var year = String(quote.y).replace(/^(\d+)경$/, "$1년경").replace(/^(기원전 )?(\d+)$/, "$1$2년");
-      var box = el("div", "quote-box");
-      box.appendChild(el("p", "quote-label", "오늘의 명언"));
-      box.appendChild(el("p", "quote-text", "“" + quote.t + "”"));
-      box.appendChild(el("p", "quote-author", "— " + quote.a + " · " + year));
-      strip.appendChild(badges); strip.appendChild(box);
+      strip.appendChild(badges);
       strip.hidden = false;
 
       /* ---------- quick capture → Google Tasks (or a Calendar event when a time is given) ---------- */

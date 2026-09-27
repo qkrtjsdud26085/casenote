@@ -1,4 +1,4 @@
-/* Hello dear Sunny — 박사 › 비선형 공격성 임계점 [현재 진행중] · 자격증 · AI
+/* Hello dear Sunny — 박사 › 비선형 공격성 임계점 [현재 진행중: 연구 흐름 · 시작 체크리스트] · 자격증 · AI
    Everything here is personal study data, stored only in Firestore (research/*). */
 (function (App) {
   "use strict";
@@ -16,16 +16,27 @@
   function newestFirst(key) { return function (a, b) { return String(b[key] || "").localeCompare(String(a[key] || "")); }; }
 
   /* =========================================================
-     비선형 공격성 임계점 › 현재 진행중 (비워 둔 자리)
+     비선형 공격성 임계점 › 현재 진행중 — 연구 흐름도 + 시작 체크리스트 (research/diss_process · diss_startcheck)
      ========================================================= */
   App.page({
     id: "diss-current", title: "비선형 공격성 임계점 · 현재 진행중", navLabel: "현재 진행중",
     render: function (view) {
-      var c = ui.card(view, { tab: "Now", tone: "t-2", title: "현재 진행중" });
-      c.body.appendChild(ui.empty("아직 비어 있는 페이지예요. 연구재단 선정 이후 실제로 진행하는 내용을 어떻게 정리할지 정해지면 여기에 채워요."));
-      var a = el("a", "more-link", "연구재단 선정 내용 보기 →"); a.href = "#/diss-overview";
-      var p = el("p", "hint"); p.style.marginTop = "12px"; p.appendChild(a);
-      c.body.appendChild(p);
+      var DD = App.diss.D;
+      var c = ui.card(view, { tab: "Process", tone: "t-1", title: "연구 프로세스", wide: true });
+      ui.researchFlow(c.body, { ref: DD("process") });
+      var n = ui.card(view, { tab: "Start", tone: "t-2", title: "연구 시작 체크리스트", wide: true });
+      ui.itemsPanel(n.body, {
+        ref: DD("startcheck"), checkKey: "done", dueKey: "due", ddayInTable: true, views: ["table", "cards"], filters: ["phase"],
+        addLabel: "+ 항목 추가", reorder: { resetLabel: "기한 가까운 순으로" }, empty: "아직 항목이 없어요.",
+        sort: function (a, b) { return (!!a.done - !!b.done) || byNearest("due")(a, b); },
+        fields: [
+          { key: "text", label: "할 일", type: "text", title: true, required: true, col: true, maxLength: 200 },
+          { key: "phase", label: "단계", type: "text", meta: true, col: true, maxLength: 30 },
+          { key: "due", label: "기한", type: "date", col: true },
+          { key: "note", label: "메모 · 근거", type: "textarea", rows: 2 }
+        ]
+      });
+      App.diss.importCard(view, "", "자료 불러오기 · 백업");
     }
   });
 
