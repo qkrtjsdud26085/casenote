@@ -118,16 +118,23 @@
         var going = P.list.filter(function (p) { return p.type === "학회지 논문" && !P.isAccepted(p); }).length;
         paperHint.textContent = "논문 프로젝트 기준 게재 확정 " + done + "편 · 진행 중 " + going + "편. 게재 확정 증명서를 받으면 해당 논문 요건을 체크하세요.";
       }
+      /* open items first, nearest target date (either side of today) on top, undated last */
+      function reqRank(x) {
+        if (!x.due) { return 1e9; }
+        return Math.abs(Math.round((H.parseKey(x.due) - H.parseKey(H.todayStr())) / 86400000));
+      }
       ui.itemsPanel(a.body, {
         ref: P.reqRef(), defaults: P.REQ_DEFAULTS, fields: [
           { key: "text", label: "요건", type: "text", title: true, required: true, maxLength: 140 },
           { key: "kind", label: "종류", type: "select", options: P.REQ_KINDS, meta: true, col: true },
-          { key: "due", label: "목표일", type: "date", col: true },
-          { key: "note", label: "기준 · 점수 · 메모", type: "text", col: true, maxLength: 200, placeholder: "예: TOEIC 700 이상 / 증명서 제출" }
+          { key: "note", label: "메모", type: "text", col: true, maxLength: 200, placeholder: "간단 메모 (예: TOEIC 700 이상)" },
+          { key: "due", label: "목표일", type: "date", col: true }
         ],
-        checkKey: "done", dueKey: "due", quickFields: ["text", "kind", "due"], filters: ["kind"], views: ["cards", "table"],
+        checkKey: "done", dueKey: "due", quickFields: ["text", "kind", "note", "due"], filters: ["kind"], views: ["table"],
+        ddayInTable: true, reorder: { resetLabel: "목표일 가까운 순으로 정렬" },
+        sort: function (x, y) { return (!!x.done - !!y.done) || (reqRank(x) - reqRank(y)); },
         empty: "졸업 요건을 추가하세요. 종류(논문 · 어학 점수 · 자격증 등)를 골라 넣을 수 있어요.",
-        hint: "기본 항목은 예시예요. 학과 규정에 맞게 추가 · 수정(✎) · 삭제(×)하고, 채운 요건은 체크하세요.",
+        hint: "목표일이 오늘과 가까운 요건이 위로 와요. ▲▼로 순서를 직접 바꿀 수 있고, 수정은 ✎, 삭제는 ×예요.",
         summary: function (items) {
           if (!items.length) { return null; }
           var parts = P.REQ_KINDS.map(function (k) {
@@ -139,45 +146,8 @@
       });
       a.body.appendChild(paperHint);
       drawReq();
-
-      if (App.iasSummaryCard) { App.iasSummaryCard(g); }
-      if (App.dissSummaryCard) { App.dissSummaryCard(g); }
-
-      var b = ui.card(g, { tab: "Projects", tone: "t-2", title: "논문 프로젝트", wide: true });
-      var TASKS = {}, watched = {}, ctl = null;
-      function nextTask(p) {
-        var items = TASKS[p.id] || P.tasksFor(p.kind).map(function (t, i) { return Object.assign({ id: "d" + i }, t); });
-        return items.filter(function (t) { return !t.done; })[0];
-      }
-      ctl = ui.itemsPanel(b.body, {
-        ref: P.projectsRef(), defaults: P.DEFAULTS, views: ["cards", "table"], dueKey: "submitDue", addLabel: "+ 프로젝트 추가",
-        hint: "프로젝트 이름은 ✎로 바꿀 수 있어요. 단계는 프로젝트 › 프로젝트 개요에서 바꿉니다.",
-        actions: [{ label: "열기", run: function (it) { H.safeSet("hds_proj", it.id); App.go("proj-overview"); } }],
-        fields: [
-          { key: "title", label: "프로젝트 이름", type: "text", title: true, required: true, col: true, maxLength: 120 },
-          { key: "type", label: "유형", type: "select", options: P.TYPES, meta: true, col: true },
-          { key: "kind", label: "성격", type: "select", options: P.KINDS, meta: true, col: true },
-          { key: "journal", label: "목표 학술지", type: "text", col: true, maxLength: 120 },
-          { key: "submitDue", label: "목표 투고일", type: "date", col: true },
-          { key: "note", label: "메모", type: "textarea" }
-        ],
-        itemExtra: function (it) {
-          var wrap = el("div");
-          wrap.appendChild(ui.progress(P.stagePct(it), "현재 단계 · " + P.stagesFor(it)[P.stageIndex(it)] + " · " + P.stagePct(it) + "%"));
-          var nt = nextTask(it);
-          if (nt) { wrap.appendChild(el("div", "mini-sub", "다음 할 일 · " + (nt.phase ? "[" + nt.phase + "] " : "") + nt.text)); }
-          return wrap;
-        },
-        onItems: function (items) {
-          P.list = items.length ? items : P.DEFAULTS.slice();
-          drawReq();
-          items.forEach(function (p) {
-            if (watched[p.id]) { return; }
-            watched[p.id] = true;
-            App.watchDoc(P.ref(p.id, "tasks"), function (d) { TASKS[p.id] = d && d.items; if (ctl) { ctl.refresh(); } });
-          });
-        }
-      });
+      /* the paper count still comes from the projects list, which is no longer shown here */
+      App.watchDoc(P.projectsRef(), function (d) { P.setList(d); drawReq(); });
 
       var c = ui.card(g, { tab: "Folders", tone: "t-3", title: "논문 자료 폴더 (전체)", wide: true });
       foldersPanel(c.body, null);

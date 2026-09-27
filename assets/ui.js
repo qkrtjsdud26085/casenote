@@ -118,12 +118,24 @@
     parent.appendChild(root);
 
     function withIds(arr) { return arr.map(function (x, i) { return Object.assign({ id: "d" + i }, x); }); }
-    function persist(items) {
+    function persist(items, extra) {
       state.items = items; state.exists = true;
-      renderFilters(); renderSummary(); renderList();
+      if (extra && "manualOrder" in extra) { state.manual = extra.manualOrder; }
+      renderTools(); renderFilters(); renderSummary(); renderList();
       if (cfg.onItems) { cfg.onItems(scoped()); }
-      var payload = {}; payload[itemsKey] = items; payload.updatedAt = new Date().toISOString();
+      var payload = Object.assign({}, extra || {}); payload[itemsKey] = items; payload.updatedAt = new Date().toISOString();
       return cfg.ref.set(payload, { merge: true }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+    }
+    /* cfg.reorder: ▲▼ move rows; once moved, the stored order wins over cfg.sort until reset */
+    function move(it, dir) {
+      var shown = visibleItems(), i = shown.indexOf(it), j = i + dir;
+      if (i < 0 || j < 0 || j >= shown.length) { return; }
+      var other = shown[j];
+      var ordered = state.manual ? state.items.slice() : scoped().slice().sort(cfg.sort || function () { return 0; });
+      if (!state.manual && scope) { ordered = ordered.concat(state.items.filter(function (x) { return ordered.indexOf(x) === -1; })); }
+      var a = ordered.indexOf(it), b = ordered.indexOf(other);
+      ordered[a] = other; ordered[b] = it;
+      persist(ordered, { manualOrder: true });
     }
     function isDone(it) { return cfg.checkKey ? !!it[cfg.checkKey] : (cfg.rowDone ? cfg.rowDone(it) : false); }
     function titleText(it) { return cfg.itemTitle ? cfg.itemTitle(it) : (it[titleField.key] || "(제목 없음)"); }
@@ -145,7 +157,7 @@
           return Object.keys(it).map(function (k) { var v = it[k]; return typeof v === "string" ? v : (Array.isArray(v) ? v.join(" ") : ""); }).join(" ").toLowerCase().indexOf(q) !== -1;
         });
       }
-      if (cfg.sort) { arr.sort(cfg.sort); }
+      if (cfg.sort && !(cfg.reorder && state.manual)) { arr.sort(cfg.sort); }
       return arr;
     }
     function renderFilters() {
@@ -198,6 +210,12 @@
         });
         toolsEl.appendChild(b);
       });
+      if (cfg.reorder && state.manual) {
+        var rs = el("button", "tool-btn", cfg.reorder.resetLabel || "기본 정렬로 되돌리기"); rs.type = "button";
+        rs.title = "▲▼로 바꾼 순서를 버리고 자동 정렬로 돌아가요";
+        rs.addEventListener("click", function () { persist(state.items, { manualOrder: false }); });
+        toolsEl.appendChild(rs);
+      }
       if (cfg.defaults) {
         var r = el("button", "tool-btn", "기본 템플릿으로 되돌리기"); r.type = "button";
         r.addEventListener("click", function () { if (window.confirm("현재 목록을 기본 템플릿으로 되돌릴까요?")) { persist(withIds(cfg.defaults)); } });
@@ -294,6 +312,13 @@
     }
     function btns(it) {
       var box = el("div", "item-btns");
+      if (cfg.reorder) {
+        var up = el("button", "icon-btn move-btn", "▲"); up.type = "button"; up.title = "위로"; up.setAttribute("aria-label", "위로 이동");
+        var dn = el("button", "icon-btn move-btn", "▼"); dn.type = "button"; dn.title = "아래로"; dn.setAttribute("aria-label", "아래로 이동");
+        up.addEventListener("click", function () { move(it, -1); });
+        dn.addEventListener("click", function () { move(it, 1); });
+        box.appendChild(up); box.appendChild(dn);
+      }
       (cfg.actions || []).forEach(function (a) {
         var b = el("button", "copy-btn", a.label); b.type = "button";
         b.addEventListener("click", function () { a.run(it, b); });
@@ -368,6 +393,9 @@
       var wrap = el("div", "table-wrap");
       var table = el("table", "items-table");
       var thead = el("thead"); var trh = el("tr");
+      /* a checkKey with no matching field still gets a done column in table view */
+      var checkCol = cfg.checkKey && !fields.some(function (f) { return f.key === cfg.checkKey; });
+      if (checkCol) { trh.appendChild(el("th", "", "완료")); }
       cols.forEach(function (f) { trh.appendChild(el("th", "", f.label)); });
       if (statusField && cols.indexOf(statusField) === -1) { trh.appendChild(el("th", "", statusField.label)); }
       trh.appendChild(el("th", "", ""));
@@ -375,6 +403,14 @@
       var tbody = el("tbody");
       items.forEach(function (it) {
         var tr = el("tr", isDone(it) ? "done" : "");
+        if (checkCol) {
+          var tdc = el("td", "narrow"), dc = el("input", "cell-check"); dc.type = "checkbox"; dc.checked = !!it[cfg.checkKey];
+          dc.setAttribute("aria-label", titleText(it) + " 완료");
+          dc.addEventListener("change", function () {
+            persist(state.items.map(function (x) { if (x.id !== it.id) { return x; } var y = Object.assign({}, x); y[cfg.checkKey] = dc.checked; return y; }));
+          });
+          tdc.appendChild(dc); tr.appendChild(tdc);
+        }
         cols.forEach(function (f) {
           var td = el("td", (f.type === "check" || f.type === "date" || f.type === "number" || f === statusField) ? "narrow" : "");
           if (f === titleField) { td.className = ""; td.appendChild(titleNode(it)); td.firstChild.style.fontWeight = "600"; }
@@ -385,6 +421,10 @@
             });
             td.appendChild(cb);
           } else if (f === statusField) { td.appendChild(statusChip(it)); }
+          else if (cfg.ddayInTable && f.type === "date" && f.key === cfg.dueKey && it[f.key]) {
+            td.appendChild(document.createTextNode(it[f.key] + " "));
+            if (!isDone(it)) { td.appendChild(H.ddayEl(it[f.key])); }
+          }
           else if (f.type === "url") {
             var u = H.safeUrl(it[f.key]);
             if (u) { var a = el("a", "", "링크"); a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer"; td.appendChild(a); }
@@ -449,6 +489,8 @@
     renderAll();
 
     App.watchDoc(cfg.ref, function (data) {
+      state.manual = !!(data && data.manualOrder);
+      if (cfg.reorder) { renderTools(); }
       if (data && Array.isArray(data[itemsKey])) { state.items = data[itemsKey]; state.exists = true; }
       else if (cfg.defaults) { state.items = withIds(cfg.defaults); state.exists = false; }
       else { state.items = []; state.exists = false; }

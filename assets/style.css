@@ -267,6 +267,10 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .todo-card .quick-add input.w-date { flex: 0 0 136px; }
 .todo-scroll { flex: 1; min-height: 60px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
 .quicknote { flex: 1; min-height: 70px; width: 100%; resize: none; line-height: 1.6; }
+.cal-dot[data-cat="할 일"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent-2); }
+.cat-chip[data-cat="할 일"] { background: var(--accent-2-ink); color: var(--accent-2-strong); border-color: color-mix(in srgb, var(--accent-2) 35%, transparent); }
+.cal-day .upcoming-item input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }
+.cal-day .upcoming-item.done .u-title { text-decoration: line-through; color: var(--ink-soft); }
 .cal-day { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .cal-day .quick-add { margin-bottom: 8px; }
 /* Google · Upcoming: two small cards on one row */

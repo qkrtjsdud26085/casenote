@@ -954,6 +954,8 @@
 
   App.page({
     id: "personal-budget-report", title: "월별 리포트",
+    /* reached from the tabs beside the 가계부 title, not from the menu bar */
+    navHidden: true, navParent: "personal-budget",
     render: function (view) {
       headTabs("personal-budget-report");
       var cur = monthKey(new Date());

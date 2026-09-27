@@ -214,7 +214,6 @@
       headEl.hidden = false;
       headEl.appendChild(el("p", "eyebrow", grp ? grp.label : ""));
       headEl.appendChild(el("h1", "page-title", page.title));
-      if (page.desc) { headEl.appendChild(el("p", "page-desc", page.desc)); }
     }
     document.title = (page.id === "home" ? "" : page.title + " · ") + "Hello dear Sunny";
     if (page.id !== "home") { homeStripEl.hidden = true; clear(homeStripEl); }

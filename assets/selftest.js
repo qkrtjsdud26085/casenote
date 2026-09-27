@@ -124,7 +124,7 @@
     var iasExp = await App.ias.exportData();
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
-    ok("thesis-home ias card", /진행중 프로젝트 ① · IAS/.test($("#view").textContent) && /분석/.test($("#view").textContent) && /박사학위논문 · 비선형/.test($("#view").textContent));
+    ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
     ok("nav labels", /① IAS 척도 타당화/.test($("#subnav").textContent) && /② 비선형 공격성/.test($("#subnav").textContent) && !$("#subnav a[data-page='ias-items']"));
     ok("alias link target", !!$("#subnav a[data-link]") && $("#subnav a[data-link]").getAttribute("href") === "#/diss-overview");
     await go("ias-results");
@@ -171,6 +171,17 @@
     $(".todo-done .icon-btn", cardBy("할 일 · Google Tasks")).click(); await sleep(250);
     window.confirm = realConfirmT;
     ok("todo delete in Google", gt.length === 1 && gt[0].title === "예전 할 일", JSON.stringify(gt));
+    /* the calendar shows dated Google Tasks and can create one from the day form */
+    var todayK = App.h.todayStr(), dayForm = $("#view .cal-day form.quick-add");
+    $$("#view .cal-cell:not(.blank)").filter(function (c) { return c.classList.contains("today"); })[0].click(); await sleep(60);
+    dayForm = $("#view .cal-day form.quick-add");
+    $("select", dayForm).value = "할 일"; setVal($("input[placeholder='일정 제목']", dayForm), "달력에서 만든 할 일"); submit(dayForm); await sleep(300);
+    ok("calendar day form -> Google Task", gt.some(function (q) { return q.title === "달력에서 만든 할 일" && q.due === todayK + "T00:00:00.000Z"; }) && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("schedule/") === 0 && window.__MOCK_STORE[k].title === "달력에서 만든 할 일"; }), JSON.stringify(gt));
+    ok("task shows on calendar", !!$("#view .cal-cell.today .cal-dot[data-cat='할 일']") && $$("#view .cal-day .upcoming-item").some(function (r) { return /달력에서 만든 할 일/.test(r.textContent) && /Google 할 일/.test(r.textContent) && r.querySelector("input[type=checkbox]"); }));
+    var dayTaskCb = $$("#view .cal-day .upcoming-item").filter(function (r) { return /달력에서 만든 할 일/.test(r.textContent); })[0].querySelector("input[type=checkbox]");
+    dayTaskCb.checked = true; change(dayTaskCb); await sleep(300);
+    ok("task checked from calendar", gt.filter(function (q) { return q.title === "달력에서 만든 할 일"; })[0].status === "completed");
+    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
     ok("no Day card; to-do + memo beside calendar", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && $("#view .cal-right").contains(cardBy("메모")) && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
     var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
     ok("right column not taller than calendar", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
@@ -230,16 +241,27 @@
     App.h.safeSet("hds_proj", "p1");
     await go("thesis-home");
     var reqCard = cardBy("졸업 요건");
-    ok("requirement defaults", $$(".item-card", reqCard).length === 6 && /논문 0\/2/.test($(".items-summary", reqCard).textContent) && /어학 점수/.test(reqCard.textContent), $(".items-summary", reqCard).textContent);
+    ok("requirement table only", !$(".item-card", reqCard) && $$(".items-table tbody tr", reqCard).length === 6 && $$(".items-table th", reqCard).map(function (h) { return h.textContent; }).slice(0, 5).join("|") === "완료|요건|종류|메모|목표일" && /논문 0\/2/.test($(".items-summary", reqCard).textContent) && !$$(".items-tools .tool-btn", reqCard).some(function (b) { return b.textContent === "카드"; }), $$(".items-table th", reqCard).map(function (h) { return h.textContent; }).join("|"));
     ok("requirement kind select", $$(".quick-add select option", reqCard).map(function (o) { return o.value; }).join(",") === App.proj.REQ_KINDS.join(","));
-    var reqCb = $(".item-card input[type=checkbox]", reqCard); reqCb.checked = true; change(reqCb); await sleep(120);
+    var rq = $$(".quick-add input, .quick-add select", reqCard).map(function (n) { return n.type === "date" ? "date" : (n.getAttribute("aria-label") || ""); });
+    ok("memo sits left of the date", rq.indexOf("메모") !== -1 && rq.indexOf("메모") === rq.indexOf("date") - 1, rq.join("|"));
+    var reqCb = $(".items-table .cell-check", reqCard); reqCb.checked = true; change(reqCb); await sleep(120);
     ok("requirement check saves", /논문 1\/2/.test($(".items-summary", cardBy("졸업 요건")).textContent), $(".items-summary", cardBy("졸업 요건")).textContent);
+    function reqAdd(text, days) {
+      var f = $(".quick-add", cardBy("졸업 요건"));
+      $("input:not([type=date])", f).value = text; $("input[type=date]", f).value = App.h.dateKey(App.h.addDays(new Date(), days)); submit(f);
+    }
+    reqAdd("먼 요건", 40); await sleep(100); reqAdd("가까운 요건", 3); await sleep(120);
+    var reqRows = function () { return $$(".items-table tbody tr", cardBy("졸업 요건")).map(function (r) { return r.children[1].textContent; }); };
+    ok("nearest target date on top", reqRows()[0] === "가까운 요건" && reqRows()[1] === "먼 요건" && /D-3/.test($(".items-table tbody tr", cardBy("졸업 요건")).textContent), reqRows().join(" / "));
+    $(".items-table tbody tr .move-btn[aria-label='아래로 이동']", cardBy("졸업 요건")).click(); await sleep(120);
+    ok("manual reorder sticks", reqRows()[0] === "먼 요건" && reqRows()[1] === "가까운 요건" && window.__MOCK_STORE["research/gradreqs"].manualOrder === true, reqRows().join(" / "));
+    $$(".items-tools .tool-btn", cardBy("졸업 요건")).filter(function (b) { return /목표일 가까운 순/.test(b.textContent); })[0].click(); await sleep(120);
+    ok("reset to date order", reqRows()[0] === "가까운 요건" && window.__MOCK_STORE["research/gradreqs"].manualOrder === false, reqRows().join(" / "));
     ok("page title 홈", $("#pageHead .page-title").textContent === "홈" && $("#subnav a.active").textContent === "홈");
-    ok("two default projects", $$(".item-card", cardBy("논문 프로젝트")).length === 2, $$(".item-card", cardBy("논문 프로젝트")).length);
     ok("stages by kind", App.proj.stagesFor({ kind: "실증 연구" }).length === 10 && App.proj.stagesFor({ kind: "척도 타당화" }).length === 11);
-    $(".item-card .copy-btn", cardBy("논문 프로젝트")).click(); await sleep(200);
-    ok("open project navigates", location.hash === "#/proj-overview" && $$("#view .proj-bar select option").length === 2, location.hash);
-    ok("stepper chips", $$("#view .flow-chip").length === 11, $$("#view .flow-chip").length);
+    await go("proj-overview"); await sleep(200);
+    ok("open project page", location.hash === "#/proj-overview" && $$("#view .proj-bar select option").length === 2, location.hash);    ok("stepper chips", $$("#view .flow-chip").length === 11, $$("#view .flow-chip").length);
     ok("tasks grouped defaults", $$("#view .group-title").length >= 8, $$("#view .group-title").length);
     var foldersRoot = $(".items-panel", cardBy("자료 폴더 · 링크"));
     await addVia(foldersRoot, { name: "원자료", kind: "Google Drive", link: "https://drive.google.com/drive/folders/abc123" });

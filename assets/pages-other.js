@@ -180,7 +180,10 @@
       var dayTitle = el("div", "mini-title");
       var form = el("form", "quick-add");
       var dateEl = el("input", "w-date"); dateEl.type = "date"; dateEl.required = true; dateEl.value = state.sel;
-      var catEl = el("select"); App.CATS.forEach(function (c) { var o = el("option", "", c); o.value = c; catEl.appendChild(o); });
+      /* "할 일" is not a schedule category: picking it saves a Google Task due that day */
+      var TASK = "할 일";
+      var catEl = el("select"); App.CATS.concat([TASK]).forEach(function (c) { var o = el("option", "", c === TASK ? "할 일 (Google)" : c); o.value = c; catEl.appendChild(o); });
+      catEl.setAttribute("aria-label", "분류");
       var titleEl = el("input"); titleEl.placeholder = "일정 제목"; titleEl.maxLength = 80; titleEl.required = true;
       var addBtn = el("button", "btn", "추가"); addBtn.type = "submit";
       [dateEl, catEl, titleEl, addBtn].forEach(function (n) { form.appendChild(n); });
@@ -193,12 +196,15 @@
       function visible() {
         var y = state.month.getFullYear(), m = state.month.getMonth();
         var from = H.dateKey(new Date(y, m - 1, 20)), to = H.dateKey(new Date(y, m + 2, 10));
-        var all = state.items.concat(App.gcal ? App.gcal.expand(state.gdoc, from, to) : []);
+        var tasks = ((state.tasks && state.tasks.items) || []).filter(function (t) { return t.due; }).map(function (t) {
+          return { id: t.id, date: t.due, title: t.title, cat: TASK, source: "tasks", done: t.status === "completed" };
+        });
+        var all = state.items.concat(App.gcal ? App.gcal.expand(state.gdoc, from, to) : []).concat(tasks);
         return all.filter(function (s) { return state.cat === "전체" || (s.cat || "개인") === state.cat; });
       }
       function drawCal() {
         H.clear(filters);
-        ["전체"].concat(App.CATS).forEach(function (c) {
+        ["전체"].concat(App.CATS, [TASK]).forEach(function (c) {
           var b = el("button", "chip" + (state.cat === c ? " active" : ""), c); b.type = "button";
           b.addEventListener("click", function () { state.cat = c; drawCal(); drawDay(); });
           filters.appendChild(b);
@@ -242,7 +248,16 @@
           var row = el("div", "upcoming-item");
           var chip = el("span", "cat-chip", s.cat || "개인"); chip.setAttribute("data-cat", s.cat || "개인");
           row.appendChild(chip);
-          if (s.source === "google") {
+          if (s.source === "tasks") {
+            row.classList.toggle("done", s.done);
+            var tcb = el("input"); tcb.type = "checkbox"; tcb.checked = s.done; tcb.setAttribute("aria-label", s.title + (s.done ? " 완료 취소" : " 완료"));
+            tcb.addEventListener("change", function () {
+              App.gtasks.setDone(s.id, tcb.checked).catch(function (err) { tcb.checked = !tcb.checked; window.alert("Google 저장 실패: " + App.gtasks.explain(err)); });
+            });
+            row.insertBefore(tcb, chip);
+            row.appendChild(el("span", "u-title", s.title));
+            row.appendChild(el("span", "u-date", "Google 할 일"));
+          } else if (s.source === "google") {
             var t = el("span", "u-title");
             if (s.link) { var a = el("a", "", s.title); a.href = s.link; a.target = "_blank"; a.rel = "noopener noreferrer"; t.appendChild(a); } else { t.textContent = s.title; }
             row.appendChild(t);
@@ -263,7 +278,11 @@
         e.preventDefault();
         var t = titleEl.value.trim();
         if (!t || !dateEl.value) { return; }
-        scheduleRef.add({ date: dateEl.value, title: t, cat: catEl.value, note: "", createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+        if (catEl.value === TASK) {
+          App.gtasks.add(t, dateEl.value, "").catch(function (err) { window.alert("Google 할 일 저장 실패: " + App.gtasks.explain(err)); });
+        } else {
+          scheduleRef.add({ date: dateEl.value, title: t, cat: catEl.value, note: "", createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+        }
         titleEl.value = "";
         state.sel = dateEl.value;
         var d = H.parseKey(state.sel); state.month = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -376,6 +395,7 @@
 
       drawCal(); drawDay(); drawG();
       App.watchQuery(scheduleRef.orderBy("date", "asc"), function (items) { state.items = items; drawCal(); drawDay(); });
+      App.watchDoc(App.doc("personal/gtasks"), function (d) { state.tasks = d; drawCal(); drawDay(); });
       App.watchDoc(App.doc("personal/gcal"), function (d) {
         state.gdoc = d; drawCal(); drawDay(); drawG();
         if (!autoTried && App.gcal.token() && (!d || !d.syncedAt || Date.now() - new Date(d.syncedAt).getTime() > 300000)) { autoTried = true; runSync(); }
