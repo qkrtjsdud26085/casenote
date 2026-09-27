@@ -19,6 +19,12 @@
   function shiftMonth(mk, n) { var p = mk.split("-"); return monthKey(new Date(Number(p[0]), Number(p[1]) - 1 + n, 1)); }
   function daysIn(mk) { var p = mk.split("-"); return new Date(Number(p[0]), Number(p[1]), 0).getDate(); }
   function fixedDate(mk, day) { return mk + "-" + H.pad2(Math.min(Math.max(1, Number(day) || 1), daysIn(mk))); }
+  function isInc(f) { return f.kind === "수입"; }
+  /* a fixed item with no set day (입금일 미정) is recorded today in the current month, else on the 1st */
+  function entryDate(mk, f) {
+    if (f.day) { return fixedDate(mk, f.day); }
+    var t = H.todayStr(); return t.slice(0, 7) === mk ? t : mk + "-01";
+  }
   function ledgerRef(mk) { return App.doc("personal/ledger-" + mk); }
   function settingsRef() { return App.doc("personal/budget"); }
   function totals(items) {
@@ -37,8 +43,8 @@
   function unpaidFixed(settings, items, mk) {
     var paid = {};
     items.forEach(function (it) { if (it.fixedId) { paid[it.fixedId] = true; } });
-    return ((settings && settings.fixed) || []).filter(function (f) { return !paid[f.id]; })
-      .map(function (f) { return Object.assign({}, f, { date: fixedDate(mk, f.day) }); })
+    return ((settings && settings.fixed) || []).filter(function (f) { return !paid[f.id] && !isInc(f); })
+      .map(function (f) { return Object.assign({}, f, { date: entryDate(mk, f) }); })
       .sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   }
   /* bulk paste: one item per line — "월세 400,000원 25일", "클로드	약 31,000원", "| 유독 | 12,900원 |" */
@@ -114,7 +120,7 @@
       var budRow = el("div", "bud-budget-row"); view.appendChild(budRow);
 
       var g = ui.grid(view, true);
-      var fixedCard = ui.card(g, { tab: "Fixed", tone: "t-1", title: "고정지출" });
+      var fixedCard = ui.card(g, { tab: "Fixed", tone: "t-1", title: "고정 수입 · 지출" });
       var dayCard = ui.card(g, { tab: "Daily", tone: "t-2", title: "날짜별 지출" });
       var listCard = ui.card(g, { tab: "Ledger", tone: "t-3", title: "수입 · 지출 내역", wide: true });
       var catCard = ui.card(g, { tab: "Category", tone: "t-2", title: "분류별 지출" });
@@ -157,7 +163,7 @@
         var p = state.mk.split("-");
         mTitle.textContent = p[0] + "년 " + Number(p[1]) + "월";
         var t = totals(state.items), budget = Number(state.settings.budget) || 0;
-        var fixedAll = (state.settings.fixed || []).reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0);
+        var fixedAll = (state.settings.fixed || []).reduce(function (s, f) { return s + (isInc(f) ? 0 : Number(f.amount) || 0); }, 0);
         var unpaid = unpaidFixed(state.settings, state.items, state.mk).reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0);
         var cnt = state.items.filter(function (i) { return i.type !== "수입"; }).length;
         H.clear(tiles);
@@ -181,9 +187,22 @@
       var fxSum = el("div", "items-summary");
       var fxTools = el("div", "items-tools");
       var fxAdd = el("button", "tool-btn", "+ 고정지출 추가"); fxAdd.type = "button";
+      var fxAddInc = el("button", "tool-btn", "+ 고정수입 추가"); fxAddInc.type = "button";
       var fxAll = el("button", "tool-btn", "미반영 모두 이번 달에 반영"); fxAll.type = "button";
       var fxBulkBtn = el("button", "tool-btn", "여러 개 붙여넣기"); fxBulkBtn.type = "button";
-      fxTools.appendChild(fxAdd); fxTools.appendChild(fxBulkBtn); fxTools.appendChild(fxAll);
+      var fxClear = el("button", "tool-btn", "고정지출 전체 삭제"); fxClear.type = "button";
+      fxTools.appendChild(fxAdd); fxTools.appendChild(fxAddInc); fxTools.appendChild(fxBulkBtn); fxTools.appendChild(fxAll); fxTools.appendChild(fxClear);
+      /* removes every fixed expense (fixed income stays) and its entries recorded in the month on screen */
+      fxClear.addEventListener("click", function () {
+        var gone = {};
+        (state.settings.fixed || []).forEach(function (f) { if (!isInc(f)) { gone[f.id] = true; } });
+        var n = Object.keys(gone).length;
+        var recorded = state.items.filter(function (it) { return gone[it.fixedId]; });
+        if (!n) { return; }
+        if (!window.confirm("고정지출 " + n + "개를 모두 삭제할까요?" + (recorded.length ? "\n" + Number(state.mk.slice(5)) + "월 내역에 반영된 고정지출 " + recorded.length + "건(" + won(recorded.reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0)) + ")도 함께 지워져요." : "") + "\n고정수입은 그대로 남아요.")) { return; }
+        saveSettings({ fixed: (state.settings.fixed || []).filter(function (f) { return !gone[f.id]; }) });
+        if (recorded.length) { saveItems(state.items.filter(function (it) { return !gone[it.fixedId]; })); }
+      });
       var fxBulk = el("form", "obs-import"); fxBulk.hidden = true;
       fxBulk.appendChild(el("p", "hint", "한 줄에 하나씩 '항목명 금액 (결제일)'을 적거나, 표를 그대로 복사해 붙여넣으세요. 결제일을 안 적으면 1일로 들어가니 나중에 ✎로 고쳐 주세요. 같은 이름이 이미 있으면 금액만 바뀌어요."));
       var fxBulkTa = el("textarea"); fxBulkTa.rows = 7; fxBulkTa.placeholder = "월세 400,000원 25일\n통신비 30,000원 15일\n넷플릭스 17,000원";
@@ -225,25 +244,35 @@
       var fxSave = el("button", "btn", "저장"); fxSave.type = "submit";
       var fxCancel = el("button", "btn ghost", "취소"); fxCancel.type = "button";
       fxActs.appendChild(fxSave); fxActs.appendChild(fxCancel);
-      [field("항목명", fxName), field("금액", fxAmt), field("매월 결제일", fxDay), field("분류", fxCat), field("결제수단", fxMethod), field("메모", fxMemo, true), fxActs].forEach(function (n) { fxForm.appendChild(n); });
+      var fxDayField = field("매월 결제일", fxDay), fxMethodField = field("결제수단", fxMethod);
+      [field("항목명", fxName), field("금액", fxAmt), fxDayField, field("분류", fxCat), fxMethodField, field("메모", fxMemo, true), fxActs].forEach(function (n) { fxForm.appendChild(n); });
       var fxList = el("div", "plain-list bud-fixed-list");
       [fxSum, fxTools, fxBulk, fxForm, fxList, el("p", "hint", "체크하면 이 달의 결제일에 지출로 기록되어 날짜별 지출 · 합계에 반영돼요. 결제일이 그 달에 없으면(예: 31일) 말일로 들어갑니다.")].forEach(function (n) { fixedCard.body.appendChild(n); });
 
-      function openFixedForm(f) {
+      function openFixedForm(f, kind) {
         state.fixedEdit = f ? f.id : null;
-        fxName.value = f ? f.name : ""; fxAmt.value = f ? Number(f.amount).toLocaleString("ko-KR") : ""; fxDay.value = f ? f.day : "";
-        fxCat.value = f ? f.cat : "주거 · 관리비"; fxMethod.value = f ? f.method : "계좌이체"; fxMemo.value = f ? (f.memo || "") : "";
-        fxSave.textContent = f ? "수정 저장" : "저장";
+        state.fixedKind = f ? (f.kind || "지출") : (kind || "지출");
+        var inc = state.fixedKind === "수입";
+        H.clear(fxCat);
+        (inc ? INC_CATS : EXP_CATS).forEach(function (o) { var op = el("option", "", o); op.value = o; fxCat.appendChild(op); });
+        fxDayField.querySelector(".f-label").textContent = inc ? "매월 입금일 (비우면 미정)" : "매월 결제일";
+        fxDay.required = !inc; fxMethodField.hidden = inc;
+        fxName.placeholder = inc ? "예: 월급, 연구지원금, 학원 강사료" : "예: 월세, 통신비, 넷플릭스";
+        fxName.value = f ? f.name : ""; fxAmt.value = f ? Number(f.amount).toLocaleString("ko-KR") : ""; fxDay.value = f && f.day ? f.day : "";
+        fxCat.value = f ? f.cat : (inc ? "부수입" : "주거 · 관리비"); fxMethod.value = f ? (f.method || "계좌이체") : "계좌이체"; fxMemo.value = f ? (f.memo || "") : "";
+        fxSave.textContent = f ? "수정 저장" : (inc ? "고정수입 저장" : "저장");
         fxForm.hidden = false; fxName.focus();
       }
-      fxAdd.addEventListener("click", function () { if (!fxForm.hidden && !state.fixedEdit) { fxForm.hidden = true; return; } openFixedForm(null); });
+      fxAdd.addEventListener("click", function () { if (!fxForm.hidden && !state.fixedEdit && state.fixedKind !== "수입") { fxForm.hidden = true; return; } openFixedForm(null, "지출"); });
+      fxAddInc.addEventListener("click", function () { if (!fxForm.hidden && !state.fixedEdit && state.fixedKind === "수입") { fxForm.hidden = true; return; } openFixedForm(null, "수입"); });
       fxCancel.addEventListener("click", function () { fxForm.hidden = true; state.fixedEdit = null; });
       fxForm.addEventListener("submit", function (e) {
         e.preventDefault();
-        var name = fxName.value.trim(), amount = num(fxAmt.value), day = Math.round(Number(fxDay.value));
+        var inc = state.fixedKind === "수입";
+        var name = fxName.value.trim(), amount = num(fxAmt.value), day = fxDay.value.trim() ? Math.round(Number(fxDay.value)) : null;
         if (!name || !amount) { window.alert("항목명과 금액을 입력해 주세요."); return; }
-        if (!(day >= 1 && day <= 31)) { window.alert("결제일은 1~31 사이 숫자로 입력해 주세요."); return; }
-        var rec = { id: state.fixedEdit || H.uid(), name: name, amount: amount, day: day, cat: fxCat.value, method: fxMethod.value, memo: fxMemo.value.trim() };
+        if (!(day >= 1 && day <= 31) && !(inc && day === null)) { window.alert((inc ? "입금일" : "결제일") + "은 1~31 사이 숫자로 입력해 주세요."); return; }
+        var rec = { id: state.fixedEdit || H.uid(), kind: inc ? "수입" : "지출", name: name, amount: amount, day: day, cat: fxCat.value, method: inc ? "계좌이체" : fxMethod.value, memo: fxMemo.value.trim() };
         var list = (state.settings.fixed || []).slice();
         var i = list.map(function (f) { return f.id; }).indexOf(rec.id);
         if (i === -1) { list.push(rec); } else { list[i] = rec; }
@@ -251,7 +280,7 @@
         fxForm.hidden = true; state.fixedEdit = null;
       });
       function fixedEntry(f) {
-        return { id: H.uid(), date: fixedDate(state.mk, f.day), type: "지출", cat: f.cat || "기타", amount: Number(f.amount) || 0, method: f.method || "계좌이체", memo: f.name, fixedId: f.id, createdAt: new Date().toISOString() };
+        return { id: H.uid(), date: entryDate(state.mk, f), type: isInc(f) ? "수입" : "지출", cat: f.cat || "기타", amount: Number(f.amount) || 0, method: f.method || "계좌이체", memo: f.name, fixedId: f.id, createdAt: new Date().toISOString() };
       }
       fxAll.addEventListener("click", function () {
         var todo = unpaidFixed(state.settings, state.items, state.mk);
@@ -259,42 +288,50 @@
         saveItems(state.items.concat(todo.map(fixedEntry)));
       });
       function drawFixed() {
-        var fixed = (state.settings.fixed || []).slice().sort(function (a, b) { return (Number(a.day) || 0) - (Number(b.day) || 0); });
+        /* income first, then expenses; within each by day with 미정 last */
+        var fixed = (state.settings.fixed || []).slice().sort(function (a, b) {
+          return (isInc(b) - isInc(a)) || ((Number(a.day) || 99) - (Number(b.day) || 99));
+        });
         var paid = {};
         state.items.forEach(function (it) { if (it.fixedId) { paid[it.fixedId] = it; } });
-        var total = fixed.reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0);
+        var expFixed = fixed.filter(function (f) { return !isInc(f); });
+        var total = expFixed.reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0);
+        var incTotal = fixed.reduce(function (s, f) { return s + (isInc(f) ? Number(f.amount) || 0 : 0); }, 0);
         var done = fixed.filter(function (f) { return paid[f.id]; }).length;
         fixedCard.count.textContent = fixed.length ? done + " / " + fixed.length + " 반영" : "";
         H.clear(fxSum);
         if (fixed.length) {
-          fxSum.appendChild(document.createTextNode("매월 합계 "));
+          if (incTotal) { fxSum.appendChild(document.createTextNode("매월 수입 ")); fxSum.appendChild(el("strong", "", won(incTotal))); fxSum.appendChild(document.createTextNode(" · ")); }
+          fxSum.appendChild(document.createTextNode("매월 지출 "));
           fxSum.appendChild(el("strong", "", won(total)));
           fxSum.appendChild(document.createTextNode(" · " + Number(state.mk.slice(5)) + "월 반영 " + done + "/" + fixed.length));
         }
-        fxAll.hidden = !fixed.length || done === fixed.length;
+        fxAll.hidden = !expFixed.length || expFixed.every(function (f) { return paid[f.id]; });
+        fxClear.hidden = !expFixed.length;
         H.clear(fxList);
-        if (!fixed.length) { fxList.appendChild(ui.empty("월세 · 관리비 · 통신비 · 보험 · 구독료처럼 매달 나가는 돈을 등록해 두세요.")); return; }
+        if (!fixed.length) { fxList.appendChild(ui.empty("월세 · 관리비 · 통신비 · 보험 · 구독료처럼 매달 나가는 돈, 월급처럼 매달 들어오는 돈을 등록해 두세요.")); return; }
         var curMonth = state.mk === monthKey(new Date());
         fixed.forEach(function (f) {
-          var row = el("div", "bud-fixed" + (paid[f.id] ? " paid" : ""));
+          var inc = isInc(f);
+          var row = el("div", "bud-fixed" + (inc ? " inc" : "") + (paid[f.id] ? " paid" : ""));
           var cb = el("input"); cb.type = "checkbox"; cb.checked = !!paid[f.id]; cb.setAttribute("aria-label", f.name + " 이번 달 반영");
           cb.addEventListener("change", function () {
             if (cb.checked) { saveItems(state.items.concat([fixedEntry(f)])); }
             else { saveItems(state.items.filter(function (it) { return it.fixedId !== f.id; })); }
           });
           row.appendChild(cb);
-          row.appendChild(el("span", "bud-day", "매월 " + f.day + "일"));
+          row.appendChild(el("span", "bud-day", f.day ? "매월 " + f.day + "일" : (inc ? "입금일 미정" : "날짜 미정")));
           var main = el("span", "bud-fixed-main");
           main.appendChild(el("span", "bud-fixed-name", f.name));
-          main.appendChild(el("span", "mini-sub", [f.cat, f.method, f.memo].filter(Boolean).join(" · ")));
+          main.appendChild(el("span", "mini-sub", [inc ? "고정수입" : "", f.cat, inc ? "" : f.method, f.memo].filter(Boolean).join(" · ")));
           row.appendChild(main);
-          if (!paid[f.id] && curMonth) { row.appendChild(H.ddayEl(fixedDate(state.mk, f.day))); }
-          row.appendChild(el("span", "bud-amt", won(f.amount)));
+          if (!paid[f.id] && curMonth && f.day) { row.appendChild(H.ddayEl(fixedDate(state.mk, f.day))); }
+          row.appendChild(el("span", "bud-amt" + (inc ? " inc" : ""), (inc ? "+" : "") + won(f.amount)));
           var ed = el("button", "icon-btn", "✎"); ed.type = "button"; ed.title = "수정"; ed.setAttribute("aria-label", f.name + " 수정");
           ed.addEventListener("click", function () { openFixedForm(f); });
           var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제"; del.setAttribute("aria-label", f.name + " 삭제");
           del.addEventListener("click", function () {
-            if (!window.confirm("'" + f.name + "' 고정지출을 목록에서 삭제할까요? (이미 기록된 지출 내역은 그대로 남아요)")) { return; }
+            if (!window.confirm("'" + f.name + "' " + (inc ? "고정수입" : "고정지출") + "을 목록에서 삭제할까요? (이미 기록된 내역은 그대로 남아요)")) { return; }
             saveSettings({ fixed: (state.settings.fixed || []).filter(function (x) { return x.id !== f.id; }) });
           });
           row.appendChild(ed); row.appendChild(del);
@@ -423,7 +460,7 @@
         var main = el("span", "bud-entry-main");
         main.appendChild(el("span", "bud-entry-memo", it.memo || it.cat || ""));
         var meta = [it.method];
-        if (it.fixedId) { meta.push("고정지출"); }
+        if (it.fixedId) { meta.push(it.type === "수입" ? "고정수입" : "고정지출"); }
         main.appendChild(el("span", "mini-sub", meta.filter(Boolean).join(" · ")));
         row.appendChild(main);
         row.appendChild(el("span", "bud-amt" + (inc ? " inc" : ""), (inc ? "+" : "−") + won(it.amount)));
@@ -454,7 +491,7 @@
           var type = it.type || "지출";
           if (state.fType === "지출" && type !== "지출") { return false; }
           if (state.fType === "수입" && type !== "수입") { return false; }
-          if (state.fType === "고정지출" && !it.fixedId) { return false; }
+          if (state.fType === "고정지출" && (!it.fixedId || it.type === "수입")) { return false; }
           if (state.fCat !== "전체" && it.cat !== state.fCat) { return false; }
           if (state.q && ((it.memo || "") + " " + (it.cat || "") + " " + (it.method || "")).toLowerCase().indexOf(state.q) === -1) { return false; }
           return true;

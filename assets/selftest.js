@@ -446,6 +446,28 @@
     window.alert = realAlert;
     var fxs = window.__MOCK_STORE["personal/budget"].fixed;
     ok("bulk add (월세 dedup keeps 1)", fxs.length === 9 && fxs.filter(function (f) { return f.name === "월세"; })[0].amount === 400000, fxs.length);
+    /* fixed income: day optional (미정) */
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정수입 추가"; })[0].click(); await sleep(40);
+    fx = $$("#view form.item-form").filter(function (f) { return !f.classList.contains("bud-form"); })[0]; fxIn = $$("input", fx);
+    fxIn[0].value = "박사연구지원금"; setVal(fxIn[1], "1580000"); fxIn[2].value = ""; submit(fx); await sleep(120);
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정수입 추가"; })[0].click(); await sleep(40);
+    fx = $$("#view form.item-form").filter(function (f) { return !f.classList.contains("bud-form"); })[0]; fxIn = $$("input", fx);
+    fxIn[0].value = "마테마타 수학학원"; setVal(fxIn[1], "400000"); fxIn[2].value = "13"; submit(fx); await sleep(120);
+    fxs = window.__MOCK_STORE["personal/budget"].fixed;
+    var incs = fxs.filter(function (f) { return f.kind === "수입"; });
+    ok("fixed income saved", incs.length === 2 && incs.some(function (f) { return f.name === "박사연구지원금" && f.day === null && f.cat === "부수입"; }) && incs.some(function (f) { return f.day === 13; }), JSON.stringify(incs));
+    ok("fixed income listed first", /박사연구지원금|마테마타/.test($("#view .bud-fixed").textContent) && /입금일 미정/.test($("#view .bud-fixed-list").textContent), $("#view .bud-fixed-list").textContent);
+    var icb = $$("#view .bud-fixed.inc input[type=checkbox]")[0]; icb.checked = true; change(icb); await sleep(120);
+    led = window.__MOCK_STORE[lk];
+    ok("fixed income reflected as 수입", led.items.some(function (i) { return i.fixedId && i.type === "수입"; }), JSON.stringify(led.items));
+    /* reflect all expenses, then clear them all — income stays */
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "미반영 모두 이번 달에 반영"; })[0].click(); await sleep(120);
+    var realConfirm = window.confirm; window.confirm = function () { return true; };
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "고정지출 전체 삭제"; })[0].click(); await sleep(150);
+    window.confirm = realConfirm;
+    fxs = window.__MOCK_STORE["personal/budget"].fixed; led = window.__MOCK_STORE[lk];
+    ok("clear fixed expenses keeps income", fxs.length === 2 && fxs.every(function (f) { return f.kind === "수입"; }), JSON.stringify(fxs));
+    ok("clear removes recorded fixed expenses only", led.items.filter(function (i) { return i.fixedId && i.type !== "수입"; }).length === 0 && led.items.some(function (i) { return i.fixedId && i.type === "수입"; }) && led.items.some(function (i) { return !i.fixedId; }), JSON.stringify(led.items));
     await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
