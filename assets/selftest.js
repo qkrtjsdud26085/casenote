@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 46, ids.length);
+    ok("page count", ids.length === 53, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -108,8 +108,8 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 27 && $$("#subnav a[data-link]").length === 1, $$("#subnav a[data-page]").length);
-    ok("thesis grouped menu", $$("#subnav .sub-group").length === 5 && $$("#subnav > *").length === 7, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 26 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
     var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
     await go("home");
@@ -125,8 +125,21 @@
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
-    ok("nav labels", /① IAS 척도 타당화/.test($("#subnav").textContent) && /② 비선형 공격성/.test($("#subnav").textContent) && !$("#subnav a[data-page='ias-items']"));
-    ok("alias link target", !!$("#subnav a[data-link]") && $("#subnav a[data-link]").getAttribute("href") === "#/diss-overview");
+    ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 2 && /연구재단 선정/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
+    await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
+    await go("diss-current"); ok("현재 진행중 blank page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-current");
+    await go("cert-list");
+    await App.doc("research/certs").set({ items: [{ id: "c1", name: "먼 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 60)) }, { id: "c2", name: "가까운 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 5)), status: "접수 완료" }] }); await sleep(150);
+    var certF = cardBy("자격증 목록 · 일정");
+    ok("cert tabs + table", $$("#view .page-tab").length === 3 && !!$(".items-table", certF) && $$(".items-table th", certF).map(function (h) { return h.textContent; }).slice(0, 4).join("|") === "자격증|발급 기관|상태|접수 마감");
+    ok("cert nearest exam first", $$(".items-table tbody tr", cardBy("자격증 목록 · 일정"))[0].children[0].textContent === "가까운 시험" && /D-5/.test($(".items-table tbody tr", cardBy("자격증 목록 · 일정")).textContent) && /다음 시험 가까운 시험/.test(cardBy("자격증 목록 · 일정").textContent));
+    await go("cert-study");
+    var lf = $(".quick-add", cardBy("공부 기록")); $("input[aria-label='범위 · 내용']", lf).value = "기출 1회"; $("input[aria-label='자격증']", lf).value = "임상심리사"; $("input[type=number]", lf).value = "2.5"; submit(lf); await sleep(120);
+    ok("cert study log + hours", /임상심리사 2\.5h/.test(cardBy("공부 기록").textContent), cardBy("공부 기록").textContent.slice(0, 120));
+    await go("cert-files"); ok("cert files page", $("#subnav a.active").getAttribute("data-page") === "cert-list" && !!cardBy("취득 증빙 파일 링크"));
+    await go("ai-tools"); ok("ai tabs", $$("#view .page-tab").length === 3 && !!cardBy("연구용 AI 도구") && !!cardBy("자주 쓰는 프롬프트") && $("#subnav a.active").textContent === "AI");
+    await go("ai-notes"); ok("ai notes page", !!cardBy("AI · 머신러닝 공부 노트") && $("#subnav a.active").getAttribute("data-page") === "ai-tools");
+    await go("ai-log"); ok("ai log page", !!cardBy("AI 활용 기록 (연구윤리 · 공개 대비)") && /공개 필요/.test($("#view").textContent));
     await go("ias-results");
     ok("ias tabs", $$("#view .page-tab").length === 4 && $("#view .page-tab.active").textContent === "분석 결과" && $("#subnav a.active").getAttribute("data-page") === "ias-home");
     await go("diss-overview");

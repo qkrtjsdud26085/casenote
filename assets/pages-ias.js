@@ -31,7 +31,7 @@
      1. IAS 대시보드
      ========================================================= */
   App.page({
-    id: "ias-home", title: "IAS 대시보드", navLabel: "① IAS 척도 타당화", tabLabel: "대시보드",
+    id: "ias-home", title: "IAS 대시보드", navLabel: "IAS 척도 타당화", tabLabel: "대시보드",
     desc: "간접적 공격성 척도 가해자판(IAS-A) 한국판 타당화 논문의 현재 단계, 핵심 수치, 다음 할 일, 결정 기록, 파일 위치를 한눈에 봅니다.",
     render: function (view) {
       head(view, "ias-home");

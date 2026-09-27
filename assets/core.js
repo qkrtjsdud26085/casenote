@@ -92,14 +92,13 @@
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
-      { label: "진행중 프로젝트", pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"],
-        links: [{ to: "diss-overview", label: "② 비선형 공격성 임계점 (SHAP · SMOTE)" }] },
-      { label: "박사학위논문", pages: ["diss-overview", "diss-design", "diss-analysis", "diss-lit", "diss-nrf",
-        "thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing"] },
-      { label: "논문 프로젝트", pages: ["proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit"] },
-      { label: "문헌 · 자료", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
-      { label: "지도 · 학술활동", pages: ["thesis-advisor", "thesis-publications"] },
-      { pages: ["thesis-refs"] }
+      { pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"] },
+      { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
+      { pages: ["cert-list", "cert-study", "cert-files"] },
+      { pages: ["ai-tools", "ai-notes", "ai-log"] },
+      { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
+        "proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit",
+        "thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
       { pages: ["writer-desk"] },

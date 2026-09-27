@@ -76,7 +76,7 @@
      1. 개요 · 로드맵
      ========================================================= */
   App.page({
-    id: "diss-overview", title: "박사학위논문 개요", navLabel: "개요 · 로드맵", tabLabel: "개요 · 로드맵",
+    id: "diss-overview", title: "박사학위논문 개요", navLabel: "연구재단 선정", tabLabel: "개요 · 로드맵",
     desc: "일반인의 비선형적 공격성 임계점을 머신러닝(SHAP · SMOTE)과 델파이로 밝히는 박사학위논문의 목표, 흐름, 일정, 할 일을 한눈에 봅니다.",
     render: function (view) {
       head(view, "diss-overview");
@@ -162,7 +162,7 @@
      2. 연구 설계 · 변수
      ========================================================= */
   App.page({
-    id: "diss-design", title: "박사학위논문 연구 설계", navLabel: "연구 설계 · 변수", tabLabel: "연구 설계 · 변수",
+    id: "diss-design", title: "박사학위논문 연구 설계", navHidden: true, navParent: "diss-overview", tabLabel: "연구 설계 · 변수",
     desc: "필요성과 이론적 틀, 연구 1의 대상 · 표집, 예측변수(다차원적 위험 요인군)와 타겟변수를 정리합니다. 서론과 방법 장의 재료예요.",
     render: function (view) {
       head(view, "diss-design");
@@ -224,7 +224,7 @@
      3. 분석 계획 (ML · 델파이)
      ========================================================= */
   App.page({
-    id: "diss-analysis", title: "박사학위논문 분석 계획", navLabel: "분석 계획 (ML · 델파이)", tabLabel: "분석 계획",
+    id: "diss-analysis", title: "박사학위논문 분석 계획", navHidden: true, navParent: "diss-overview", tabLabel: "분석 계획",
     desc: "연구 1 머신러닝(로지스틱 회귀 · Random Forest · XGBoost, SMOTE, SHAP)과 연구 2 델파이의 설계, 모델 결과, 전문가 패널을 관리합니다.",
     render: function (view) {
       head(view, "diss-analysis");
@@ -299,7 +299,7 @@
      4. 문헌 · 이론
      ========================================================= */
   App.page({
-    id: "diss-lit", title: "박사학위논문 문헌", navLabel: "문헌 · 이론", tabLabel: "문헌 · 이론",
+    id: "diss-lit", title: "박사학위논문 문헌", navHidden: true, navParent: "diss-overview", tabLabel: "문헌 · 이론",
     desc: "연구재단 폴더의 참고문헌(서론 · 방법론 · 선행 머신러닝 연구)과 핵심 개념을 정리합니다.",
     render: function (view) {
       head(view, "diss-lit");
@@ -334,7 +334,7 @@
      5. 연구재단 신청 · 파일
      ========================================================= */
   App.page({
-    id: "diss-nrf", title: "연구재단 신청 · 파일", navLabel: "연구재단 신청 · 파일", tabLabel: "연구재단 · 파일",
+    id: "diss-nrf", title: "연구재단 신청 · 파일", navHidden: true, navParent: "diss-overview", tabLabel: "연구재단 · 파일",
     desc: "한국연구재단 박사과정생 연구장려금 신청 이력과 제출 서류, 연구 역량 준비, 연구재단 폴더의 파일 위치를 관리합니다.",
     render: function (view) {
       head(view, "diss-nrf");
