@@ -247,6 +247,14 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .todo-item input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; flex-shrink: 0; }
 .todo-text { flex: 1; font-size: 0.9rem; line-height: 1.45; word-break: break-word; }
 .todo-item.done .todo-text { text-decoration: line-through; color: var(--ink-soft); }
+.todo-item:hover .icon-btn { opacity: 1; }
+.todo-notes { display: block; margin-top: 1px; text-decoration: none; white-space: pre-wrap; }
+.todo-msg:empty { display: none; }
+.todo-done { margin: 10px 0 0; }
+.fold-head { align-items: center; }
+.fold-head h2 { cursor: pointer; }
+.card.folded { padding-bottom: 14px; }
+.card.folded .card-head { margin-bottom: 0; }
 .plain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .memo-item { padding: 10px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); }
 .memo-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }

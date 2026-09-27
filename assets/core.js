@@ -106,7 +106,7 @@
       { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] },
       { pages: ["writer-submit"] }
     ] },
-    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-budget", "personal-budget-report", "personal-memos", "personal-habits", "personal-weekly"] }
+    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-weekly"] }
   ];
   App.MENU.forEach(function (g) {
     if (!g.groups) { g.groups = g.pages.map(function (p) { return { pages: [p] }; }); }

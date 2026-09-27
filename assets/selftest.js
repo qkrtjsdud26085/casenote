@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 44, ids.length);
+    ok("page count", ids.length === 41, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -127,29 +127,46 @@
     ok("thesis-home ias card", /진행 중 논문 · IAS/.test($("#view").textContent) && /분석/.test($("#view").textContent));
     await go("home");
 
-    await go("personal-todos");
-    var tf = $("#view form.quick-add");
-    setVal($("input", tf), "테스트 할 일"); submit(tf); await sleep(80);
-    ok("todo add", $$("#view .todo-item").length === 1, $$("#view .todo-item").length);
-    var cb = $("#view .todo-item input[type=checkbox]"); cb.checked = true; change(cb); await sleep(80);
-    ok("todo done", $$("#view .todo-item.done").length === 1);
-    $$("#view .tool-btn").filter(function (b) { return b.textContent.indexOf("완료 항목 삭제") !== -1; })[0].click(); await sleep(80);
-    ok("todo clear-done", $$("#view .todo-item").length === 0);
-
-    await go("personal-memos");
-    var mf = $("#view form.quick-add");
-    setVal($("textarea", mf), "메모 본문"); submit(mf); await sleep(80);
-    ok("memo add", $$("#view .memo-item").length === 1);
-    $("#view .memo-item .icon-btn").click(); await sleep(80);
-    ok("memo delete", $$("#view .memo-item").length === 0);
-
-    await go("personal-habits");
-    var hf = $("#view form.quick-add");
-    setVal($("input", hf), "테스트 습관"); submit(hf); await sleep(80);
-    ok("habit add", $$("#view .habit-item").length === 1);
-    $$("#view .habit-dot").pop().click(); await sleep(80);
-    ok("habit check", $$("#view .habit-dot.done").length === 1);
-
+    /* 할 일 → Google Tasks (fake API) inside 일정 · 캘린더 */
+    var realFetchT = window.fetch, gt = [], gtSeq = 0;
+    window.fetch = function (url, opts) {
+      url = String(url); opts = opts || {};
+      if (url.indexOf("https://tasks.googleapis.com/tasks/v1/lists/@default/tasks") === 0) {
+        var m = url.match(/tasks\/([^/?]+)$/), method = opts.method || "GET", body = opts.body ? JSON.parse(opts.body) : null;
+        function res(o, st) { return Promise.resolve({ ok: true, status: st || 200, json: function () { return Promise.resolve(o); } }); }
+        if (method === "POST") { var nt = Object.assign({ id: "t" + (++gtSeq), status: "needsAction", position: String(gtSeq).padStart(5, "0") }, body); gt.push(nt); return res(nt); }
+        if (method === "PATCH") { var x = gt.filter(function (q) { return q.id === decodeURIComponent(m[1]); })[0]; Object.assign(x, body); if (body.status === "completed") { x.completed = new Date().toISOString(); } return res(x); }
+        if (method === "DELETE") { gt = gt.filter(function (q) { return q.id !== decodeURIComponent(m[1]); }); return res({}, 204); }
+        return res({ items: gt.slice() });
+      }
+      return realFetchT.apply(window, arguments);
+    };
+    await App.col("todos").add({ text: "예전 할 일", done: false, createdAt: "2026-01-01T00:00:00Z" });
+    await go("personal-calendar"); await sleep(120);
+    ok("menu: no 할 일/메모/습관", !$("#subnav a[data-page='personal-todos']") && !$("#subnav a[data-page='personal-memos']") && !$("#subnav a[data-page='personal-habits']") && !!$("#subnav a[data-page='personal-budget']"));
+    ok("calendar: no desc", !$("#pageHead .page-desc"));
+    var todoC = cardBy("할 일 · Google Tasks");
+    ok("todo card in calendar", !!todoC && /연결 안 됨/.test(todoC.textContent) && /예전 할 일 1개/.test(todoC.textContent));
+    var tf = $("form.quick-add", todoC);
+    setVal($("input", tf), "테스트 할 일"); $("input[type=date]", tf).value = "2026-10-01"; submit(tf); await sleep(250);
+    ok("todo -> Google Tasks", gt.length === 1 && gt[0].title === "테스트 할 일" && gt[0].due === "2026-10-01T00:00:00.000Z", JSON.stringify(gt));
+    ok("todo cache + list", window.__MOCK_STORE["personal/gtasks"].items.length === 1 && $$(".todo-item", cardBy("할 일 · Google Tasks")).length === 1 && /Google 연결됨/.test(cardBy("할 일 · Google Tasks").textContent));
+    var tcb = $(".todo-item input[type=checkbox]", cardBy("할 일 · Google Tasks")); tcb.checked = true; change(tcb); await sleep(250);
+    ok("todo done in Google", gt[0].status === "completed" && $(".todo-done", cardBy("할 일 · Google Tasks")).hidden === false, JSON.stringify(gt));
+    var realConfirmT = window.confirm; window.confirm = function () { return true; };
+    Array.prototype.filter.call(cardBy("할 일 · Google Tasks").querySelectorAll(".tool-btn"), function (b) { return /예전 할 일/.test(b.textContent); })[0].click(); await sleep(350);
+    ok("legacy todos migrated", gt.some(function (q) { return q.title === "예전 할 일"; }) && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("todos/") === 0; }), JSON.stringify(gt));
+    $(".todo-done .icon-btn", cardBy("할 일 · Google Tasks")).click(); await sleep(250);
+    window.confirm = realConfirmT;
+    ok("todo delete in Google", gt.length === 1 && gt[0].title === "예전 할 일", JSON.stringify(gt));
+    var gC = cardBy("Google 캘린더 연동"), uC = cardBy("다가오는 일정 (전체)");
+    ok("google/upcoming folded", gC.classList.contains("folded") && $(".card-body", gC).hidden && uC.classList.contains("folded"));
+    $(".fold-btn", gC).click(); await sleep(30);
+    ok("fold opens + remembered", !$(".card-body", gC).hidden && App.h.safeGet("hds_fold_gcal") === "1");
+    $(".fold-btn", gC).click(); await sleep(30);
+    await go("home"); await sleep(120);
+    ok("home todo from Google", /예전 할 일/.test($("#view").textContent) && /남은 할 일/.test($("#view .tiles").textContent) && !$("#view .capture input[placeholder^='빠른 메모']"));
+    window.fetch = realFetchT;
     await go("personal-calendar");
     var cell = $$("#view .cal-cell:not(.blank)")[14]; cell.click(); await sleep(60);
     var cf = $$("#view form.quick-add")[0];

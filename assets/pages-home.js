@@ -24,35 +24,22 @@
       strip.appendChild(badges); strip.appendChild(box);
       strip.hidden = false;
 
-      /* ---------- quick capture (optionally synced to Google Tasks/Calendar) ---------- */
+      /* ---------- quick capture → Google Tasks (or a Calendar event when a time is given) ---------- */
       var cap = el("form", "capture");
       var qt = el("input"); qt.placeholder = "빠른 할 일 (Enter)"; qt.maxLength = 200; qt.setAttribute("aria-label", "빠른 할 일");
-      var qm = el("input"); qm.placeholder = "빠른 메모 (Enter)"; qm.maxLength = 300; qm.setAttribute("aria-label", "빠른 메모");
-      var qd = el("input"); qd.type = "date"; qd.className = "cap-date"; qd.setAttribute("aria-label", "날짜 (선택, Google에 동기화)");
+      var qd = el("input"); qd.type = "date"; qd.className = "cap-date"; qd.setAttribute("aria-label", "날짜 (선택)");
       var qh = el("input"); qh.type = "time"; qh.className = "cap-time"; qh.setAttribute("aria-label", "시간 (선택)");
       var qb = el("button", "btn", "추가"); qb.type = "submit";
-      cap.appendChild(qt); cap.appendChild(qm); cap.appendChild(qd); cap.appendChild(qh); cap.appendChild(qb);
+      cap.appendChild(qt); cap.appendChild(qd); cap.appendChild(qh); cap.appendChild(qb);
       view.appendChild(cap);
-      view.appendChild(el("p", "capture-hint", "할 일 · 메모에 날짜를 적으면 Google 할 일에, 시간까지 적으면 Google 캘린더 일정으로 함께 등록돼요."));
-
-      function syncToGoogle(title, notes) {
-        var dateKey = qd.value, time = qh.value;
-        if (!dateKey) { return; }
-        var job = time ? App.gtasks.createEvent(title, dateKey, time, notes) : App.gtasks.createTask(title, dateKey, notes);
-        job.catch(function (err) { window.alert("Google 동기화 실패: " + App.gtasks.explain(err)); });
-      }
+      view.appendChild(el("p", "capture-hint", "할 일은 Google 할 일(Tasks)에 바로 저장돼요. 시간까지 적으면 Google 캘린더 일정으로 등록돼요."));
       cap.addEventListener("submit", function (e) {
         e.preventDefault();
-        var t = qt.value.trim(), m = qm.value.trim();
-        if (t) {
-          App.col("todos").add({ text: t, done: false, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-          syncToGoogle(t, "");
-        }
-        if (m) {
-          App.col("memos").add({ title: "", body: m, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-          syncToGoogle(m, "Hello dear Sunny 메모");
-        }
-        qt.value = ""; qm.value = ""; qd.value = ""; qh.value = "";
+        var t = qt.value.trim();
+        if (!t) { return; }
+        var job = qh.value && qd.value ? App.gtasks.createEvent(t, qd.value, qh.value, "") : App.gtasks.add(t, qd.value, "");
+        job.catch(function (err) { window.alert("Google 저장 실패: " + App.gtasks.explain(err)); });
+        qt.value = ""; qd.value = ""; qh.value = "";
       });
 
       var dash = el("div"); view.appendChild(dash);
@@ -79,7 +66,9 @@
       function draw() {
         H.clear(dash);
         var today = H.todayStr();
-        var openTodos = D.todos.filter(function (t) { return !t.done; });
+        var allTasks = (D.gtasks && D.gtasks.items) || [];
+        var openTodos = allTasks.filter(function (t) { return t.status !== "completed"; })
+          .sort(function (a, b) { return (a.due || "9999") < (b.due || "9999") ? -1 : 1; });
         var ledger = (D.ledger && D.ledger.items) || [];
         var money = B.totals(ledger), budget = Number(D.budget && D.budget.budget) || 0;
         var todaySpend = B.byDate(ledger, "지출")[today] || 0;
@@ -92,7 +81,7 @@
         tiles.appendChild(tile("졸업 요건 · 학회지 논문", accepted + " / " + need, accepted >= need ? "요건 충족 · 학위논문 단계로" : "게재 확정 기준", "thesis-home"));
         var active = plist0.filter(function (p) { return p.type === "학회지 논문" && !App.proj.isAccepted(p); }).sort(function (a, b) { return App.proj.stagePct(b) - App.proj.stagePct(a); })[0];
         tiles.appendChild(tile("진행 중 논문", active ? App.proj.stagePct(active) + "%" : "—", active ? active.title + " · " + App.proj.stagesFor(active)[App.proj.stageIndex(active)] : "모든 논문 게재 확정", "proj-overview"));
-        tiles.appendChild(tile("오늘 할 일", String(openTodos.length), "전체 " + D.todos.length + "개 중 완료 " + (D.todos.length - openTodos.length), "personal-todos"));
+        tiles.appendChild(tile("남은 할 일", String(openTodos.length), D.gtasks ? "Google 할 일 · 오늘까지 " + openTodos.filter(function (t) { return t.due && t.due <= today; }).length + "개" : "Google 할 일과 연결해 보세요", "personal-calendar"));
         tiles.appendChild(tile("오늘 집필", (tCount + wCount).toLocaleString("ko-KR") + "자", "논문 " + tCount.toLocaleString("ko-KR") + " · 작품 " + wCount.toLocaleString("ko-KR"), "thesis-writing"));
         tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
         tiles.appendChild(tile("오늘 지출", B.won(todaySpend), "고정지출 " + B.won(money.fixed) + " 반영", "personal-budget"));
@@ -107,9 +96,11 @@
         if (!openTodos.length) { l1.appendChild(ui.empty("미완료 할 일이 없어요.")); }
         openTodos.slice(0, 5).forEach(function (t) {
           var row = el("div", "mini-item");
-          var cb = el("input"); cb.type = "checkbox"; cb.setAttribute("aria-label", "완료");
-          cb.addEventListener("change", function () { App.col("todos").doc(t.id).update({ done: true }).catch(function () {}); });
-          row.appendChild(cb); row.appendChild(el("span", "grow", t.text));
+          var cb = el("input"); cb.type = "checkbox"; cb.setAttribute("aria-label", t.title + " 완료");
+          cb.addEventListener("change", function () {
+            App.gtasks.setDone(t.id, true).catch(function (err) { cb.checked = false; window.alert("Google 저장 실패: " + App.gtasks.explain(err)); });
+          });
+          row.appendChild(cb); row.appendChild(el("span", "grow", t.title));
           if (t.due) { row.appendChild(H.ddayEl(t.due)); }
           l1.appendChild(row);
         });
@@ -173,8 +164,8 @@
         if (!unpaid.length) { l6b.appendChild(ui.empty(D.budget && (D.budget.fixed || []).length ? "이번 달 고정지출을 모두 반영했어요." : "가계부에서 고정지출을 등록해 보세요.")); }
         unpaid.slice(0, 4).forEach(function (f) { miniItem(l6b, [H.ddayEl(f.date), el("span", "grow", f.name), el("span", "mini-sub", B.won(f.amount))]); });
 
-        /* 작가 · 습관 */
-        var c4 = ui.card(g, { tab: "Writer", tone: "t-2", title: "작가 · 습관", link: "writer-desk" });
+        /* 작가 */
+        var c4 = ui.card(g, { tab: "Writer", tone: "t-2", title: "작가", link: "writer-desk" });
         var works = ((D.works && D.works.items) || []).filter(function (w) { return w.status && w.status !== "완결"; }).slice(0, 3);
         c4.body.appendChild(el("div", "mini-title", "진행 중인 작품"));
         var l7 = mini(c4.body);
@@ -186,18 +177,11 @@
           if (t) { nodes.push(el("span", "mini-sub", Math.min(100, Math.round(cur / t * 100)) + "%")); }
           miniItem(l7, nodes);
         });
-        var habits = (D.habits && D.habits.items) || [];
-        c4.body.appendChild(el("div", "mini-title", "오늘의 습관"));
-        var l8 = mini(c4.body);
-        if (!habits.length) { l8.appendChild(el("span", "mini-sub", "습관 메뉴에서 추가해 보세요.")); }
-        else {
-          var doneCount = habits.filter(function (h) { return h.days && h.days[today]; }).length;
-          c4.body.appendChild(ui.progress(Math.round(doneCount / habits.length * 100), doneCount + "/" + habits.length + " 체크"));
-        }
       }
 
       draw();
-      App.watchQuery(App.col("todos").orderBy("createdAt", "asc"), function (i) { D.todos = i; draw(); });
+      App.watchDoc(App.doc("personal/gtasks"), function (d) { D.gtasks = d; draw(); });
+      if (App.gtasks.token()) { App.gtasks.sync().catch(function () {}); }
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
       [["projects", "research/projects"], ["grad", "research/grad"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
         ["works", "writer/works"], ["habits", "personal/habits"], ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["reco", "research/reco"], ["gcal", "personal/gcal"]]

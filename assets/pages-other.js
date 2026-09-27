@@ -1,15 +1,121 @@
-/* Hello dear Sunny — 개인 pages (가계부 lives in pages-budget.js, 작가 pages in pages-writer.js) */
+/* Hello dear Sunny — 개인 pages: 일정 · 캘린더 (+ 할 일 via Google Tasks), 주간 리뷰
+   (가계부 lives in pages-budget.js, 작가 pages in pages-writer.js) */
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el;
   var doc = function (path) { return App.doc(path); };
+
+  /* a card that stays folded until opened; the choice is remembered per browser */
+  function foldable(card, key, label) {
+    var open = H.safeGet("hds_fold_" + key) === "1";
+    var btn = el("button", "tool-btn fold-btn"); btn.type = "button";
+    card.head.replaceChild(btn, card.count);
+    card.head.classList.add("fold-head");
+    function set(v) {
+      open = v; H.safeSet("hds_fold_" + key, v ? "1" : "0");
+      card.body.hidden = !open; card.el.classList.toggle("folded", !open);
+      btn.textContent = open ? "접기 ▴" : "펼치기 ▾";
+      btn.setAttribute("aria-expanded", open ? "true" : "false"); btn.setAttribute("aria-label", label + (open ? " 접기" : " 펼치기"));
+    }
+    btn.addEventListener("click", function () { set(!open); });
+    card.head.querySelector("h2").addEventListener("click", function () { set(!open); });
+    set(open);
+  }
+
+  /* =========================================================
+     할 일 — stored in Google Tasks (default list); Firestore keeps a read-only copy
+     ========================================================= */
+  function todoCard(parent) {
+    var G = App.gtasks;
+    var c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks", wide: true });
+    var S = { cache: null, busy: false, legacy: [] };
+    var status = el("p", "hint");
+    var tools = el("div", "items-tools");
+    var sync = el("button", "tool-btn", "Google 할 일 연결 · 동기화"); sync.type = "button";
+    var migrate = el("button", "tool-btn", ""); migrate.type = "button"; migrate.hidden = true;
+    tools.appendChild(sync); tools.appendChild(migrate);
+    var form = el("form", "quick-add");
+    var tIn = el("input"); tIn.placeholder = "할 일 입력 후 Enter → Google Tasks에 바로 저장"; tIn.maxLength = 200; tIn.required = true; tIn.setAttribute("aria-label", "할 일");
+    var dIn = el("input", "w-date"); dIn.type = "date"; dIn.setAttribute("aria-label", "기한 (선택)"); dIn.title = "기한 (선택)";
+    var nIn = el("input"); nIn.placeholder = "메모 (선택)"; nIn.maxLength = 300; nIn.setAttribute("aria-label", "메모");
+    var add = el("button", "btn", "추가"); add.type = "submit";
+    [tIn, dIn, nIn, add].forEach(function (n) { form.appendChild(n); });
+    var msg = el("p", "hint todo-msg");
+    var list = el("div", "plain-list");
+    var doneBox = el("details", "reco-settings todo-done"); var doneSum = el("summary"); var doneList = el("div", "plain-list");
+    doneBox.appendChild(doneSum); doneBox.appendChild(doneList);
+    [status, tools, form, msg, list, doneBox].forEach(function (n) { c.body.appendChild(n); });
+
+    function fail(err) { S.busy = false; msg.textContent = G.explain(err); draw(); }
+    function run(label, job) {
+      S.busy = true; msg.textContent = label; draw();
+      return job.then(function () { S.busy = false; msg.textContent = ""; draw(); }, fail);
+    }
+    function row(t) {
+      var done = t.status === "completed";
+      var r = el("div", "todo-item" + (done ? " done" : ""));
+      var cb = el("input"); cb.type = "checkbox"; cb.checked = done; cb.disabled = S.busy; cb.setAttribute("aria-label", t.title + (done ? " 완료 취소" : " 완료"));
+      cb.addEventListener("change", function () { run(cb.checked ? "완료 처리 중…" : "되돌리는 중…", G.setDone(t.id, cb.checked)); });
+      r.appendChild(cb);
+      var main = el("span", "todo-text");
+      main.appendChild(document.createTextNode(t.title));
+      if (t.notes) { main.appendChild(el("span", "mini-sub todo-notes", t.notes)); }
+      r.appendChild(main);
+      if (t.due && !done) { r.appendChild(H.ddayEl(t.due)); }
+      var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "Google에서 삭제"; del.disabled = S.busy; del.setAttribute("aria-label", t.title + " 삭제");
+      del.addEventListener("click", function () { if (window.confirm("'" + t.title + "'을(를) Google 할 일에서 삭제할까요?")) { run("삭제하는 중…", G.remove(t.id)); } });
+      r.appendChild(del);
+      return r;
+    }
+    function draw() {
+      var items = (S.cache && S.cache.items) || [];
+      var open = items.filter(function (t) { return t.status !== "completed"; })
+        .sort(function (a, b) { return (a.due || "9999") < (b.due || "9999") ? -1 : ((a.due || "9999") > (b.due || "9999") ? 1 : (a.position < b.position ? -1 : 1)); });
+      var done = items.filter(function (t) { return t.status === "completed"; })
+        .sort(function (a, b) { return a.completed < b.completed ? 1 : -1; }).slice(0, 30);
+      var tok = G.token();
+      status.textContent = (tok ? "Google 연결됨" : "Google 연결 안 됨 · 추가 · 체크하면 로그인 창이 한 번 떠요") + " · " +
+        (S.cache && S.cache.syncedAt ? "마지막 동기화 " + H.fmtDateTime(S.cache.syncedAt) : "아직 동기화한 적 없음");
+      c.count.textContent = items.length ? open.length + "개 남음" : "";
+      sync.disabled = add.disabled = S.busy;
+      migrate.hidden = !S.legacy.length; migrate.disabled = S.busy;
+      migrate.textContent = "예전 할 일 " + S.legacy.length + "개 Google로 옮기기";
+      H.clear(list);
+      if (!open.length) { list.appendChild(ui.empty(S.cache ? "남은 할 일이 없어요." : "Google 할 일과 연결하면 목록이 여기에 보여요.")); }
+      open.forEach(function (t) { list.appendChild(row(t)); });
+      doneBox.hidden = !done.length; doneSum.textContent = "완료한 할 일 " + done.length + "개";
+      H.clear(doneList); done.forEach(function (t) { doneList.appendChild(row(t)); });
+    }
+    sync.addEventListener("click", function () { run("Google 할 일을 불러오는 중…", G.sync()); });
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var title = tIn.value.trim();
+      if (!title || S.busy) { return; }
+      var job = G.add(title, dIn.value, nIn.value.trim());
+      tIn.value = ""; dIn.value = ""; nIn.value = "";
+      run("Google 할 일에 저장하는 중…", job);
+    });
+    migrate.addEventListener("click", function () {
+      var todo = S.legacy.slice();
+      if (!window.confirm("이 사이트에만 있던 할 일 " + todo.length + "개를 Google 할 일로 옮길까요? 옮긴 뒤 여기 사본은 지워져요.")) { return; }
+      var chain = Promise.resolve();
+      todo.forEach(function (t) {
+        chain = chain.then(function () { return G.createTask(t.text, t.due || "", ""); }).then(function () { return App.col("todos").doc(t.id).delete(); });
+      });
+      run("옮기는 중…", chain.then(G.sync));
+    });
+    draw();
+    App.watchDoc(App.doc("personal/gtasks"), function (d) { S.cache = d; draw(); });
+    App.watchQuery(App.col("todos").orderBy("createdAt", "asc"), function (items) { S.legacy = items.filter(function (t) { return !t.done; }); draw(); });
+    /* refresh quietly when a token is still valid */
+    if (G.token()) { G.sync().then(draw, function () {}); }
+  }
 
   /* =========================================================
      개인 — 일정 · 캘린더
      ========================================================= */
   App.page({
     id: "personal-calendar", title: "일정 · 캘린더",
-    desc: "월간 캘린더에서 날짜를 눌러 일정을 보고 추가합니다. Google 캘린더를 연결하면 그 일정도 함께 보여요. 분류(개인 · 논문 · 글쓰기 · 회사)는 다른 메뉴의 다가오는 일정에도 나타납니다.",
     render: function (view) {
       var scheduleRef = App.col("schedule");
       var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
@@ -17,9 +123,12 @@
       var g = ui.grid(view, true);
       var calCard = ui.card(g, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
       var dayCard = ui.card(g, { tab: "Day", tone: "t-2", title: "선택한 날" });
+      todoCard(g);
       var gCard = ui.card(g, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동", wide: true });
       var upCard = ui.card(g, { tab: "Upcoming", tone: "t-3", title: "다가오는 일정 (전체)", wide: true });
       ui.upcoming(upCard.body, "*", 10);
+      foldable(gCard, "gcal", "Google 캘린더 연동");
+      foldable(upCard, "upcoming", "다가오는 일정");
 
       var filters = el("div", "archive-filters");
       var head = el("div", "cal-head");
@@ -233,189 +342,6 @@
         state.gdoc = d; drawCal(); drawDay(); drawG();
         if (!autoTried && App.gcal.token() && (!d || !d.syncedAt || Date.now() - new Date(d.syncedAt).getTime() > 300000)) { autoTried = true; runSync(); }
       });
-    }
-  });
-
-  /* =========================================================
-     개인 — 할 일
-     ========================================================= */
-  App.page({
-    id: "personal-todos", title: "할 일",
-    desc: "가볍게 적고 체크하는 할 일 목록입니다. 기한을 넣으면 D-day가 표시돼요.",
-    render: function (view) {
-      var ref = App.col("todos");
-      var TODOS = [], openOnly = false;
-      var c = ui.card(view, { tab: "To-do", tone: "t-2", title: "할 일" });
-      var form = el("form", "quick-add");
-      var input = el("input"); input.placeholder = "새 할 일 입력 후 Enter"; input.maxLength = 200; input.required = true;
-      var due = el("input", "w-date"); due.type = "date"; due.title = "기한 (선택)"; due.setAttribute("aria-label", "기한");
-      var add = el("button", "btn", "추가"); add.type = "submit";
-      [input, due, add].forEach(function (n) { form.appendChild(n); });
-      var tools = el("div", "items-tools");
-      var fbtn = el("button", "tool-btn", "미완료만 보기"); fbtn.type = "button";
-      var cbtn = el("button", "tool-btn", "완료 항목 삭제"); cbtn.type = "button";
-      tools.appendChild(fbtn); tools.appendChild(cbtn);
-      var prog = el("div"); var list = el("div", "plain-list");
-      [form, tools, prog, list].forEach(function (n) { c.body.appendChild(n); });
-
-      function draw() {
-        var open = TODOS.filter(function (t) { return !t.done; }).length;
-        c.count.textContent = TODOS.length ? open + " / " + TODOS.length : "";
-        H.clear(prog);
-        if (TODOS.length) { var pct = Math.round((TODOS.length - open) / TODOS.length * 100); prog.appendChild(ui.progress(pct, (TODOS.length - open) + "/" + TODOS.length + " 완료")); }
-        H.clear(list);
-        var items = openOnly ? TODOS.filter(function (t) { return !t.done; }) : TODOS;
-        if (!items.length) { list.appendChild(ui.empty(TODOS.length ? "미완료 항목이 없습니다." : "아직 할 일이 없습니다. 위에서 추가해보세요.")); return; }
-        items.forEach(function (t) {
-          var row = el("div", "todo-item" + (t.done ? " done" : ""));
-          var cb = el("input"); cb.type = "checkbox"; cb.checked = !!t.done; cb.setAttribute("aria-label", "완료");
-          cb.addEventListener("change", function () { ref.doc(t.id).update({ done: cb.checked }).catch(function () {}); });
-          row.appendChild(cb);
-          row.appendChild(el("span", "todo-text", t.text));
-          if (t.due && !t.done) { row.appendChild(H.ddayEl(t.due)); }
-          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
-          del.addEventListener("click", function () { ref.doc(t.id).delete().catch(function () {}); });
-          row.appendChild(del); list.appendChild(row);
-        });
-      }
-      fbtn.addEventListener("click", function () { openOnly = !openOnly; fbtn.textContent = openOnly ? "전체 보기" : "미완료만 보기"; draw(); });
-      cbtn.addEventListener("click", function () {
-        var done = TODOS.filter(function (t) { return t.done; });
-        if (!done.length) { window.alert("완료된 항목이 없습니다."); return; }
-        if (!window.confirm("완료된 " + done.length + "개 항목을 삭제할까요?")) { return; }
-        var batch = App.db.batch();
-        done.forEach(function (t) { batch.delete(ref.doc(t.id)); });
-        batch.commit().catch(function (err) { window.alert("삭제 실패: " + err.message); });
-      });
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var text = input.value.trim();
-        if (!text) { return; }
-        var payload = { text: text, done: false, createdAt: new Date().toISOString() };
-        if (due.value) { payload.due = due.value; }
-        ref.add(payload).catch(function (err) { window.alert("저장 실패: " + err.message); });
-        input.value = ""; due.value = "";
-      });
-      draw();
-      App.watchQuery(ref.orderBy("createdAt", "asc"), function (items) { TODOS = items; draw(); });
-    }
-  });
-
-  /* =========================================================
-     개인 — 메모
-     ========================================================= */
-  App.page({
-    id: "personal-memos", title: "메모",
-    desc: "생각나는 대로 적어 두는 기록장입니다. 검색으로 빠르게 찾을 수 있어요.",
-    render: function (view) {
-      var ref = App.col("memos");
-      var MEMOS = [], q = "";
-      var c = ui.card(view, { tab: "Log", tone: "t-3", title: "메모 · 기록" });
-      var form = el("form", "quick-add col-form");
-      var t = el("input"); t.placeholder = "제목 (선택)"; t.maxLength = 80;
-      var b = el("textarea"); b.placeholder = "남길 메모를 적어보세요"; b.rows = 4; b.required = true;
-      var add = el("button", "btn", "기록 추가"); add.type = "submit";
-      [t, b, add].forEach(function (n) { form.appendChild(n); });
-      var tools = el("div", "items-tools");
-      var s = el("input"); s.type = "search"; s.placeholder = "메모 검색"; s.setAttribute("aria-label", "메모 검색");
-      tools.appendChild(s);
-      var list = el("div", "plain-list");
-      [form, tools, list].forEach(function (n) { c.body.appendChild(n); });
-      function draw() {
-        H.clear(list);
-        c.count.textContent = MEMOS.length ? MEMOS.length + "개" : "";
-        var items = q ? MEMOS.filter(function (m) { return ((m.title || "") + " " + (m.body || "")).toLowerCase().indexOf(q) !== -1; }) : MEMOS;
-        if (!items.length) { list.appendChild(ui.empty(q ? "검색 결과가 없습니다." : "기록된 메모가 없습니다.")); return; }
-        items.forEach(function (m) {
-          var li = el("div", "memo-item"), head = el("div", "memo-item-head");
-          head.appendChild(el("span", "memo-title", m.title && m.title.length ? m.title : "(제목 없음)"));
-          head.appendChild(el("span", "memo-date", H.fmtDateTime(m.createdAt)));
-          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
-          del.addEventListener("click", function () { if (window.confirm("이 메모를 삭제할까요?")) { ref.doc(m.id).delete().catch(function () {}); } });
-          head.appendChild(del); li.appendChild(head); li.appendChild(el("div", "memo-body", m.body));
-          list.appendChild(li);
-        });
-      }
-      s.addEventListener("input", function () { q = s.value.trim().toLowerCase(); draw(); });
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var body = b.value.trim();
-        if (!body) { return; }
-        ref.add({ title: t.value.trim(), body: body, createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-        t.value = ""; b.value = "";
-      });
-      draw();
-      App.watchQuery(ref.orderBy("createdAt", "desc"), function (items) { MEMOS = items; draw(); });
-    }
-  });
-
-  /* =========================================================
-     개인 — 습관
-     ========================================================= */
-  App.page({
-    id: "personal-habits", title: "습관",
-    desc: "매일 하고 싶은 습관을 추가하고, 최근 7일 칸을 눌러 체크하세요. 연속 일수가 쌓여요.",
-    render: function (view) {
-      var ref = doc("personal/habits");
-      var HABITS = [];
-      var c = ui.card(view, { tab: "Habits", tone: "t-2", title: "습관 · 루틴" });
-      var form = el("form", "quick-add");
-      var input = el("input"); input.placeholder = "예: 논문 1편 읽기, 운동, 글쓰기"; input.maxLength = 60; input.required = true;
-      var add = el("button", "btn", "추가"); add.type = "submit";
-      form.appendChild(input); form.appendChild(add);
-      var list = el("div", "plain-list");
-      c.body.appendChild(form); c.body.appendChild(list);
-      function save(items) {
-        HABITS = items; draw();
-        return ref.set({ items: items, updatedAt: new Date().toISOString() }, { merge: true }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-      }
-      function streak(h) {
-        var days = h.days || {}, cur = new Date();
-        if (!days[H.dateKey(cur)]) { cur = H.addDays(cur, -1); }
-        var n = 0; while (days[H.dateKey(cur)]) { n++; cur = H.addDays(cur, -1); }
-        return n;
-      }
-      function toggle(id, key) {
-        save(HABITS.map(function (h) {
-          if (h.id !== id) { return h; }
-          var days = Object.assign({}, h.days || {});
-          if (days[key]) { delete days[key]; } else { days[key] = true; }
-          return Object.assign({}, h, { days: days });
-        }));
-      }
-      function draw() {
-        H.clear(list);
-        if (!HABITS.length) { list.appendChild(ui.empty("매일 하고 싶은 습관을 추가해 보세요.")); return; }
-        var today = H.todayStr();
-        HABITS.forEach(function (h) {
-          var li = el("div", "habit-item"), top = el("div", "habit-top");
-          top.appendChild(el("span", "habit-name", h.name));
-          top.appendChild(el("span", "habit-streak", "연속 " + streak(h) + "일"));
-          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
-          del.addEventListener("click", function () { if (window.confirm("'" + h.name + "' 습관을 삭제할까요?")) { save(HABITS.filter(function (x) { return x.id !== h.id; })); } });
-          top.appendChild(del);
-          var row = el("div", "habit-days");
-          for (var i = 6; i >= 0; i--) {
-            (function (offset) {
-              var dt = H.addDays(new Date(), -offset), k = H.dateKey(dt), on = !!(h.days && h.days[k]);
-              var btn = el("button", "habit-dot" + (on ? " done" : "") + (k === today ? " today" : ""), H.DOW[dt.getDay()]);
-              btn.type = "button"; btn.title = k;
-              btn.addEventListener("click", function () { toggle(h.id, k); });
-              row.appendChild(btn);
-            })(i);
-          }
-          li.appendChild(top); li.appendChild(row); list.appendChild(li);
-        });
-      }
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var name = input.value.trim();
-        if (!name) { return; }
-        save(HABITS.concat([{ id: H.uid(), name: name, days: {} }]));
-        input.value = "";
-      });
-      draw();
-      App.watchDoc(ref, function (d) { HABITS = d && d.items ? d.items : []; draw(); });
     }
   });
 

@@ -81,6 +81,45 @@
     });
   };
 
+  /* ---------- the 할 일 list lives in Google Tasks (default list) ----------
+     A copy is kept in Firestore personal/gtasks so the home page and other devices can show it
+     without a fresh Google token; every change goes to Google first, then refreshes that copy. */
+  var CACHE = "personal/gtasks";
+  function norm(x) {
+    return { id: x.id, title: x.title || "", notes: x.notes || "", due: x.due ? String(x.due).slice(0, 10) : "",
+      status: x.status || "needsAction", completed: x.completed || "", updated: x.updated || "", position: x.position || "" };
+  }
+  G.list = function () {
+    return ensureToken().then(function (t) {
+      var out = [];
+      function page(tokenParam) {
+        var q = "/lists/@default/tasks?showCompleted=true&showHidden=true&maxResults=100" + (tokenParam ? "&pageToken=" + encodeURIComponent(tokenParam) : "");
+        return api(TASKS_API, q, t.at).then(function (j) {
+          (j.items || []).forEach(function (x) { if (!x.deleted && x.title) { out.push(norm(x)); } });
+          return j.nextPageToken && out.length < 500 ? page(j.nextPageToken) : out;
+        });
+      }
+      return page(null);
+    });
+  };
+  G.sync = function () {
+    return G.list().then(function (items) {
+      return App.doc(CACHE).set({ items: items, syncedAt: new Date().toISOString() }).then(function () { return items; });
+    });
+  };
+  G.setDone = function (id, done) {
+    return ensureToken().then(function (t) {
+      var body = done ? { status: "completed" } : { status: "needsAction", completed: null };
+      return api(TASKS_API, "/lists/@default/tasks/" + encodeURIComponent(id), t.at, { method: "PATCH", body: body });
+    }).then(G.sync);
+  };
+  G.remove = function (id) {
+    return ensureToken().then(function (t) {
+      return api(TASKS_API, "/lists/@default/tasks/" + encodeURIComponent(id), t.at, { method: "DELETE" });
+    }).then(G.sync);
+  };
+  G.add = function (title, dateKey, notes) { return G.createTask(title, dateKey, notes).then(G.sync); };
+
   /* date+time item -> Google Calendar event (1 hour, primary calendar, device timezone) */
   G.createEvent = function (title, dateKey, timeStr, notes) {
     return ensureToken().then(function (t) {
