@@ -392,6 +392,22 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .bud-money { font-variant-numeric: tabular-nums; text-align: right; }
 .bud-amt { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.86rem; white-space: nowrap; }
 .bud-amt.inc { color: var(--accent-2-strong); }
+.bud-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; align-items: start; }
+.bud-col { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+@media (max-width: 900px) {
+  /* one column: fixed → calendar → ledger → category → budget */
+  .bud-cols { display: flex; flex-direction: column; gap: 26px; }
+  .bud-col { display: contents; }
+  .bud-cols > .bud-col > .card { order: var(--m-order, 0); }
+}
+.tool-btn.danger:not(:disabled) { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.tool-btn.danger:not(:disabled):hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.bud-selbar { justify-content: space-between; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.bud-selall { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--ink-soft); cursor: pointer; }
+.bud-selall input, .bud-pick { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--accent); cursor: pointer; }
+.bud-entry.picked, .bud-fixed.picked { background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+.bud-picking .bud-fixed .icon-btn, .bud-picking .bud-fixed .dday { display: none; }
+.bud-picking .bud-fixed { cursor: default; }
 .bud-sw { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .bud-sw h2 { margin: 0; }
 .bud-arr { font-family: var(--font-mono); font-size: 0.9rem; line-height: 1; width: 26px; height: 26px; padding: 0; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-soft); cursor: pointer; }

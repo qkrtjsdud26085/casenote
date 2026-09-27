@@ -119,12 +119,16 @@
       var tiles = el("div", "tiles bud-tiles"); view.appendChild(tiles);
       var budRow = el("div", "bud-budget-row"); view.appendChild(budRow);
 
-      var g = ui.grid(view, true);
-      var fixedCard = ui.card(g, { tab: "Fixed", tone: "t-1", title: "고정 수입 · 지출" });
-      var dayCard = ui.card(g, { tab: "Daily", tone: "t-2", title: "날짜별 지출" });
-      var listCard = ui.card(g, { tab: "Ledger", tone: "t-3", title: "수입 · 지출 내역", wide: true });
-      var catCard = ui.card(g, { tab: "Category", tone: "t-2", title: "분류별 지출" });
-      var setCard = ui.card(g, { tab: "Budget", tone: "t-1", title: "월 예산 · 결제수단" });
+      /* two independent columns so the ledger fills the space under the fixed card, beside the tall calendar */
+      var cols = el("div", "bud-cols"), colL = el("div", "bud-col"), colR = el("div", "bud-col");
+      cols.appendChild(colL); cols.appendChild(colR); view.appendChild(cols);
+      var fixedCard = ui.card(colL, { tab: "Fixed", tone: "t-1", title: "고정 수입 · 지출" });
+      var listCard = ui.card(colL, { tab: "Ledger", tone: "t-3", title: "수입 · 지출 내역" });
+      var dayCard = ui.card(colR, { tab: "Daily", tone: "t-2", title: "날짜별 지출" });
+      var catCard = ui.card(colR, { tab: "Category", tone: "t-2", title: "분류별 지출" });
+      var setCard = ui.card(colR, { tab: "Budget", tone: "t-1", title: "월 예산 · 결제수단" });
+      [fixedCard, dayCard, listCard, catCard, setCard].forEach(function (c, i) { c.el.style.setProperty("--m-order", String(i)); });
+      state.ledSel = {}; state.fxSel = {}; state.fxPicking = false;
 
       /* ---------- saving ---------- */
       function saveMonth(mk, items) {
@@ -192,6 +196,30 @@
       var fxBulkBtn = el("button", "tool-btn", "여러 개 붙여넣기"); fxBulkBtn.type = "button";
       var fxClear = el("button", "tool-btn", "고정지출 전체 삭제"); fxClear.type = "button";
       fxTools.appendChild(fxAdd); fxTools.appendChild(fxAddInc); fxTools.appendChild(fxBulkBtn); fxTools.appendChild(fxAll); fxTools.appendChild(fxClear);
+      /* 선택 mode: the row checkbox picks items for deletion instead of reflecting them this month */
+      var fxPick = el("button", "tool-btn", "선택"); fxPick.type = "button";
+      var fxPickAll = el("button", "tool-btn", "전체 선택"); fxPickAll.type = "button";
+      var fxPickDel = el("button", "tool-btn danger", "선택 삭제"); fxPickDel.type = "button";
+      [fxPickAll, fxPickDel, fxPick].forEach(function (b) { fxTools.appendChild(b); });
+      function fxViewItems() { var inc = state.fxView === "수입"; return (state.settings.fixed || []).filter(function (f) { return isInc(f) === inc; }); }
+      fxPick.addEventListener("click", function () {
+        state.fxPicking = !state.fxPicking; state.fxSel = {};
+        fxForm.hidden = true; fxBulk.hidden = true; state.fixedEdit = null;
+        drawFixed();
+      });
+      fxPickAll.addEventListener("click", function () {
+        var items = fxViewItems(), allOn = items.length && items.every(function (f) { return state.fxSel[f.id]; });
+        state.fxSel = {};
+        if (!allOn) { items.forEach(function (f) { state.fxSel[f.id] = true; }); }
+        drawFixed();
+      });
+      fxPickDel.addEventListener("click", function () {
+        var ids = Object.keys(state.fxSel).filter(function (id) { return state.fxSel[id]; });
+        if (!ids.length) { return; }
+        if (!window.confirm("고정" + state.fxView + " " + ids.length + "개를 목록에서 삭제할까요?\n(이미 기록된 내역은 그대로 남아요)")) { return; }
+        state.fxSel = {}; state.fxPicking = false;
+        saveSettings({ fixed: (state.settings.fixed || []).filter(function (f) { return ids.indexOf(f.id) === -1; }) });
+      });
       /* removes every fixed expense (fixed income stays) and its entries recorded in the month on screen */
       fxClear.addEventListener("click", function () {
         var gone = {};
@@ -263,7 +291,7 @@
       fixedCard.head.replaceChild(fxSw, fxH2);
       [fxPrev, fxH2, fxNext, fxDots].forEach(function (n) { fxSw.appendChild(n); });
       function setFxView(v) {
-        state.fxView = v; H.safeSet("hds_bud_fx", v);
+        state.fxView = v; H.safeSet("hds_bud_fx", v); state.fxPicking = false; state.fxSel = {};
         fxForm.hidden = true; fxBulk.hidden = true; state.fixedEdit = null;
         drawFixed();
       }
@@ -358,6 +386,19 @@
         }
         fxAll.hidden = !fixed.length || done === fixed.length;
         fxClear.hidden = incView || !expFixed.length;
+        /* selection mode swaps the toolbar */
+        var picking = state.fxPicking && fixed.length > 0;
+        if (!picking) { state.fxPicking = false; }
+        Object.keys(state.fxSel).forEach(function (id) { if (!fixed.some(function (f) { return f.id === id; })) { delete state.fxSel[id]; } });
+        var nSel = fixed.filter(function (f) { return state.fxSel[f.id]; }).length;
+        fxPick.hidden = !fixed.length; fxPick.textContent = picking ? "선택 완료" : "선택";
+        fxPick.classList.toggle("on", picking);
+        fxPickAll.hidden = fxPickDel.hidden = !picking;
+        fxPickAll.textContent = nSel && nSel === fixed.length ? "전체 해제" : "전체 선택";
+        fxPickDel.textContent = "선택 삭제 (" + nSel + ")"; fxPickDel.disabled = !nSel;
+        if (picking) { [fxAdd, fxAddInc, fxBulkBtn, fxAll, fxClear].forEach(function (b) { b.hidden = true; }); }
+        fixedCard.el.classList.toggle("bud-picking", picking);
+        if (picking) { fxHint.textContent = "지울 항목을 체크하고 '선택 삭제'를 누르세요. 다 했으면 '선택 완료'를 누르면 원래 화면(이번 달 반영 체크)으로 돌아가요."; }
         H.clear(fxList);
         if (!fixed.length) {
           fxList.appendChild(ui.empty(incView ? "월급 · 강사료 · 연구지원금처럼 매달 들어오는 돈을 등록해 두세요." : "월세 · 관리비 · 통신비 · 보험 · 구독료처럼 매달 나가는 돈을 등록해 두세요."));
@@ -366,12 +407,18 @@
         var curMonth = state.mk === monthKey(new Date());
         fixed.forEach(function (f) {
           var inc = isInc(f);
-          var row = el("div", "bud-fixed" + (inc ? " inc" : "") + (paid[f.id] ? " paid" : ""));
-          var cb = el("input"); cb.type = "checkbox"; cb.checked = !!paid[f.id]; cb.setAttribute("aria-label", f.name + " 이번 달 반영");
-          cb.addEventListener("change", function () {
-            if (cb.checked) { saveItems(state.items.concat([fixedEntry(f)])); }
-            else { saveItems(state.items.filter(function (it) { return it.fixedId !== f.id; })); }
-          });
+          var row = el("div", "bud-fixed" + (inc ? " inc" : "") + (paid[f.id] ? " paid" : "") + (picking && state.fxSel[f.id] ? " picked" : ""));
+          var cb = el("input"); cb.type = "checkbox";
+          if (picking) {
+            cb.className = "bud-pick"; cb.checked = !!state.fxSel[f.id]; cb.setAttribute("aria-label", f.name + " 선택");
+            cb.addEventListener("change", function () { state.fxSel[f.id] = cb.checked; drawFixed(); });
+          } else {
+            cb.checked = !!paid[f.id]; cb.setAttribute("aria-label", f.name + " 이번 달 반영");
+            cb.addEventListener("change", function () {
+              if (cb.checked) { saveItems(state.items.concat([fixedEntry(f)])); }
+              else { saveItems(state.items.filter(function (it) { return it.fixedId !== f.id; })); }
+            });
+          }
           row.appendChild(cb);
           row.appendChild(el("span", "bud-day", f.day ? "매월 " + f.day + "일" : (inc ? "입금일 미정" : "날짜 미정")));
           var main = el("span", "bud-fixed-main");
@@ -468,8 +515,29 @@
       var fQ = el("input"); fQ.type = "search"; fQ.placeholder = "내용 · 분류 검색"; fQ.setAttribute("aria-label", "내역 검색");
       filt.appendChild(fTypes); filt.appendChild(fCatEl); filt.appendChild(fQ);
       var listSum = el("div", "items-summary");
+      var selBar = el("div", "items-tools bud-selbar");
+      var selAll = el("label", "bud-selall");
+      var selAllCb = el("input"); selAllCb.type = "checkbox"; selAllCb.setAttribute("aria-label", "보이는 내역 전체 선택");
+      var selAllTxt = el("span", "", "전체 선택");
+      selAll.appendChild(selAllCb); selAll.appendChild(selAllTxt);
+      var selDel = el("button", "tool-btn danger", "선택 삭제"); selDel.type = "button";
+      selBar.appendChild(selAll); selBar.appendChild(selDel);
       var list = el("div", "bud-list");
-      [form, filt, listSum, list].forEach(function (n) { listCard.body.appendChild(n); });
+      [form, filt, listSum, selBar, list].forEach(function (n) { listCard.body.appendChild(n); });
+      /* 전체 선택 acts on what the current filter shows */
+      selAllCb.addEventListener("change", function () {
+        var on = selAllCb.checked;
+        filtered().forEach(function (it) { if (on) { state.ledSel[it.id] = true; } else { delete state.ledSel[it.id]; } });
+        drawList();
+      });
+      selDel.addEventListener("click", function () {
+        var picked = state.items.filter(function (it) { return state.ledSel[it.id]; });
+        if (!picked.length) { return; }
+        var t = totals(picked);
+        if (!window.confirm("선택한 " + picked.length + "건을 삭제할까요?\n" + (t.exp ? "지출 " + won(t.exp) : "") + (t.exp && t.inc ? " · " : "") + (t.inc ? "수입 " + won(t.inc) : ""))) { return; }
+        state.ledSel = {};
+        saveItems(state.items.filter(function (it) { return picked.indexOf(it) === -1; }));
+      });
 
       function setType(t, keepCat) {
         state.type = t;
@@ -505,9 +573,15 @@
         resetForm(); amtEl.focus();
       });
 
-      function entryRow(it) {
+      function entryRow(it, selectable) {
         var inc = it.type === "수입";
-        var row = el("div", "bud-entry" + (inc ? " inc" : ""));
+        var row = el("div", "bud-entry" + (inc ? " inc" : "") + (selectable && state.ledSel[it.id] ? " picked" : ""));
+        if (selectable) {
+          var pick = el("input", "bud-pick"); pick.type = "checkbox"; pick.checked = !!state.ledSel[it.id];
+          pick.setAttribute("aria-label", (it.memo || it.cat) + " 선택");
+          pick.addEventListener("change", function () { if (pick.checked) { state.ledSel[it.id] = true; } else { delete state.ledSel[it.id]; } drawList(); });
+          row.appendChild(pick);
+        }
         var chip = el("span", "cat-chip bud-cat", it.cat || "기타");
         row.appendChild(chip);
         var main = el("span", "bud-entry-main");
@@ -561,6 +635,14 @@
           listSum.appendChild(document.createTextNode(" · 수입 "));
           listSum.appendChild(el("strong", "", won(t.inc)));
         }
+        /* drop selections for entries that no longer exist */
+        Object.keys(state.ledSel).forEach(function (id) { if (!state.items.some(function (it) { return it.id === id; })) { delete state.ledSel[id]; } });
+        var nSel = Object.keys(state.ledSel).length, nShownSel = items.filter(function (it) { return state.ledSel[it.id]; }).length;
+        selBar.hidden = !items.length;
+        selAllCb.checked = items.length > 0 && nShownSel === items.length;
+        selAllCb.indeterminate = nShownSel > 0 && nShownSel < items.length;
+        selAllTxt.textContent = nSel ? "전체 선택 (" + nSel + "건 선택됨)" : "전체 선택";
+        selDel.textContent = "선택 삭제 (" + nSel + ")"; selDel.disabled = !nSel;
         H.clear(list);
         if (!items.length) { list.appendChild(ui.empty(state.items.length ? "조건에 맞는 내역이 없습니다." : "이 달의 내역이 아직 없어요. 위에서 첫 지출을 기록해 보세요.")); return; }
         var groups = {};
@@ -572,7 +654,7 @@
           head.appendChild(el("span", "", (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + H.DOW[d.getDay()] + ")"));
           head.appendChild(el("span", "bud-group-sum", (gt.inc ? "+" + won(gt.inc) + "  " : "") + (gt.exp ? "−" + won(gt.exp) : "")));
           box.appendChild(head);
-          groups[k].forEach(function (it) { box.appendChild(entryRow(it)); });
+          groups[k].forEach(function (it) { box.appendChild(entryRow(it, true)); });
           list.appendChild(box);
         });
       }

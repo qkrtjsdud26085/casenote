@@ -472,7 +472,30 @@
     fxs = window.__MOCK_STORE["personal/budget"].fixed; led = window.__MOCK_STORE[lk];
     ok("clear fixed expenses keeps income", fxs.length === 2 && fxs.every(function (f) { return f.kind === "수입"; }), JSON.stringify(fxs));
     ok("clear removes recorded fixed expenses only", led.items.filter(function (i) { return i.fixedId && i.type !== "수입"; }).length === 0 && led.items.some(function (i) { return i.fixedId && i.type === "수입"; }) && led.items.some(function (i) { return !i.fixedId; }), JSON.stringify(led.items));
-    await go("home");
+    /* layout: ledger sits under the fixed card in the left column */
+    ok("ledger under fixed card", $("#view .bud-col").contains($("#view .bud-sw")) && $("#view .bud-col").contains($("#view form.bud-form")) && !$("#view .bud-col").contains($("#view .bud-cal")));
+    /* ledger: select all / select delete */
+    var n0 = window.__MOCK_STORE[lk].items.length;
+    var sa = $("#view .bud-selall input"); sa.checked = true; change(sa); await sleep(40);
+    ok("ledger select all", $$("#view .bud-list .bud-pick").length === n0 && $$("#view .bud-list .bud-pick").every(function (c) { return c.checked; }) && /선택 삭제 \(/.test($("#view .bud-selbar .danger").textContent), $$("#view .bud-list .bud-pick").length + "/" + n0);
+    sa = $("#view .bud-selall input"); sa.checked = false; change(sa); await sleep(40);
+    ok("ledger select none", $$("#view .bud-list .bud-pick:checked").length === 0 && $("#view .bud-selbar .danger").disabled);
+    var p1 = $$("#view .bud-list .bud-pick")[0]; p1.checked = true; change(p1); await sleep(40);
+    realConfirm = window.confirm; window.confirm = function () { return true; };
+    $("#view .bud-selbar .danger").click(); await sleep(120);
+    ok("ledger select delete", window.__MOCK_STORE[lk].items.length === n0 - 1, window.__MOCK_STORE[lk].items.length + "/" + n0);
+    /* fixed: 선택 mode on the 고정수입 view */
+    $$("#view .bud-arr")[1].click(); await sleep(60);
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "선택"; })[0].click(); await sleep(40);
+    ok("fixed pick mode", $$("#view .bud-fixed .bud-pick").length === 2 && $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정수입 추가"; })[0].hidden);
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "전체 선택"; })[0].click(); await sleep(40);
+    ok("fixed pick all", $$("#view .bud-fixed .bud-pick:checked").length === 2 && $$("#view .tool-btn").some(function (b) { return b.textContent === "전체 해제"; }));
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "전체 해제"; })[0].click(); await sleep(40);
+    var fp = $("#view .bud-fixed .bud-pick"); fp.checked = true; change(fp); await sleep(40);
+    $$("#view .tool-btn").filter(function (b) { return /^선택 삭제/.test(b.textContent); })[0].click(); await sleep(120);
+    window.confirm = realConfirm;
+    ok("fixed pick delete", window.__MOCK_STORE["personal/budget"].fixed.length === 1 && !$("#view .bud-fixed .bud-pick"), JSON.stringify(window.__MOCK_STORE["personal/budget"].fixed));
+    $$("#view .bud-arr")[0].click(); await sleep(40);    await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
 
