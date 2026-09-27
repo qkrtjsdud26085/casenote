@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 44, ids.length);
+    ok("page count", ids.length === 43, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -99,19 +99,32 @@
     /* custom flows */
     await go("home");
     ok("home tiles", $$("#view .tile").length === 6, $$("#view .tile").length);
-    ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인,회사", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
-    ok("home quote", !!$("#view .quote-text") && $("#view .quote-text").textContent.length > 4 && /—/.test($("#view .quote-author").textContent), $("#view .quote-author") && $("#view .quote-author").textContent);
+    ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
+    ok("home quote", !!$(".quote-text") && $(".quote-text").textContent.length > 4 && /—/.test($(".quote-author").textContent), $(".quote-author") && $(".quote-author").textContent);
     ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
-    ok("home affiliation", /한국가이던스 대구점/.test($("#view .badges").textContent) && /범죄심리학과 석·박사 수료/.test($("#view .badges").textContent) && $$("#view .badge").length === 2);
+    ok("home affiliation", /한국가이던스 대구점/.test($(".badges").textContent) && /범죄심리학과 석·박사 수료/.test($(".badges").textContent) && $$(".badge").length === 2);
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 21, $$("#subnav a[data-page]").length);
-    ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 25, $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 5 && $$("#subnav > *").length === 7, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
+    await go("home");
+
+    await go("ias-home");
+    ok("ias empty notice", !!$("#view .ias-notice"));
+    await App.ias.importData({ docs: { meta: { stage: "분석", info: { title: "테스트 IAS" } }, items: { items: [{ id: "i1", no: 1, final: "문항", factor: "죄책감 유발", flag: "삭제 검토" }] }, bogus: { x: 1 } } });
+    await sleep(150);
+    ok("ias import fills", !$("#view .ias-notice") && $("#view .flow-chip.active") && $("#view .flow-chip.active").textContent === "분석");
+    await go("ias-items");
+    ok("ias items table", $$("#view .items-table tbody tr").length === 1 && /삭제 검토 1/.test($("#view .items-summary").textContent), $("#view .items-summary").textContent);
+    var iasExp = await App.ias.exportData();
+    ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
+    await go("thesis-home");
+    ok("thesis-home ias card", /진행 중 논문 · IAS/.test($("#view").textContent) && /분석/.test($("#view").textContent));
     await go("home");
 
     await go("personal-todos");
@@ -232,20 +245,6 @@
     ok("interest add", $$("#view .interest-chip").length === 1, $$("#view .interest-chip").length);
     ok("interest scholar link", /scholar\.google\.com/.test($("#view .interest-chip a").href));
 
-    await go("company-worklog");
-    var of = $("#view form.obs-import");
-    $("textarea", of).value = "## 9/16\n- [x] [[봉무초등학교]] 완료 항목\n- [ ] [[만촌초등학교]] 미완료 항목";
-    submit(of); await sleep(100);
-    ok("worklog import", $$("#view .obs-item").length === 2 && $$("#view .open-item").length === 1, $$("#view .obs-item").length + "/" + $$("#view .open-item").length);
-
-    await go("company-flow");
-    var ff = $("#view form.obs-import");
-    $("textarea", ff).value = "## 1. 유선 마케팅\n첫째 내용\n\n## 2. 주문 접수\n**둘째** 내용";
-    submit(ff); await sleep(100);
-    ok("flow import", $$("#view .flow-chip").length === 2, $$("#view .flow-chip").length);
-    $$("#view .flow-chip")[1].click(); await sleep(50);
-    ok("flow detail", /둘째/.test($("#view .flow-detail").textContent));
-
     /* google calendar (fake Google API responses) */
     var realFetch = window.fetch;
     var now = new Date();
@@ -289,8 +288,7 @@
     var selCat = $$("#view select").filter(function (s) { return /내 캘린더 분류/.test(s.getAttribute("aria-label") || ""); })[0];
     selCat.value = "회사"; change(selCat); await sleep(200);
     ok("gcal category saved", window.__MOCK_STORE["personal/gcal"].calendars[0].cat === "회사");
-    await go("company-pipeline"); await sleep(150);
-    ok("gcal shows in company upcoming", $$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+
     await go("thesis-writing"); await sleep(150);
     ok("gcal not in thesis upcoming", !$$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
     await go("home"); await sleep(150);
@@ -417,19 +415,28 @@
     ok("desk shows work + deadline", $$("#view .desk-work").length >= 1 && $$("#view .upcoming-item").some(function (r) { return /D-/.test(r.textContent); }));
     await App.doc("writer/works").set({ items: [] });
 
-    await go("company-billing");
-    var bf = $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0];
-    bf.click(); await sleep(40);
-    var bform = $("#view .item-form"); fillForm(bform); submit(bform); await sleep(80);
-    var checks = $$("#view .items-table .cell-check");
-    ok("billing checks", checks.length === 5, checks.length);
-    checks.forEach(function (c) { c.checked = true; change(c); });
-    await sleep(120);
-    ok("billing row done", $$("#view .items-table tr.done").length === 1, $$("#view .items-table tr.done").length);
-
+    await go("personal-budget"); await sleep(120);
+    var mk = App.budget.monthKey(new Date()), lk = "personal/ledger-" + mk;
+    var bform = $("#view form.bud-form");
+    setVal($("input.bud-money", bform), "12,500"); $$("input", bform).filter(function (i) { return /^내용/.test(i.placeholder); })[0].value = "점심"; submit(bform); await sleep(120);
+    var led = window.__MOCK_STORE[lk];
+    ok("budget entry saved", !!led && led.items.length === 1 && led.items[0].amount === 12500 && led.items[0].type === "지출", led && JSON.stringify(led.items));
+    ok("budget entry listed", $$("#view .bud-entry").some(function (r) { return /점심/.test(r.textContent) && /12,500원/.test(r.textContent); }));
+    ok("budget calendar amount", $$("#view .bud-cell.has").length === 1 && /1\.3만|1\.2만/.test($("#view .bud-cell.has").textContent), $("#view .bud-cell.has") && $("#view .bud-cell.has").textContent);
+    $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정지출 추가"; })[0].click(); await sleep(40);
+    var fx = $$("#view form.item-form").filter(function (f) { return !f.classList.contains("bud-form"); })[0];
+    var fxIn = $$("input", fx);
+    fxIn[0].value = "월세"; setVal(fxIn[1], "500000"); fxIn[2].value = "31"; submit(fx); await sleep(120);
+    ok("fixed saved", (window.__MOCK_STORE["personal/budget"].fixed || []).length === 1, JSON.stringify(window.__MOCK_STORE["personal/budget"]));
+    var fcb = $("#view .bud-fixed input[type=checkbox]"); fcb.checked = true; change(fcb); await sleep(120);
+    led = window.__MOCK_STORE[lk];
+    ok("fixed reflected in ledger", led.items.length === 2 && led.items.some(function (i) { return i.fixedId && i.amount === 500000 && i.date === App.budget.fixedDate(mk, 31); }), JSON.stringify(led.items));
+    ok("budget tiles", $$("#view .bud-tiles .tile").length === 6 && /512,500원/.test($("#view .bud-tiles").textContent), $("#view .bud-tiles").textContent);
+    fcb = $("#view .bud-fixed input[type=checkbox]"); fcb.checked = false; change(fcb); await sleep(120);
+    ok("fixed unreflected", window.__MOCK_STORE[lk].items.length === 1);
     await go("home");
     await sleep(80);
-    ok("home reflects data", /미완료/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
+    ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
 
     document.title = "SELFTEST DONE";
     out.textContent = JSON.stringify({ passed: results.ok.length, failed: results.fail, errors: results.errors }, null, 1);

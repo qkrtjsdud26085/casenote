@@ -128,6 +128,8 @@
         onData: function (src) { grad = src; drawReq(); }
       });
 
+      if (App.iasSummaryCard) { App.iasSummaryCard(g); }
+
       var b = ui.card(g, { tab: "Projects", tone: "t-2", title: "논문 프로젝트", wide: true });
       var TASKS = {}, watched = {}, ctl = null;
       function nextTask(p) {

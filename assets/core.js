@@ -92,6 +92,7 @@
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
+      { label: "IAS 척도 타당화", pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"] },
       { label: "논문 프로젝트", pages: ["proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit"] },
       { label: "문헌 · 자료", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
       { label: "지도 · 학술활동", pages: ["thesis-advisor", "thesis-publications"] },
@@ -105,8 +106,7 @@
       { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] },
       { pages: ["writer-submit"] }
     ] },
-    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-memos", "personal-habits", "personal-weekly"] },
-    { key: "company", short: "회사", label: "회사", pages: ["company-pipeline", "company-billing", "company-worklog", "company-flow", "company-snippets", "company-instructors"] }
+    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-todos", "personal-budget", "personal-memos", "personal-habits", "personal-weekly"] }
   ];
   App.MENU.forEach(function (g) {
     if (!g.groups) { g.groups = g.pages.map(function (p) { return { pages: [p] }; }); }
@@ -233,7 +233,7 @@
       out.addEventListener("click", function () { App.auth.signOut(); });
       box.appendChild(out);
     } else {
-      box.appendChild(el("p", "page-desc", "박사 논문 · 글쓰기 · 개인 일정 · 회사 업무를 한곳에서 관리하는 나만의 공간입니다."));
+      box.appendChild(el("p", "page-desc", "박사 논문 · 글쓰기 · 개인 일정 · 가계부를 한곳에서 관리하는 나만의 공간입니다."));
       var btn = el("button", "signin-btn"); btn.type = "button";
       btn.innerHTML = '<svg class="g-icon" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.7 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.5 29.5 4.5 24 4.5 12.7 4.5 3.5 13.7 3.5 25S12.7 45.5 24 45.5 44.5 36.3 44.5 25c0-1.6-.2-3.1-.4-4.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.9 29.5 4.5 24 4.5c-7.7 0-14.4 4.3-17.7 10.2z"/><path fill="#4CAF50" d="M24 45.5c5.4 0 10.3-1.8 14.1-5l-6.5-5.5C29.6 36.5 26.9 37.5 24 37.5c-5.3 0-9.8-3.3-11.4-8l-6.6 5.1C9.5 41 16.2 45.5 24 45.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.6-2.7 4.8-5 6.3l6.5 5.5C40.8 36.6 44.5 31.3 44.5 25c0-1.6-.2-3.1-.9-4.5z"/></svg>Google로 로그인';
       btn.addEventListener("click", function () {

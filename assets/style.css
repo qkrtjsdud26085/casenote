@@ -379,6 +379,71 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .stage-pill { font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-soft); }
 .stage-pill strong { color: var(--ink); margin-left: 4px; }
 
+/* ---------- personal: 가계부 ---------- */
+.bud-monthbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.bud-monthbar .grow { flex: 1 1 auto; }
+.bud-month { font-family: var(--font-display); font-size: 1.25rem; margin: 0 4px; font-variant-numeric: tabular-nums; }
+.bud-tiles { margin-top: 14px; }
+.bud-tiles .tile.inc .tile-value { color: var(--accent-2-strong); }
+.bud-tiles .tile.exp .tile-value, .bud-tiles .tile.over .tile-value { color: var(--accent-strong); }
+.bud-tiles .tile.fix { border-left: 3px solid var(--accent); }
+.bud-budget-row .prog-row { margin: 4px 0 0; }
+.prog-row.over .prog > span { background: var(--accent); }
+.bud-money { font-variant-numeric: tabular-nums; text-align: right; }
+.bud-amt { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.86rem; white-space: nowrap; }
+.bud-amt.inc { color: var(--accent-2-strong); }
+.bud-fixed-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.bud-fixed { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.bud-fixed:hover .icon-btn { opacity: 1; }
+.bud-fixed input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
+.bud-fixed.paid { background: color-mix(in srgb, var(--accent-2) 9%, var(--bg)); }
+.bud-fixed.paid .bud-fixed-name { color: var(--ink-soft); }
+.bud-day { flex-shrink: 0; font-family: var(--font-mono); font-size: 0.66rem; color: var(--accent-strong); background: var(--accent-ink); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.bud-fixed-main, .bud-entry-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bud-fixed-name, .bud-entry-memo { font-size: 0.88rem; font-weight: 600; word-break: break-word; }
+.bud-cal { gap: 3px; }
+.bud-cell { position: relative; justify-content: flex-start; gap: 1px; padding: 4px 4px 3px; min-height: 56px; }
+.bud-cell.has { background: color-mix(in srgb, var(--accent) calc(var(--heat, 0) * 1%), var(--bg)); }
+.bud-cell.future { opacity: 0.7; }
+.bud-cell.sel { background: var(--ink); color: var(--bg); opacity: 1; }
+.bud-cell-day { font-size: 0.72rem; }
+.bud-cell-amt { margin-top: auto; font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; line-height: 1.2; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bud-cell-inc { font-family: var(--font-mono); font-size: 0.58rem; color: var(--accent-2-strong); text-align: right; white-space: nowrap; overflow: hidden; }
+.bud-cell.sel .bud-cell-amt, .bud-cell.sel .bud-cell-inc { color: var(--bg); }
+.bud-cell-day + .bud-cell-inc { margin-top: auto; }
+.bud-stats { margin: 12px 0 14px; padding: 8px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); }
+.bud-form { position: relative; }
+.bud-form.editing { border-color: var(--accent); }
+.bud-type { flex-direction: row !important; gap: 8px; }
+.bud-type .chip { padding: 6px 18px; font-size: 0.8rem; }
+.bud-ftypes { margin-bottom: 0; }
+.bud-list { display: flex; flex-direction: column; gap: 14px; }
+.bud-group-head { display: flex; justify-content: space-between; gap: 10px; font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); padding-bottom: 4px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.bud-group.sel .bud-group-head { color: var(--accent-strong); border-bottom-color: var(--accent); }
+.bud-group-sum { font-variant-numeric: tabular-nums; white-space: pre; }
+.bud-entry { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 4px; }
+.bud-entry:hover { background: var(--bg); }
+.bud-entry:hover .icon-btn { opacity: 1; }
+.bud-entry.inc .bud-cat { background: var(--accent-2-ink); color: var(--accent-2-strong); border-color: color-mix(in srgb, var(--accent-2) 35%, transparent); }
+.bud-bars { display: flex; flex-direction: column; gap: 6px; }
+.bud-bar-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 10px; font: inherit; color: inherit; background: none; border: none; padding: 3px 4px; border-radius: 4px; text-align: left; width: 100%; }
+button.bud-bar-row { cursor: pointer; }
+button.bud-bar-row:hover { background: var(--bg); }
+.bud-bar-label { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bud-bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bud-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bud-bar-val { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 520px) {
+  .bud-tiles .tile { padding: 10px 11px; }
+  .bud-tiles .tile-value { font-size: 1.12rem; overflow-wrap: anywhere; }
+  .bud-cell { min-height: 46px; padding: 3px 2px; }
+  .bud-cell-amt { font-size: 0.58rem; }
+  .bud-cell-inc { display: none; }
+  .bud-bar-row { grid-template-columns: 72px minmax(0, 1fr); }
+  .bud-bar-val { grid-column: 2; }
+  .bud-fixed { flex-wrap: wrap; }
+}
+
 /* ---------- thesis projects ---------- */
 .proj-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; margin: 6px 0 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .proj-pick { display: flex; align-items: center; gap: 8px; }
@@ -476,3 +541,15 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .cv-hint p { margin: 0; }
 .cv-hint-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; pointer-events: auto; }
 @media (max-width: 720px) { .cv-status, .cv-zoombox { margin-left: 0; } .cv-view { height: 60vh; } }
+
+/* IAS 척도 타당화 */
+.ias-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 10px; margin-bottom: 10px; }
+.ias-tile { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--surface-2); min-width: 0; }
+.ias-tile .v { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
+.ias-tile .l { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.04em; color: var(--ink-soft); margin-top: 3px; }
+.ias-tile .n { font-size: 0.72rem; color: var(--ink-soft); margin-top: 5px; line-height: 1.45; }
+.ias-notice { border: 1px dashed var(--accent); border-radius: 6px; padding: 12px 14px; margin: 6px 0 18px; background: var(--surface); font-size: 0.85rem; line-height: 1.6; }
+.ias-import { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ias-import input[type=file] { max-width: 100%; font-size: 0.8rem; }
+details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin: 2px 0 10px; }.ias-items-card .items-table td:nth-child(1) { min-width: 220px; }
+.ias-items-card .items-table td:nth-child(3) { min-width: 200px; }
