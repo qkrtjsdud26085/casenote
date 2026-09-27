@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 41, ids.length);
+    ok("page count", ids.length === 46, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -89,7 +89,7 @@
       if (id === "home") { ok("home has no subnav", $("#subnav").hidden); }
       else {
         var act = $("#subnav a.active");
-        ok("subnav-active " + id, !!act && act.getAttribute("data-page") === id, act ? act.getAttribute("data-page") : "none");
+        ok("subnav-active " + id, !!act && act.getAttribute("data-page") === (App.pages[id].navParent || id), act ? act.getAttribute("data-page") : "none");
         ok("section-active " + id, !!$("#sections .active"), "no active section button");
       }
       if (id !== "home") { ok("head " + id, $("#pageHead .page-title") && $("#pageHead .page-title").textContent === App.pages[id].title, "title mismatch"); }
@@ -108,7 +108,7 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 25, $$("#subnav a[data-page]").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 27 && $$("#subnav a[data-link]").length === 1, $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 5 && $$("#subnav > *").length === 7, $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
@@ -124,7 +124,18 @@
     var iasExp = await App.ias.exportData();
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
-    ok("thesis-home ias card", /진행 중 논문 · IAS/.test($("#view").textContent) && /분석/.test($("#view").textContent));
+    ok("thesis-home ias card", /진행중 프로젝트 ① · IAS/.test($("#view").textContent) && /분석/.test($("#view").textContent) && /박사학위논문 · 비선형/.test($("#view").textContent));
+    ok("nav labels", /① IAS 척도 타당화/.test($("#subnav").textContent) && /② 비선형 공격성/.test($("#subnav").textContent) && !$("#subnav a[data-page='ias-items']"));
+    ok("alias link target", !!$("#subnav a[data-link]") && $("#subnav a[data-link]").getAttribute("href") === "#/diss-overview");
+    await go("ias-results");
+    ok("ias tabs", $$("#view .page-tab").length === 4 && $("#view .page-tab.active").textContent === "분석 결과" && $("#subnav a.active").getAttribute("data-page") === "ias-home");
+    await go("diss-overview");
+    ok("diss empty notice", !!$("#view .ias-notice") && $$("#view .page-tab").length === 5);
+    await App.diss.importData({ docs: { meta: { stage: "선행연구 · 변수 선정", info: { title: "테스트 박사" } }, schedule: { items: [{ id: "s1", task: "선행연구", start: "2026-09-01", end: "2027-01-31" }, { id: "s2", task: "델파이", start: "2027-08-01", end: "2028-02-01" }] }, flow: { items: [{ id: "f1", label: "연구 1" }, { id: "f2", label: "연구 2" }] } } });
+    await sleep(150);
+    ok("diss import fills", !$("#view .ias-notice") && $("#view .flow-chip.active") && $("#view .flow-chip.active").textContent === "선행연구 · 변수 선정" && $$("#view .diss-gantt-row").length === 2 && $$("#view .diss-flow").length === 2);
+    var dExp = await App.diss.exportData();
+    ok("diss export", dExp.docs.meta.info.title === "테스트 박사" && !dExp.docs.items);
     await go("home");
 
     /* 할 일 → Google Tasks (fake API) inside 일정 · 캘린더 */
@@ -141,6 +152,7 @@
       }
       return realFetchT.apply(window, arguments);
     };
+    App.gtasks.clearToken();  /* start disconnected even when the tab kept a token from an earlier run */
     await App.col("todos").add({ text: "예전 할 일", done: false, createdAt: "2026-01-01T00:00:00Z" });
     await go("personal-calendar"); await sleep(120);
     ok("menu: no 할 일/메모/습관", !$("#subnav a[data-page='personal-todos']") && !$("#subnav a[data-page='personal-memos']") && !$("#subnav a[data-page='personal-habits']") && !!$("#subnav a[data-page='personal-budget']"));
@@ -211,10 +223,15 @@
     }
     App.h.safeSet("hds_proj", "p1");
     await go("thesis-home");
-    ok("requirement default 0/2", /0\s*\/\s*2/.test($("#view .req-big").textContent), $("#view .req-big").textContent);
-    ok("two default projects", $$("#view .items-panel")[0].querySelectorAll(".item-card").length === 2, $$("#view .items-panel")[0].querySelectorAll(".item-card").length);
+    var reqCard = cardBy("졸업 요건");
+    ok("requirement defaults", $$(".item-card", reqCard).length === 6 && /논문 0\/2/.test($(".items-summary", reqCard).textContent) && /어학 점수/.test(reqCard.textContent), $(".items-summary", reqCard).textContent);
+    ok("requirement kind select", $$(".quick-add select option", reqCard).map(function (o) { return o.value; }).join(",") === App.proj.REQ_KINDS.join(","));
+    var reqCb = $(".item-card input[type=checkbox]", reqCard); reqCb.checked = true; change(reqCb); await sleep(120);
+    ok("requirement check saves", /논문 1\/2/.test($(".items-summary", cardBy("졸업 요건")).textContent), $(".items-summary", cardBy("졸업 요건")).textContent);
+    ok("page title 홈", $("#pageHead .page-title").textContent === "홈" && $("#subnav a.active").textContent === "홈");
+    ok("two default projects", $$(".item-card", cardBy("논문 프로젝트")).length === 2, $$(".item-card", cardBy("논문 프로젝트")).length);
     ok("stages by kind", App.proj.stagesFor({ kind: "실증 연구" }).length === 10 && App.proj.stagesFor({ kind: "척도 타당화" }).length === 11);
-    $$("#view .items-panel")[0].querySelector(".item-card .copy-btn").click(); await sleep(200);
+    $(".item-card .copy-btn", cardBy("논문 프로젝트")).click(); await sleep(200);
     ok("open project navigates", location.hash === "#/proj-overview" && $$("#view .proj-bar select option").length === 2, location.hash);
     ok("stepper chips", $$("#view .flow-chip").length === 11, $$("#view .flow-chip").length);
     ok("tasks grouped defaults", $$("#view .group-title").length >= 8, $$("#view .group-title").length);
@@ -227,7 +244,7 @@
     $$("#view .flow-chip").filter(function (b) { return b.textContent === "게재 확정"; })[0].click(); await sleep(200);
     ok("stage saved", P().list.filter(function (p) { return p.id === "p1"; })[0].stage === "게재 확정");
     await go("thesis-home");
-    ok("requirement counts accepted", /^1\s*\/\s*2/.test($("#view .req-big").textContent.trim()), $("#view .req-big").textContent);
+    ok("requirement shows accepted papers", /게재 확정 1편/.test(cardBy("졸업 요건").textContent), cardBy("졸업 요건").textContent.slice(-120));
     ok("global folders show project", /원자료/.test($("#view").textContent) && /학회지 논문 ①/.test($$("#view .card").filter(function (c) { return /논문 자료 폴더/.test(c.textContent); })[0].textContent));
     await go("proj-lit");
     var np = $(".items-panel", cardBy("문헌 노트 (이 프로젝트)"));

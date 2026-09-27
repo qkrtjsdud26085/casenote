@@ -76,9 +76,11 @@
 
         var tiles = el("div", "tiles");
         var plist0 = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
-        var need = Number(D.grad && D.grad.required) || 2;
-        var accepted = plist0.filter(App.proj.isAccepted).length;
-        tiles.appendChild(tile("졸업 요건 · 학회지 논문", accepted + " / " + need, accepted >= need ? "요건 충족 · 학위논문 단계로" : "게재 확정 기준", "thesis-home"));
+        var reqs = (D.grad && D.grad.items) ? D.grad.items : App.proj.REQ_DEFAULTS;
+        var reqDone = reqs.filter(function (x) { return x.done; }).length;
+        var reqLeft = reqs.filter(function (x) { return !x.done; }).map(function (x) { return x.kind || "기타"; })
+          .filter(function (k, i, a) { return a.indexOf(k) === i; });
+        tiles.appendChild(tile("졸업 요건", reqDone + " / " + reqs.length, reqLeft.length ? "남은 요건 · " + reqLeft.join(" · ") : "모든 요건 충족", "thesis-home"));
         var active = plist0.filter(function (p) { return p.type === "학회지 논문" && !App.proj.isAccepted(p); }).sort(function (a, b) { return App.proj.stagePct(b) - App.proj.stagePct(a); })[0];
         tiles.appendChild(tile("진행 중 논문", active ? App.proj.stagePct(active) + "%" : "—", active ? active.title + " · " + App.proj.stagesFor(active)[App.proj.stageIndex(active)] : "모든 논문 게재 확정", "proj-overview"));
         tiles.appendChild(tile("남은 할 일", String(openTodos.length), D.gtasks ? "Google 할 일 · 오늘까지 " + openTodos.filter(function (t) { return t.due && t.due <= today; }).length + "개" : "Google 할 일과 연결해 보세요", "personal-calendar"));
@@ -183,7 +185,7 @@
       App.watchDoc(App.doc("personal/gtasks"), function (d) { D.gtasks = d; draw(); });
       if (App.gtasks.token()) { App.gtasks.sync().catch(function () {}); }
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
-      [["projects", "research/projects"], ["grad", "research/grad"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
+      [["projects", "research/projects"], ["grad", "research/gradreqs"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
         ["works", "writer/works"], ["habits", "personal/habits"], ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["reco", "research/reco"], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }

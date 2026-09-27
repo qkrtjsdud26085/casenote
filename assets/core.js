@@ -92,11 +92,13 @@
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
-      { label: "IAS 척도 타당화", pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"] },
+      { label: "진행중 프로젝트", pages: ["ias-home", "ias-items", "ias-results", "ias-manuscript"],
+        links: [{ to: "diss-overview", label: "② 비선형 공격성 임계점 (SHAP · SMOTE)" }] },
+      { label: "박사학위논문", pages: ["diss-overview", "diss-design", "diss-analysis", "diss-lit", "diss-nrf",
+        "thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing"] },
       { label: "논문 프로젝트", pages: ["proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit"] },
       { label: "문헌 · 자료", pages: ["thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts"] },
       { label: "지도 · 학술활동", pages: ["thesis-advisor", "thesis-publications"] },
-      { label: "학위논문", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing"] },
       { pages: ["thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
@@ -147,10 +149,11 @@
     clear(subnavEl);
     if (!grp) { subnavEl.hidden = true; return; }
     subnavEl.hidden = false;
+    /* navHidden pages live inside their parent's in-page tabs; the parent stays highlighted */
     function link(pid, cls) {
       var p = App.pages[pid];
-      if (!p) { return null; }
-      var a = el("a", cls + (pid === page.id ? " active" : ""), p.title);
+      if (!p || p.navHidden) { return null; }
+      var a = el("a", cls + (pid === page.id || pid === page.navParent ? " active" : ""), p.navLabel || p.title);
       a.href = "#/" + pid; a.setAttribute("data-page", pid);
       if (pid === page.id) { a.setAttribute("aria-current", "page"); }
       return a;
@@ -165,6 +168,10 @@
       btn.type = "button"; btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
       var menu = el("div", "sub-menu");
       gr.pages.forEach(function (pid) { var a = link(pid, "sub-item"); if (a) { menu.appendChild(a); } });
+      (gr.links || []).forEach(function (l) {
+        var a = el("a", "sub-item", l.label); a.href = "#/" + l.to; a.setAttribute("data-link", l.to);
+        menu.appendChild(a);
+      });
       btn.addEventListener("click", function (e) {
         e.stopPropagation();
         var wasOpen = wrap.classList.contains("open");

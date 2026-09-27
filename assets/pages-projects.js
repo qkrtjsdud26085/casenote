@@ -1,4 +1,4 @@
-/* Hello dear Sunny — 박사 홈 + 논문 프로젝트 페이지 (학회지 논문 중심) */
+/* Hello dear Sunny — 박사 › 홈 + 논문 프로젝트 페이지 (학회지 논문 중심) */
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el, P = App.proj, TSTAT = App.TSTAT;
@@ -92,43 +92,56 @@
   }
 
   /* =========================================================
-     박사 홈
+     박사 › 홈
      ========================================================= */
+  P.REQ_KINDS = ["논문", "어학 점수", "자격증", "시험", "학점 · 이수", "행정 · 서류", "기타"];
+  P.REQ_DEFAULTS = [
+    { text: "학회지 논문 게재 확정 ①", kind: "논문", note: "KCI 등재(후보)지 · 게재 확정 증명서" },
+    { text: "학회지 논문 게재 확정 ②", kind: "논문", note: "KCI 등재(후보)지 · 게재 확정 증명서" },
+    { text: "외국어(영어) 요건 충족", kind: "어학 점수", note: "인정 시험 · 기준 점수는 학과 규정 확인" },
+    { text: "종합시험(논문제출자격시험) 통과", kind: "시험" },
+    { text: "수료 학점 이수", kind: "학점 · 이수" },
+    { text: "연구윤리교육 이수", kind: "학점 · 이수" }
+  ];
+  P.reqRef = function () { return R("gradreqs"); };
+
   App.page({
-    id: "thesis-home", title: "박사 홈",
-    desc: "졸업 요건(학회지 논문)부터 학위논문까지, 지금 무엇을 해야 하는지 한눈에 봅니다.",
+    id: "thesis-home", title: "홈",
+    desc: "졸업 요건부터 진행 중인 논문, 학위논문까지 지금 무엇을 해야 하는지 한눈에 봅니다.",
     render: function (view) {
       var g = ui.grid(view, true);
-      var grad = { required: 2 };
 
-      var a = ui.card(g, { tab: "Requirement", tone: "t-1", title: "졸업 요건 · 학회지 논문", wide: true });
-      var reqBox = el("div"); a.body.appendChild(reqBox);
-      var reqForm = el("div", "req-form"); a.body.appendChild(reqForm);
+      var a = ui.card(g, { tab: "Requirement", tone: "t-1", title: "졸업 요건", wide: true });
+      var paperHint = el("p", "hint");
       function drawReq() {
-        H.clear(reqBox);
-        var need = Number(grad.required) || 2;
-        var done = P.list.filter(P.isAccepted);
-        var papers = P.list.filter(function (p) { return p.type === "학회지 논문"; });
-        var big = el("div", "req-big");
-        big.appendChild(el("span", "req-num", String(done.length)));
-        big.appendChild(el("span", "req-of", " / " + need + "편"));
-        big.appendChild(el("span", "req-label", "게재 확정 이상"));
-        reqBox.appendChild(big);
-        reqBox.appendChild(ui.progress(Math.min(100, Math.round(done.length / need * 100)), "학회지 논문 " + done.length + "/" + need));
-        reqBox.appendChild(el("p", "hint", done.length >= need
-          ? "졸업 요건을 채웠어요. 이제 학위논문 단계로 넘어갈 수 있습니다 (학위논문 › 학위 로드맵)."
-          : "요건까지 " + (need - done.length) + "편 남았어요. 진행 중인 학회지 논문 " + papers.filter(function (p) { return !P.isAccepted(p); }).length + "편 · 학위논문은 요건 충족 후 본격 착수합니다."));
+        var done = P.list.filter(P.isAccepted).length;
+        var going = P.list.filter(function (p) { return p.type === "학회지 논문" && !P.isAccepted(p); }).length;
+        paperHint.textContent = "논문 프로젝트 기준 게재 확정 " + done + "편 · 진행 중 " + going + "편. 게재 확정 증명서를 받으면 해당 논문 요건을 체크하세요.";
       }
-      ui.fieldsPanel(reqForm, {
-        ref: R("grad"),
-        fields: [
-          { key: "required", label: "필요한 학회지 논문 편수", type: "number", placeholder: "2" },
-          { key: "rule", label: "게재 인정 기준 (학과 규정 메모)", type: "text", maxLength: 200, wide: true, placeholder: "예: 등재(후보)지 게재 확정 증명서 제출 가능" }
+      ui.itemsPanel(a.body, {
+        ref: P.reqRef(), defaults: P.REQ_DEFAULTS, fields: [
+          { key: "text", label: "요건", type: "text", title: true, required: true, maxLength: 140 },
+          { key: "kind", label: "종류", type: "select", options: P.REQ_KINDS, meta: true, col: true },
+          { key: "due", label: "목표일", type: "date", col: true },
+          { key: "note", label: "기준 · 점수 · 메모", type: "text", col: true, maxLength: 200, placeholder: "예: TOEIC 700 이상 / 증명서 제출" }
         ],
-        onData: function (src) { grad = src; drawReq(); }
+        checkKey: "done", dueKey: "due", quickFields: ["text", "kind", "due"], filters: ["kind"], views: ["cards", "table"],
+        empty: "졸업 요건을 추가하세요. 종류(논문 · 어학 점수 · 자격증 등)를 골라 넣을 수 있어요.",
+        hint: "기본 항목은 예시예요. 학과 규정에 맞게 추가 · 수정(✎) · 삭제(×)하고, 채운 요건은 체크하세요.",
+        summary: function (items) {
+          if (!items.length) { return null; }
+          var parts = P.REQ_KINDS.map(function (k) {
+            var of = items.filter(function (x) { return (x.kind || P.REQ_KINDS[0]) === k; });
+            return of.length ? k + " " + of.filter(function (x) { return x.done; }).length + "/" + of.length : "";
+          }).filter(Boolean);
+          return parts.join(" · ");
+        }
       });
+      a.body.appendChild(paperHint);
+      drawReq();
 
       if (App.iasSummaryCard) { App.iasSummaryCard(g); }
+      if (App.dissSummaryCard) { App.dissSummaryCard(g); }
 
       var b = ui.card(g, { tab: "Projects", tone: "t-2", title: "논문 프로젝트", wide: true });
       var TASKS = {}, watched = {}, ctl = null;
@@ -339,7 +352,7 @@
       var g = ui.grid(body, true);
       if (!C.isScale) {
         var n = ui.card(g, { tab: "Notice", tone: "t-3", title: "척도 논문용 페이지예요", wide: true });
-        n.body.appendChild(el("p", "hint", "이 프로젝트의 성격이 '" + (C.proj.kind || "기타") + "'라서 기본 화면에는 필요 없을 수 있어요. 박사 홈에서 프로젝트 성격을 '척도 타당화' 또는 '척도 개발'로 바꾸면 절차 템플릿이 그에 맞게 채워집니다. 문항표는 그대로 써도 돼요."));
+        n.body.appendChild(el("p", "hint", "이 프로젝트의 성격이 '" + (C.proj.kind || "기타") + "'라서 기본 화면에는 필요 없을 수 있어요. 박사 › 홈에서 프로젝트 성격을 '척도 타당화' 또는 '척도 개발'로 바꾸면 절차 템플릿이 그에 맞게 채워집니다. 문항표는 그대로 써도 돼요."));
       }
       var dev = C.proj.kind === "척도 개발";
       var st = ui.card(g, { tab: "Steps", tone: "t-1", title: dev ? "문항 개발 절차" : "번안 절차" });
@@ -570,7 +583,7 @@
       ui.itemsPanel(s.body, {
         ref: R("submissions"), scope: C.scope, views: ["cards", "table"], statusKey: "state", search: true, addLabel: "+ 투고 기록 추가", empty: "투고하면 여기에 기록하세요.",
         statusTones: { "준비 중": 0, "투고": 1, "심사 중": 1, "수정 요청": 2, "게재 확정": 2, "게재됨": 3, "반려": 0 },
-        hint: "상태를 '게재 확정'으로 바꾼 뒤, 프로젝트 개요의 진행 단계도 '게재 확정'으로 바꾸면 박사 홈의 졸업 요건 현황에 반영돼요.",
+        hint: "상태를 '게재 확정'으로 바꾼 뒤, 프로젝트 개요의 진행 단계도 '게재 확정'으로 바꾸면 졸업 요건 옆 게재 확정 편수에 반영돼요.",
         fields: SUBMISSION_FIELDS
       });
       var f = ui.card(g, { tab: "Reviews", tone: "t-3", title: "심사 · 지도 의견 대응표", wide: true });
