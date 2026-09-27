@@ -110,8 +110,12 @@
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
     ok("subnav count thesis", $$("#subnav a[data-page]").length === 30 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
-    var drop = $("#subnav .sub-drop"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
+    var drop = $("#subnav .sub-caret"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
+    var goLinks = $$("#subnav .sub-go");
+    ok("group labels go to first page", goLinks.length === 2 && goLinks[0].getAttribute("href") === "#/diss-overview" && goLinks[1].getAttribute("href") === "#/cert-list" && !$("#subnav .sub-group .sub-drop:not(.sub-go)").matches(".sub-go"), goLinks.map(function (a) { return a.getAttribute("href"); }).join(","));
+    goLinks[1].click(); await sleep(150);
+    ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[1].classList.contains("active"), location.hash);
     await go("home");
 
     await go("ias-home");
