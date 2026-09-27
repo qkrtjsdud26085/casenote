@@ -392,6 +392,15 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .bud-money { font-variant-numeric: tabular-nums; text-align: right; }
 .bud-amt { flex-shrink: 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.86rem; white-space: nowrap; }
 .bud-amt.inc { color: var(--accent-2-strong); }
+.bud-sw { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bud-sw h2 { margin: 0; }
+.bud-arr { font-family: var(--font-mono); font-size: 0.9rem; line-height: 1; width: 26px; height: 26px; padding: 0; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-soft); cursor: pointer; }
+.bud-arr:hover { color: var(--accent); border-color: var(--accent); }
+.bud-dots { display: inline-flex; gap: 2px; margin-left: 2px; }
+.bud-dot { width: 14px; height: 14px; padding: 4px; border: none; background: none; cursor: pointer; }
+.bud-dot::before { content: ""; display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.bud-dot.on::before { background: var(--ink); }
+.bud-inc-view .bud-day { background: var(--accent-2-ink); color: var(--accent-2-strong); }
 .bud-fixed-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .bud-fixed { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .bud-fixed:hover .icon-btn { opacity: 1; }

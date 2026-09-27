@@ -204,7 +204,7 @@
         if (recorded.length) { saveItems(state.items.filter(function (it) { return !gone[it.fixedId]; })); }
       });
       var fxBulk = el("form", "obs-import"); fxBulk.hidden = true;
-      fxBulk.appendChild(el("p", "hint", "한 줄에 하나씩 '항목명 금액 (결제일)'을 적거나, 표를 그대로 복사해 붙여넣으세요. 결제일을 안 적으면 1일로 들어가니 나중에 ✎로 고쳐 주세요. 같은 이름이 이미 있으면 금액만 바뀌어요."));
+      var fxBulkHint = el("p", "hint"); fxBulk.appendChild(fxBulkHint);
       var fxBulkTa = el("textarea"); fxBulkTa.rows = 7; fxBulkTa.placeholder = "월세 400,000원 25일\n통신비 30,000원 15일\n넷플릭스 17,000원";
       var fxBulkActs = el("div", "items-tools");
       var fxBulkGo = el("button", "btn", "추가"); fxBulkGo.type = "submit";
@@ -217,13 +217,17 @@
         e.preventDefault();
         var rows = parseFixed(fxBulkTa.value);
         if (!rows.length) { window.alert("'항목명 금액' 형식의 줄을 찾지 못했어요. 예: 월세 400,000원 25일"); return; }
+        var inc = state.fxView === "수입";
         var list = (state.settings.fixed || []).slice(), added = 0, updated = 0;
         rows.forEach(function (r) {
-          var hit = list.filter(function (f) { return f.name === r.name; })[0];
+          var hit = list.filter(function (f) { return f.name === r.name && isInc(f) === inc; })[0];
           if (hit) {
             var i = list.indexOf(hit);
             list[i] = Object.assign({}, hit, { amount: r.amount }, r.dayGiven ? { day: r.day } : {});
             updated++;
+          } else if (inc) {
+            list.push({ id: H.uid(), kind: "수입", name: r.name, amount: r.amount, day: r.dayGiven ? r.day : null, cat: /급여|월급|봉급|연봉/.test(r.name) ? "급여" : "부수입", method: "계좌이체", memo: "" });
+            added++;
           } else {
             list.push({ id: H.uid(), name: r.name, amount: r.amount, day: r.day, cat: r.cat, method: r.cat === "주거 · 관리비" ? "계좌이체" : "카드", memo: "" });
             added++;
@@ -231,7 +235,7 @@
         });
         saveSettings({ fixed: list });
         fxBulkTa.value = ""; fxBulk.hidden = true;
-        window.alert("고정지출 " + added + "개 추가" + (updated ? ", " + updated + "개 금액 수정" : "") + "했어요.");
+        window.alert("고정" + state.fxView + " " + added + "개 추가" + (updated ? ", " + updated + "개 금액 수정" : "") + "했어요.");
       });
       var fxForm = el("form", "item-form"); fxForm.hidden = true;
       var fxName = el("input"); fxName.placeholder = "예: 월세, 통신비, 넷플릭스"; fxName.maxLength = 40; fxName.required = true;
@@ -247,7 +251,31 @@
       var fxDayField = field("매월 결제일", fxDay), fxMethodField = field("결제수단", fxMethod);
       [field("항목명", fxName), field("금액", fxAmt), fxDayField, field("분류", fxCat), fxMethodField, field("메모", fxMemo, true), fxActs].forEach(function (n) { fxForm.appendChild(n); });
       var fxList = el("div", "plain-list bud-fixed-list");
-      [fxSum, fxTools, fxBulk, fxForm, fxList, el("p", "hint", "체크하면 이 달의 결제일에 지출로 기록되어 날짜별 지출 · 합계에 반영돼요. 결제일이 그 달에 없으면(예: 31일) 말일로 들어갑니다.")].forEach(function (n) { fixedCard.body.appendChild(n); });
+      var fxHint = el("p", "hint");
+      [fxSum, fxTools, fxBulk, fxForm, fxList, fxHint].forEach(function (n) { fixedCard.body.appendChild(n); });
+
+      /* ‹ › in the card title flips between 고정지출 and 고정수입; the last view is remembered */
+      state.fxView = H.safeGet("hds_bud_fx") === "수입" ? "수입" : "지출";
+      var fxTab = fixedCard.el.querySelector(".tab-label"), fxH2 = fixedCard.head.querySelector("h2");
+      var fxSw = el("div", "bud-sw");
+      var fxPrev = el("button", "bud-arr", "‹"), fxNext = el("button", "bud-arr", "›");
+      var fxDots = el("span", "bud-dots");
+      fixedCard.head.replaceChild(fxSw, fxH2);
+      [fxPrev, fxH2, fxNext, fxDots].forEach(function (n) { fxSw.appendChild(n); });
+      function setFxView(v) {
+        state.fxView = v; H.safeSet("hds_bud_fx", v);
+        fxForm.hidden = true; fxBulk.hidden = true; state.fixedEdit = null;
+        drawFixed();
+      }
+      [fxPrev, fxNext].forEach(function (b) {
+        b.type = "button";
+        b.addEventListener("click", function () { setFxView(state.fxView === "수입" ? "지출" : "수입"); });
+      });
+      ["지출", "수입"].forEach(function (v) {
+        var d = el("button", "bud-dot"); d.type = "button"; d.setAttribute("aria-label", "고정" + v + " 보기");
+        d.addEventListener("click", function () { setFxView(v); });
+        fxDots.appendChild(d);
+      });
 
       function openFixedForm(f, kind) {
         state.fixedEdit = f ? f.id : null;
@@ -282,34 +310,59 @@
       function fixedEntry(f) {
         return { id: H.uid(), date: entryDate(state.mk, f), type: isInc(f) ? "수입" : "지출", cat: f.cat || "기타", amount: Number(f.amount) || 0, method: f.method || "계좌이체", memo: f.name, fixedId: f.id, createdAt: new Date().toISOString() };
       }
-      fxAll.addEventListener("click", function () {
-        var todo = unpaidFixed(state.settings, state.items, state.mk);
-        if (!todo.length) { window.alert("이 달에 반영할 고정지출이 없습니다."); return; }
-        saveItems(state.items.concat(todo.map(fixedEntry)));
-      });
-      function drawFixed() {
-        /* income first, then expenses; within each by day with 미정 last */
-        var fixed = (state.settings.fixed || []).slice().sort(function (a, b) {
-          return (isInc(b) - isInc(a)) || ((Number(a.day) || 99) - (Number(b.day) || 99));
-        });
+      function paidMap() {
         var paid = {};
         state.items.forEach(function (it) { if (it.fixedId) { paid[it.fixedId] = it; } });
-        var expFixed = fixed.filter(function (f) { return !isInc(f); });
-        var total = expFixed.reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0);
-        var incTotal = fixed.reduce(function (s, f) { return s + (isInc(f) ? Number(f.amount) || 0 : 0); }, 0);
+        return paid;
+      }
+      fxAll.addEventListener("click", function () {
+        var inc = state.fxView === "수입", paid = paidMap();
+        var todo = (state.settings.fixed || []).filter(function (f) { return isInc(f) === inc && !paid[f.id]; });
+        if (!todo.length) { window.alert("이 달에 반영할 고정" + state.fxView + "이 없습니다."); return; }
+        saveItems(state.items.concat(todo.map(fixedEntry)));
+      });
+      function sumOf(list) { return list.reduce(function (s, f) { return s + (Number(f.amount) || 0); }, 0); }
+      function drawFixed() {
+        var incView = state.fxView === "수입";
+        fxH2.textContent = incView ? "고정수입" : "고정지출";
+        fxTab.textContent = incView ? "Income" : "Fixed";
+        fxTab.className = "tab-label " + (incView ? "t-2" : "t-1");
+        fixedCard.el.classList.toggle("bud-inc-view", incView);
+        fxPrev.setAttribute("aria-label", incView ? "고정지출 보기" : "고정수입 보기");
+        fxNext.setAttribute("aria-label", incView ? "고정지출 보기" : "고정수입 보기");
+        Array.prototype.forEach.call(fxDots.children, function (d, i) { d.classList.toggle("on", (i === 1) === incView); });
+        fxAdd.hidden = incView; fxAddInc.hidden = !incView;
+        fxBulkTa.placeholder = incView ? "월급 3,000,000원 10일\n학원 강사료 400,000원 13일\n연구지원금 1,580,000원" : "월세 400,000원 25일\n통신비 30,000원 15일\n넷플릭스 17,000원";
+        fxBulkHint.textContent = incView
+          ? "한 줄에 하나씩 '항목명 금액 (입금일)'을 적거나 표를 그대로 붙여넣으세요. 입금일을 안 적으면 '미정'으로 들어가요. 같은 이름이 이미 있으면 금액만 바뀌어요."
+          : "한 줄에 하나씩 '항목명 금액 (결제일)'을 적거나 표를 그대로 붙여넣으세요. 결제일을 안 적으면 1일로 들어가니 나중에 ✎로 고쳐 주세요. 같은 이름이 이미 있으면 금액만 바뀌어요.";
+        fxHint.textContent = incView
+          ? "체크하면 이 달의 입금일에 수입으로 기록돼요. 입금일이 미정이면 이번 달엔 오늘 날짜로 들어가요."
+          : "체크하면 이 달의 결제일에 지출로 기록되어 날짜별 지출 · 합계에 반영돼요. 결제일이 그 달에 없으면(예: 31일) 말일로 들어갑니다.";
+        var all = state.settings.fixed || [], paid = paidMap();
+        var expFixed = all.filter(function (f) { return !isInc(f); }), incFixed = all.filter(isInc);
+        /* by day, 미정 last */
+        var fixed = (incView ? incFixed : expFixed).slice().sort(function (a, b) { return (Number(a.day) || 99) - (Number(b.day) || 99); });
         var done = fixed.filter(function (f) { return paid[f.id]; }).length;
         fixedCard.count.textContent = fixed.length ? done + " / " + fixed.length + " 반영" : "";
         H.clear(fxSum);
         if (fixed.length) {
-          if (incTotal) { fxSum.appendChild(document.createTextNode("매월 수입 ")); fxSum.appendChild(el("strong", "", won(incTotal))); fxSum.appendChild(document.createTextNode(" · ")); }
-          fxSum.appendChild(document.createTextNode("매월 지출 "));
-          fxSum.appendChild(el("strong", "", won(total)));
+          fxSum.appendChild(document.createTextNode("매월 합계 "));
+          fxSum.appendChild(el("strong", "", won(sumOf(fixed))));
           fxSum.appendChild(document.createTextNode(" · " + Number(state.mk.slice(5)) + "월 반영 " + done + "/" + fixed.length));
+          if (incView) {
+            var left = sumOf(incFixed) - sumOf(expFixed);
+            fxSum.appendChild(document.createTextNode(" · 고정지출 빼고 남는 돈 "));
+            fxSum.appendChild(el("strong", "", (left < 0 ? "−" : "") + won(Math.abs(left))));
+          }
         }
-        fxAll.hidden = !expFixed.length || expFixed.every(function (f) { return paid[f.id]; });
-        fxClear.hidden = !expFixed.length;
+        fxAll.hidden = !fixed.length || done === fixed.length;
+        fxClear.hidden = incView || !expFixed.length;
         H.clear(fxList);
-        if (!fixed.length) { fxList.appendChild(ui.empty("월세 · 관리비 · 통신비 · 보험 · 구독료처럼 매달 나가는 돈, 월급처럼 매달 들어오는 돈을 등록해 두세요.")); return; }
+        if (!fixed.length) {
+          fxList.appendChild(ui.empty(incView ? "월급 · 강사료 · 연구지원금처럼 매달 들어오는 돈을 등록해 두세요." : "월세 · 관리비 · 통신비 · 보험 · 구독료처럼 매달 나가는 돈을 등록해 두세요."));
+          return;
+        }
         var curMonth = state.mk === monthKey(new Date());
         fixed.forEach(function (f) {
           var inc = isInc(f);
@@ -323,7 +376,7 @@
           row.appendChild(el("span", "bud-day", f.day ? "매월 " + f.day + "일" : (inc ? "입금일 미정" : "날짜 미정")));
           var main = el("span", "bud-fixed-main");
           main.appendChild(el("span", "bud-fixed-name", f.name));
-          main.appendChild(el("span", "mini-sub", [inc ? "고정수입" : "", f.cat, inc ? "" : f.method, f.memo].filter(Boolean).join(" · ")));
+          main.appendChild(el("span", "mini-sub", [f.cat, inc ? "" : f.method, f.memo].filter(Boolean).join(" · ")));
           row.appendChild(main);
           if (!paid[f.id] && curMonth && f.day) { row.appendChild(H.ddayEl(fixedDate(state.mk, f.day))); }
           row.appendChild(el("span", "bud-amt" + (inc ? " inc" : ""), (inc ? "+" : "") + won(f.amount)));

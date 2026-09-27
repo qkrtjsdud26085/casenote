@@ -447,6 +447,9 @@
     var fxs = window.__MOCK_STORE["personal/budget"].fixed;
     ok("bulk add (월세 dedup keeps 1)", fxs.length === 9 && fxs.filter(function (f) { return f.name === "월세"; })[0].amount === 400000, fxs.length);
     /* fixed income: day optional (미정) */
+    ok("fixed view starts on 지출", $("#view .bud-sw h2").textContent === "고정지출" && $$("#view .bud-fixed").length === 9 && $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정수입 추가"; })[0].hidden);
+    $$("#view .bud-arr")[1].click(); await sleep(60);
+    ok("arrow -> 고정수입 view", $("#view .bud-sw h2").textContent === "고정수입" && /Income/i.test($("#view .bud-sw").closest(".card").querySelector(".tab-label").textContent) && $$("#view .bud-fixed").length === 0 && $$("#view .bud-dot")[1].classList.contains("on"), $("#view .bud-sw h2").textContent);
     $$("#view .tool-btn").filter(function (b) { return b.textContent === "+ 고정수입 추가"; })[0].click(); await sleep(40);
     fx = $$("#view form.item-form").filter(function (f) { return !f.classList.contains("bud-form"); })[0]; fxIn = $$("input", fx);
     fxIn[0].value = "박사연구지원금"; setVal(fxIn[1], "1580000"); fxIn[2].value = ""; submit(fx); await sleep(120);
@@ -456,11 +459,12 @@
     fxs = window.__MOCK_STORE["personal/budget"].fixed;
     var incs = fxs.filter(function (f) { return f.kind === "수입"; });
     ok("fixed income saved", incs.length === 2 && incs.some(function (f) { return f.name === "박사연구지원금" && f.day === null && f.cat === "부수입"; }) && incs.some(function (f) { return f.day === 13; }), JSON.stringify(incs));
-    ok("fixed income listed first", /박사연구지원금|마테마타/.test($("#view .bud-fixed").textContent) && /입금일 미정/.test($("#view .bud-fixed-list").textContent), $("#view .bud-fixed-list").textContent);
+    ok("income view lists only income", $$("#view .bud-fixed").length === 2 && /입금일 미정/.test($("#view .bud-fixed-list").textContent) && /고정지출 빼고 남는 돈/.test($("#view .bud-sw").closest(".card").textContent), $("#view .bud-fixed-list").textContent);
     var icb = $$("#view .bud-fixed.inc input[type=checkbox]")[0]; icb.checked = true; change(icb); await sleep(120);
     led = window.__MOCK_STORE[lk];
     ok("fixed income reflected as 수입", led.items.some(function (i) { return i.fixedId && i.type === "수입"; }), JSON.stringify(led.items));
-    /* reflect all expenses, then clear them all — income stays */
+    $$("#view .bud-arr")[0].click(); await sleep(60);
+    ok("arrow back -> 고정지출 view", $("#view .bud-sw h2").textContent === "고정지출" && $$("#view .bud-fixed").length === 9 && !$("#view .bud-fixed.inc"), $$("#view .bud-fixed").length);    /* reflect all expenses, then clear them all — income stays */
     $$("#view .tool-btn").filter(function (b) { return b.textContent === "미반영 모두 이번 달에 반영"; })[0].click(); await sleep(120);
     var realConfirm = window.confirm; window.confirm = function () { return true; };
     $$("#view .tool-btn").filter(function (b) { return b.textContent === "고정지출 전체 삭제"; })[0].click(); await sleep(150);
