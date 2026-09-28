@@ -35,12 +35,16 @@
     var sync = el("button", "tool-btn", "Google 할 일 연결 · 동기화"); sync.type = "button";
     var migrate = el("button", "tool-btn", ""); migrate.type = "button"; migrate.hidden = true;
     tools.appendChild(sync); tools.appendChild(migrate);
-    var form = el("form", "quick-add");
-    var tIn = el("input"); tIn.placeholder = "할 일 입력 후 Enter → Google Tasks에 바로 저장"; tIn.maxLength = 200; tIn.required = true; tIn.setAttribute("aria-label", "할 일");
+    var form = el("form", "quick-add todo-form");
+    /* two-line box for the task; date · memo · 추가 share the next line (Enter adds, Shift+Enter breaks the line) */
+    var tIn = el("textarea", "todo-text"); tIn.rows = 2; tIn.placeholder = "할 일 입력 후 Enter → Google Tasks에 바로 저장"; tIn.maxLength = 200; tIn.required = true; tIn.setAttribute("aria-label", "할 일");
+    tIn.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true })); } });
     var dIn = el("input", "w-date"); dIn.type = "date"; dIn.setAttribute("aria-label", "기한 (선택)"); dIn.title = "기한 (선택)";
     var nIn = el("input"); nIn.placeholder = "메모 (선택)"; nIn.maxLength = 300; nIn.setAttribute("aria-label", "메모");
     var add = el("button", "btn", "추가"); add.type = "submit";
-    [tIn, dIn, nIn, add].forEach(function (n) { form.appendChild(n); });
+    var line2 = el("div", "todo-line2");
+    [dIn, nIn, add].forEach(function (n) { line2.appendChild(n); });
+    form.appendChild(tIn); form.appendChild(line2);
     var msg = el("p", "hint todo-msg");
     var list = el("div", "plain-list");
     var doneBox = el("details", "reco-settings todo-done"); var doneSum = el("summary"); var doneList = el("div", "plain-list");
@@ -115,33 +119,6 @@
   }
 
   /* =========================================================
-     메모 — one scratchpad that saves itself (Firestore personal/quicknote)
-     ========================================================= */
-  function memoCard(parent) {
-    var ref = App.doc("personal/quicknote");
-    var c = ui.card(parent, { tab: "Memo", tone: "t-3", title: "메모" });
-    c.el.classList.add("memo-card");
-    var ta = el("textarea", "quicknote"); ta.placeholder = "생각나는 걸 바로 적어 두세요. 자동으로 저장돼요."; ta.maxLength = 20000; ta.setAttribute("aria-label", "메모");
-    c.body.appendChild(ta);
-    var timer = null, dirty = false;
-    function save() {
-      dirty = false;
-      ref.set({ text: ta.value, updatedAt: new Date().toISOString() }, { merge: true })
-        .then(function () { c.count.textContent = "저장됨 " + H.fmtDateTime(new Date().toISOString()).slice(6); })
-        .catch(function (err) { c.count.textContent = "저장 실패"; window.alert("메모 저장 실패: " + err.message); });
-    }
-    ta.addEventListener("input", function () { dirty = true; c.count.textContent = "입력 중…"; clearTimeout(timer); timer = setTimeout(save, 700); });
-    ta.addEventListener("blur", function () { if (dirty) { clearTimeout(timer); save(); } });
-    App.unsubs.push(function () { if (dirty) { clearTimeout(timer); save(); } });  /* leaving the page flushes */
-    App.watchDoc(ref, function (d) {
-      /* never overwrite what is being typed */
-      if (document.activeElement === ta || dirty) { return; }
-      ta.value = (d && d.text) || "";
-      c.count.textContent = d && d.updatedAt ? "저장됨 " + H.fmtDateTime(d.updatedAt).slice(6) : "";
-    });
-  }
-
-  /* =========================================================
      개인 — 일정 · 캘린더
      ========================================================= */
   App.page({
@@ -152,18 +129,19 @@
       state.month.setDate(1);
       /* calendar on the left; to-do + memo on the right, never taller than the calendar */
       var top = el("div", "cal-top"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
-      right.appendChild(rightIn); top.appendChild(left); top.appendChild(right); view.appendChild(top);
+      right.appendChild(rightIn); top.appendChild(left); top.appendChild(right);
+      /* once a day: syncs by itself while the Google connection is alive; otherwise one button (Google needs a click to reconnect) */
+      var dayBar = el("div", "gsync-bar"); dayBar.hidden = true;
+      var dayBtn = el("button", "btn", "지금 동기화"); dayBtn.type = "button";
+      dayBar.appendChild(el("span", "", "오늘 Google 캘린더 · 할 일을 아직 가져오지 않았어요.")); dayBar.appendChild(dayBtn);
+      view.appendChild(dayBar); view.appendChild(top);
       var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
       todoCard(rightIn);
-      memoCard(rightIn);
       /* Google · Upcoming: small, side by side, folded until needed */
       var bottom = el("div", "cal-bottom"); view.appendChild(bottom);
       var gCard = ui.card(bottom, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동" });
-      var upCard = ui.card(bottom, { tab: "Upcoming", tone: "t-3", title: "다가오는 일정" });
-      gCard.el.classList.add("cal-mini"); upCard.el.classList.add("cal-mini");
-      ui.upcoming(upCard.body, "*", 10);
+      gCard.el.classList.add("cal-mini");
       foldable(gCard, "gcal", "Google 캘린더 연동");
-      foldable(upCard, "upcoming", "다가오는 일정");
 
       var filters = el("div", "archive-filters");
       var head = el("div", "cal-head");
@@ -400,8 +378,13 @@
             gMsg.textContent += " · 할 일 " + tasks.length + "개";
           } catch (terr) { gMsg.textContent += " · 할 일은 못 가져왔어요: " + App.gtasks.explain(terr); }
         } catch (err) { gMsg.textContent = App.gcal.explain(err); }
-        gBusy = false; gConnect.disabled = false; drawG();
+        gBusy = false; gConnect.disabled = false; drawG(); drawDayBar();
       }
+      function drawDayBar() {
+        var d = state.gdoc, synced = d && d.syncedAt && H.dateKey(new Date(d.syncedAt)) === H.todayStr();
+        dayBar.hidden = !!synced || gBusy;
+      }
+      dayBtn.addEventListener("click", runSync);
       gConnect.addEventListener("click", runSync);
       gClear.addEventListener("click", function () { App.gcal.clearToken(); gMsg.textContent = "이 브라우저의 연결 정보를 지웠어요. (동기화된 일정은 그대로 남아 있어요.)"; drawG(); });
 
@@ -409,7 +392,7 @@
       App.watchQuery(scheduleRef.orderBy("date", "asc"), function (items) { state.items = items; drawCal(); drawDay(); });
       App.watchDoc(App.doc("personal/gtasks"), function (d) { state.tasks = d; drawCal(); drawDay(); });
       App.watchDoc(App.doc("personal/gcal"), function (d) {
-        state.gdoc = d; drawCal(); drawDay(); drawG();
+        state.gdoc = d; drawCal(); drawDay(); drawG(); drawDayBar();
         if (!autoTried && App.gcal.token() && (!d || !d.syncedAt || Date.now() - new Date(d.syncedAt).getTime() > 300000)) { autoTried = true; runSync(); }
       });
     }

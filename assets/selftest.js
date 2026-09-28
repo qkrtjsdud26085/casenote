@@ -329,7 +329,7 @@
     var todoC = cardBy("할 일 · Google Tasks");
     ok("todo card in calendar", !!todoC && /연결 안 됨/.test(todoC.textContent) && /예전 할 일 1개/.test(todoC.textContent));
     var tf = $("form.quick-add", todoC);
-    setVal($("input", tf), "테스트 할 일"); $("input[type=date]", tf).value = "2026-10-01"; submit(tf); await sleep(250);
+    setVal($("textarea.todo-text", tf), "테스트 할 일"); $("input[type=date]", tf).value = "2026-10-01"; submit(tf); await sleep(250);
     ok("todo -> Google Tasks", gt.length === 1 && gt[0].title === "테스트 할 일" && gt[0].due === "2026-10-01T00:00:00.000Z", JSON.stringify(gt));
     ok("todo cache + list", window.__MOCK_STORE["personal/gtasks"].items.length === 1 && $$(".todo-item", cardBy("할 일 · Google Tasks")).length === 1 && /Google 연결됨/.test(cardBy("할 일 · Google Tasks").textContent));
     var tcb = $(".todo-item input[type=checkbox]", cardBy("할 일 · Google Tasks")); tcb.checked = true; change(tcb); await sleep(250);
@@ -359,14 +359,17 @@
     var dotCol = function (k) { return getComputedStyle($(".cal-dot[data-kind='" + k + "']", tc)).backgroundColor; };
     ok("dot colors differ", dotCol("event") !== dotCol("task") && dotCol("event") !== "rgba(0, 0, 0, 0)", dotCol("event") + " / " + dotCol("task"));
     ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
-    ok("no Day card; to-do + memo beside calendar", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && $("#view .cal-right").contains(cardBy("메모")) && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
+    ok("no Day card; to-do beside calendar, no memo/upcoming", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && !cardBy("메모") && !cardBy("다가오는 일정") && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
+    var tf = $("#view .todo-form");
+    ok("todo: 2-line box, date · memo · add on one line", tf.querySelector("textarea.todo-text").rows === 2 && $$(".todo-line2 > *", tf).length === 3 && (function () { var r = $$(".todo-line2 > *", tf).map(function (n) { var b = n.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.abs(r[0] - r[1]) < 3 && Math.abs(r[1] - r[2]) < 3; })());
+    ok("daily sync bar when not synced today", !$("#view .gsync-bar").hidden && /지금 동기화/.test($("#view .gsync-bar").textContent));
     var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
     ok("right column not taller than calendar", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
-    var qn = $("#view textarea.quicknote"); qn.focus(); setVal(qn, "장보기: 우유"); qn.blur(); await sleep(150);
-    ok("memo autosaves", window.__MOCK_STORE["personal/quicknote"] && window.__MOCK_STORE["personal/quicknote"].text === "장보기: 우유" && /저장됨/.test(cardBy("메모").textContent), JSON.stringify(window.__MOCK_STORE["personal/quicknote"]));
-    var gC = cardBy("Google 캘린더 연동"), uC = cardBy("다가오는 일정");
-    ok("google + upcoming share a row", gC.parentNode === uC.parentNode && gC.parentNode.classList.contains("cal-bottom") && gC.classList.contains("cal-mini") && (window.innerWidth <= 640 || Math.abs(gC.getBoundingClientRect().top - uC.getBoundingClientRect().top) < 2));
-    ok("google/upcoming folded", gC.classList.contains("folded") && $(".card-body", gC).hidden && uC.classList.contains("folded"));
+
+
+    var gC = cardBy("Google 캘린더 연동");
+    ok("google card in bottom row", gC.parentNode.classList.contains("cal-bottom") && gC.classList.contains("cal-mini"));
+    ok("google folded", gC.classList.contains("folded") && $(".card-body", gC).hidden);
     $(".fold-btn", gC).click(); await sleep(30);
     ok("fold opens + remembered", !$(".card-body", gC).hidden && App.h.safeGet("hds_fold_gcal") === "1");
     $(".fold-btn", gC).click(); await sleep(30);

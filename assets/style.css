@@ -891,3 +891,11 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .cardx-perf.met .prog-label { color: var(--accent-2); font-weight: 600; }
 .cardx-small { font-size: 0.74rem; color: var(--ink-soft); margin: 8px 0 0; line-height: 1.5; }
 .cardx-src { font-family: var(--font-mono); font-size: 0.64rem; color: var(--accent-2); }
+/* 할 일 입력: 두 줄 입력칸 + 날짜 · 메모 · 추가 한 줄 */
+.todo-form { flex-direction: column; flex-wrap: nowrap; }
+.todo-form .todo-text { width: 100%; resize: none; min-height: 3.4em; }
+.todo-line2 { display: flex; gap: 8px; align-items: center; }
+.todo-line2 input:not(.w-date) { flex: 1 1 auto; min-width: 0; }
+.todo-line2 .w-date { flex: 0 0 auto; }
+.cal-right-in > .todo-card { flex: 1 1 0; }
+.gsync-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 10px 14px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--surface); font-size: 0.86rem; }
