@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 61, ids.length);
+    ok("page count", ids.length === 62, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -478,6 +478,20 @@
     await go("thesis-refs");
     ok("scale text templates", $$("#view .card").some(function (c) { return /척도 타당화 결과 서술 문장/.test(c.textContent); }));
 
+    /* 카드 분석 */
+    var cmk = new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0"), cspend = {}; cspend[cmk] = { t1: 350000 };
+    await App.cardsImport({ cards: [{ id: "t1", name: "테스트 체크", type: "체크", perf: 300000, benefits: [{ area: "카페", rate: "10% 할인" }] }, { id: "t2", name: "테스트 신용", type: "신용", perf: 400000, benefits: [{ area: "카페", rate: "5% 적립" }] }], spend: cspend });
+    await go("personal-budget-cards"); await sleep(150);
+    ok("cards page", $$("#view .cardx").length === 2 && $$("#view .cardx-perf.met").length === 1 && /이번 달 합계 350,000원/.test($("#view .stat-row").textContent) && $("#subnav a.active").getAttribute("data-page") === "personal-budget" && $$(".bud-tab").length === 3, $("#view .stat-row") && $("#view .stat-row").textContent);
+    var cRow = $$("#view .cardx-table tr").filter(function (r) { return /^카페/.test(r.textContent) && r.children.length === 3 && /테스트 체크 10%/.test(r.textContent); })[0];
+    ok("cards best per area", !!cRow && cRow.children[1].textContent === "테스트 체크");
+    window.__MOCK_STORE["personal/ledger-" + cmk] = { items: [{ id: "L1", date: cmk + "-02", type: "지출", cat: "식비", amount: 120000, method: "테스트 신용", memo: "x" }, { id: "L2", date: cmk + "-03", type: "지출", cat: "식비", amount: 5000, method: "카드", memo: "y" }] };
+    await go("home"); await go("personal-budget-cards"); await sleep(200);
+    var t2card = $$("#view .cardx").filter(function (c) { return /테스트 신용/.test(c.querySelector("h2").textContent); })[0];
+    ok("card spend from ledger", !!t2card && /실적까지 280,000원/.test(t2card.textContent) && !!t2card.querySelector(".cardx-src"), t2card && t2card.textContent.slice(0, 200));
+    await go("personal-budget"); await sleep(200);
+    ok("ledger method lists my cards", $$("#view select[aria-label='결제수단'] option").map(function (o) { return o.value; }).indexOf("테스트 신용") !== -1);
+    delete window.__MOCK_STORE["personal/ledger-" + cmk]; delete window.__MOCK_STORE["personal/cards"];
     var recoFetch = window.fetch;
     window.fetch = function (url) {
       url = String(url);
@@ -736,7 +750,7 @@
     /* layout: ledger sits under the fixed card in the left column */
     var bcols = $$("#view .bud-col");
     ok("ledger left, calendar then fixed right", bcols[0].contains($("#view form.bud-form")) && !bcols[0].contains($("#view .bud-sw")) && bcols[1].contains($("#view .bud-cal")) && bcols[1].contains($("#view .bud-sw")) && (bcols[1].querySelector(".bud-cal").compareDocumentPosition(bcols[1].querySelector(".bud-sw")) & 4));
-    ok("budget head: tabs, no desc", !$("#pageHead .page-desc") && $$("#pageHead .bud-tab").length === 2 && /on/.test($("#pageHead .bud-tab").className));
+    ok("budget head: tabs, no desc", !$("#pageHead .page-desc") && $$("#pageHead .bud-tab").length === 3 && /on/.test($("#pageHead .bud-tab").className));
     /* 지출 filter hides fixed expenses; 고정지출 shows only them */
     var fixItem = { id: "fxT", date: App.budget.fixedDate(mk, 2), type: "지출", cat: "통신", amount: 30000, method: "카드", memo: "통신비", fixedId: "zzz" };
     await App.budget.ledgerRef(mk).set({ items: window.__MOCK_STORE[lk].items.concat([fixItem]) }, { merge: true }); await sleep(120);

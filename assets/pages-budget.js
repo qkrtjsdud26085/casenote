@@ -170,6 +170,29 @@
   }
   App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat, cleanMerchant: cleanMerchant, merchantKey: merchantKey, ruleCat: ruleCat };
 
+  /* my cards (personal/cards) are extra payment methods, so each expense can name the card used */
+  var MY_CARDS = [];
+  function cardNames() { return MY_CARDS.map(function (c) { return c.name; }); }
+  /* with my cards registered, the generic "카드" gives way to the card names */
+  function methodList() { return MY_CARDS.length ? METHODS.filter(function (m) { return m !== "카드"; }).concat(cardNames()) : METHODS; }
+  function defaultMethod() { return MY_CARDS.length ? MY_CARDS[0].name : "카드"; }
+  /* old entries may still say "카드": keep that value selectable when editing them */
+  function setValue(sel, v) {
+    if (v && !Array.prototype.some.call(sel.options, function (o) { return o.value === v; })) { var op = el("option", "", v); op.value = v; sel.appendChild(op); }
+    sel.value = v;
+  }
+  function setOptions(sel, options) {
+    var v = sel.value; H.clear(sel);
+    options.concat(v && options.indexOf(v) === -1 ? [v] : []).forEach(function (o) { var op = el("option", "", o); op.value = o; sel.appendChild(op); });
+    sel.value = v;
+  }
+  /* 카드 결제 알림의 카드사(예: 현대카드(1234)) → 내 카드 이름 */
+  function cardForSource(src) {
+    var word = String(src || "").replace(/\(.*$/, "").replace(/카드$/, "").replace(/체크$/, "");
+    if (!word) { return ""; }
+    var hit = MY_CARDS.filter(function (c) { return (c.issuer + " " + c.name).indexOf(word) !== -1; });
+    return hit.length === 1 ? hit[0].name : "";
+  }
   function select(options, value, label) {
     var s = el("select"); if (label) { s.setAttribute("aria-label", label); }
     options.forEach(function (o) { var op = el("option", "", o); op.value = o; s.appendChild(op); });
@@ -197,7 +220,7 @@
     if (!h1) { return; }
     head.classList.add("has-tabs");
     var nav = el("nav", "bud-tabs"); nav.setAttribute("aria-label", "가계부 보기");
-    [["personal-budget", "가계부"], ["personal-budget-report", "월별 리포트"]].forEach(function (t) {
+    [["personal-budget", "가계부"], ["personal-budget-report", "월별 리포트"], ["personal-budget-cards", "카드 분석"]].forEach(function (t) {
       var a = el("a", "bud-tab" + (t[0] === active ? " on" : ""), t[1]); a.href = "#/" + t[0];
       if (t[0] === active) { a.setAttribute("aria-current", "page"); }
       nav.appendChild(a);
@@ -427,7 +450,7 @@
         fxDay.required = !inc; fxMethodField.hidden = inc;
         fxName.placeholder = inc ? "예: 월급, 연구지원금, 학원 강사료" : "예: 월세, 통신비, 넷플릭스";
         fxName.value = f ? f.name : ""; fxAmt.value = f ? Number(f.amount).toLocaleString("ko-KR") : ""; fxDay.value = f && f.day ? f.day : "";
-        fxCat.value = f ? f.cat : (inc ? "부수입" : "주거 · 관리비"); fxMethod.value = f ? (f.method || "계좌이체") : "계좌이체"; fxMemo.value = f ? (f.memo || "") : "";
+        fxCat.value = f ? f.cat : (inc ? "부수입" : "주거 · 관리비"); setValue(fxMethod, f ? (f.method || "계좌이체") : "계좌이체"); fxMemo.value = f ? (f.memo || "") : "";
         fxSave.textContent = f ? "수정 저장" : (inc ? "고정수입 저장" : "저장");
         fxForm.hidden = false; fxName.focus();
       }
@@ -619,6 +642,12 @@
       var cancelBtn = el("button", "btn ghost", "수정 취소"); cancelBtn.type = "button"; cancelBtn.hidden = true;
       acts.appendChild(saveBtn); acts.appendChild(cancelBtn);
       var methodField = field("결제수단", methodEl);
+      App.watchDoc(App.doc("personal/cards"), function (d) {
+        MY_CARDS = (d && d.cards) || [];
+        if (methodEl.value === "카드" && !state.editId) { methodEl.value = ""; }
+        setOptions(methodEl, methodList()); setOptions(fxMethod, methodList());
+        if (!methodEl.value) { methodEl.value = defaultMethod(); }
+      });
       [typeWrap, field("날짜", dateEl), field("분류", catEl), field("금액 (원)", amtEl), methodField, field("내용 · 메모", memoEl, true), acts].forEach(function (n) { form.appendChild(n); });
 
       var filt = el("div", "items-tools");
@@ -657,7 +686,7 @@
         var cur = catEl.value; H.clear(catEl);
         (t === "수입" ? INC_CATS : EXP_CATS).forEach(function (c) { var o = el("option", "", c); o.value = c; catEl.appendChild(o); });
         if (keepCat && (t === "수입" ? INC_CATS : EXP_CATS).indexOf(cur) !== -1) { catEl.value = cur; }
-        methodEl.value = t === "수입" ? "계좌이체" : "카드";
+        methodEl.value = t === "수입" ? "계좌이체" : defaultMethod();
       }
       tExp.addEventListener("click", function () { setType("지출"); });
       tInc.addEventListener("click", function () { setType("수입"); });
@@ -667,7 +696,7 @@
       }
       function startEdit(it) {
         state.editId = it.id; setType(it.type || "지출");
-        dateEl.value = it.date; catEl.value = it.cat; amtEl.value = Number(it.amount).toLocaleString("ko-KR"); methodEl.value = it.method || METHODS[0]; memoEl.value = it.memo || "";
+        dateEl.value = it.date; catEl.value = it.cat; amtEl.value = Number(it.amount).toLocaleString("ko-KR"); setValue(methodEl, it.method || defaultMethod()); memoEl.value = it.memo || "";
         saveBtn.textContent = "수정 저장"; cancelBtn.hidden = false; form.classList.add("editing");
         form.scrollIntoView({ behavior: "smooth", block: "center" }); amtEl.focus();
       }
@@ -887,7 +916,7 @@
       function inboxItem(g) {
         var name = String(g.name || "").trim() || g.p.merchant;
         rememberMerchant(g.p.merchant, name, g.cat, g.p.type);
-        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: g.p.method, memo: name, rawm: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
+        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: (g.p.method === "카드" && cardForSource(g.p.source)) || g.p.method, memo: name, rawm: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
       }
       /* 확실한 알림은 자동 추가: remembered merchants or a word-rule match, expenses only.
          Runs only once the settings and this month's ledger have both loaded, so nothing is overwritten. */
@@ -1212,6 +1241,145 @@
       }
       window.addEventListener("resize", onResize);
       App.unsubs.push(function () { window.removeEventListener("resize", onResize); });
+    }
+  });
+
+  /* =========================================================
+     개인 — 카드 분석 (내 카드 혜택 · 전월실적, personal/cards)
+     카드 목록과 혜택은 공개 저장소 코드가 아니라 Firestore에만 둡니다(JSON 불러오기).
+     ========================================================= */
+  function rateOf(b) { var m = /(\d+(?:\.\d+)?)\s*%/.exec(b.rate || ""); return m ? Number(m[1]) : 0; }
+  App.cardsImport = function (data) {
+    if (!data || !Array.isArray(data.cards)) { return Promise.reject(new Error("cards 목록이 없어요.")); }
+    var cards = data.cards.filter(function (c) { return c && c.name; }).map(function (c) {
+      return {
+        id: String(c.id || H.uid()), name: String(c.name).slice(0, 60), issuer: String(c.issuer || "").slice(0, 40), type: c.type === "신용" ? "신용" : "체크",
+        fee: String(c.fee || "").slice(0, 60), perf: num(c.perf), perfNote: String(c.perfNote || "").slice(0, 300),
+        tiers: (Array.isArray(c.tiers) ? c.tiers : []).map(function (t) { return { min: num(t.min), limit: String(t.limit || "").slice(0, 60) }; }),
+        benefits: (Array.isArray(c.benefits) ? c.benefits : []).map(function (b) {
+          return { area: String(b.area || "").slice(0, 40), what: String(b.what || "").slice(0, 120), rate: String(b.rate || "").slice(0, 40), limit: String(b.limit || "").slice(0, 60) };
+        }),
+        excludes: String(c.excludes || "").slice(0, 300), note: String(c.note || "").slice(0, 300),
+        source: H.safeUrl(c.source || ""), checked: String(c.checked || "").slice(0, 10)
+      };
+    });
+    var doc = { cards: cards };
+    if (data.spend && typeof data.spend === "object") { doc.spend = data.spend; }
+    return App.setDoc(App.doc("personal/cards"), doc);
+  };
+  App.page({
+    id: "personal-budget-cards", title: "카드 분석",
+    navHidden: true, navParent: "personal-budget",
+    render: function (view) {
+      headTabs("personal-budget-cards");
+      var ref = App.doc("personal/cards"), DATA = null;
+      var mk = monthKey(new Date()), prev = shiftMonth(mk, -1);
+      var sum = ui.card(view, { tab: "Cards", tone: "t-2", title: "이번 달 카드 사용", wide: true });
+      var grid = ui.grid(view, true);
+      var best = ui.card(view, { tab: "Where", tone: "t-1", title: "어디에 어떤 카드", wide: true });
+      var io = ui.card(view, { tab: "Data", tone: "t-3", title: "카드 자료 불러오기 · 백업", wide: true });
+      var fileIn = el("input"); fileIn.type = "file"; fileIn.accept = ".json,application/json";
+      var expBtn = el("button", "tool-btn", "JSON 내보내기"); expBtn.type = "button";
+      var ioRow = el("div", "ias-import"); ioRow.appendChild(fileIn); ioRow.appendChild(expBtn); io.body.appendChild(ioRow);
+      fileIn.addEventListener("change", function () {
+        var f = fileIn.files[0]; if (!f) { return; }
+        f.text().then(function (t) { return App.cardsImport(JSON.parse(t)); }).catch(function (e) { window.alert("불러오지 못했어요: " + e.message); });
+        fileIn.value = "";
+      });
+      expBtn.addEventListener("click", function () {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(DATA || { cards: [] }, null, 2)], { type: "application/json" }));
+        a.download = "카드분석_자료.json"; a.click();
+      });
+
+      var LEDGER = {};
+      [prev, mk].forEach(function (m) { App.watchDoc(ledgerRef(m), function (d) { LEDGER[m] = (d && d.items) || []; draw(); }); });
+      function ledgerSum(month, c) {
+        return (LEDGER[month] || []).reduce(function (a, it) { return a + (it.type !== "수입" && it.method === c.name ? Number(it.amount) || 0 : 0); }, 0);
+      }
+      /* a typed amount wins; otherwise the ledger entries paid with this card */
+      function manualOf(month, id) { var m = ((DATA && DATA.spend) || {})[month]; return m && m[id] != null && m[id] !== "" ? num(m[id]) : null; }
+      function spentOf(month, id) {
+        var man = manualOf(month, id); if (man !== null && man > 0) { return man; }
+        var c = ((DATA && DATA.cards) || []).filter(function (x) { return x.id === id; })[0];
+        return c ? ledgerSum(month, c) : 0;
+      }
+      function saveSpend(month, id, v) { var p = {}; p[month] = {}; p[month][id] = v; App.setDoc(ref, { spend: p }); }
+      function perfRow(parent, c, month, label) {
+        var v = spentOf(month, c.id), pct = c.perf ? Math.min(100, Math.round(v / c.perf * 100)) : 100;
+        var row = el("div", "cardx-perf" + (c.perf && v >= c.perf ? " met" : ""));
+        var head = el("div", "cardx-perf-head");
+        head.appendChild(el("span", "cardx-perf-label", label));
+        var man = manualOf(month, c.id), fromLedger = !(man !== null && man > 0);
+        var inp = el("input", "w-sm"); inp.inputMode = "numeric"; inp.value = fromLedger ? "" : man.toLocaleString("ko-KR"); inp.placeholder = fromLedger ? (v ? v.toLocaleString("ko-KR") : "사용액") : "사용액";
+        if (fromLedger && v) { head.appendChild(el("span", "cardx-src", "가계부")); }
+        inp.setAttribute("aria-label", c.name + " " + label + " 사용액");
+        inp.addEventListener("change", function () { saveSpend(month, c.id, num(inp.value)); });
+        head.appendChild(inp); head.appendChild(el("span", "", "원"));
+        row.appendChild(head);
+        row.appendChild(ui.progress(pct, c.perf ? (v >= c.perf ? "실적 달성" : "실적까지 " + won(c.perf - v)) : "실적 조건 없음"));
+        parent.appendChild(row);
+      }
+      function draw() {
+        if (!sum) { return; }
+        var cards = (DATA && DATA.cards) || [];
+        H.clear(sum.body); H.clear(grid); H.clear(best.body);
+        if (!cards.length) { sum.body.appendChild(ui.empty("카드 자료가 없어요. 아래에서 JSON 파일을 불러오세요.")); return; }
+        var total = 0; cards.forEach(function (c) { total += spentOf(mk, c.id); });
+        var st = el("div", "stat-row");
+        [["이번 달 합계 ", won(total)], ["카드 ", cards.length + "장"], ["실적 달성 ", cards.filter(function (c) { return !c.perf || spentOf(mk, c.id) >= c.perf; }).length + "장"]].forEach(function (x) {
+          var sp = el("span"); sp.appendChild(document.createTextNode(x[0])); sp.appendChild(el("strong", "", x[1])); st.appendChild(sp);
+        });
+        sum.body.appendChild(st);
+        cards.forEach(function (c) {
+          var k = ui.card(grid, { tab: c.type, tone: c.type === "신용" ? "t-1" : "t-2", title: c.name });
+          k.el.classList.add("cardx");
+          k.count.textContent = [c.issuer, c.fee ? "연회비 " + c.fee : ""].filter(Boolean).join(" · ");
+          var perf = el("div", "cardx-cond");
+          perf.appendChild(el("strong", "", c.perf ? "전월실적 " + won(c.perf) + " 이상" : "전월실적 없음"));
+          if (c.perfNote) { perf.appendChild(el("span", "", " · " + c.perfNote)); }
+          k.body.appendChild(perf);
+          if (c.tiers.length) {
+            var tr = el("div", "cardx-tiers");
+            c.tiers.forEach(function (t) { tr.appendChild(el("span", "cardx-tier", shortWon(t.min) + "↑ " + t.limit)); });
+            k.body.appendChild(tr);
+          }
+          perfRow(k.body, c, prev, Number(prev.slice(5)) + "월 사용 → 이번 달 혜택");
+          perfRow(k.body, c, mk, Number(mk.slice(5)) + "월 사용 → 다음 달 혜택");
+          var wrap = el("div", "table-wrap"), t = el("table", "items-table cardx-table"); wrap.appendChild(t);
+          var hr = el("tr"); ["영역", "혜택", "한도"].forEach(function (h) { hr.appendChild(el("th", "", h)); }); t.appendChild(hr);
+          c.benefits.forEach(function (b) {
+            var r = el("tr");
+            r.appendChild(el("td", "narrow", b.area));
+            r.appendChild(el("td", "", [b.rate, b.what].filter(Boolean).join(" · ")));
+            r.appendChild(el("td", "narrow", b.limit || "–"));
+            t.appendChild(r);
+          });
+          k.body.appendChild(wrap);
+          if (c.excludes) { k.body.appendChild(el("p", "cardx-small", "실적 제외: " + c.excludes)); }
+          if (c.note) { k.body.appendChild(el("p", "cardx-small", c.note)); }
+          if (c.source) {
+            var src = el("p", "cardx-small"), a = el("a", "", "혜택 출처"); a.href = c.source; a.target = "_blank"; a.rel = "noopener noreferrer";
+            src.appendChild(a); if (c.checked) { src.appendChild(document.createTextNode(" · " + c.checked + " 확인")); }
+            k.body.appendChild(src);
+          }
+        });
+        /* best card per area: highest % first */
+        var areas = {};
+        cards.forEach(function (c) { c.benefits.forEach(function (b) { if (b.area) { (areas[b.area] = areas[b.area] || []).push({ c: c, b: b }); } }); });
+        var wrap2 = el("div", "table-wrap"), t2 = el("table", "items-table cardx-table"); wrap2.appendChild(t2);
+        var h2 = el("tr"); ["영역", "추천 카드", "혜택 비교"].forEach(function (h) { h2.appendChild(el("th", "", h)); }); t2.appendChild(h2);
+        Object.keys(areas).sort(function (a, b) { return a.localeCompare(b, "ko"); }).forEach(function (area) {
+          var list = areas[area].sort(function (x, y) { return rateOf(y.b) - rateOf(x.b); });
+          var r = el("tr");
+          r.appendChild(el("td", "narrow", area));
+          r.appendChild(el("td", "narrow", list[0].c.name));
+          r.appendChild(el("td", "", list.map(function (x) { return x.c.name + " " + x.b.rate; }).join(" / ")));
+          t2.appendChild(r);
+        });
+        best.body.appendChild(wrap2);
+      }
+      App.watchDoc(ref, function (d) { DATA = d; draw(); });
     }
   });
 })(window.App);
