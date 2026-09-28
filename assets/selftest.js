@@ -236,7 +236,10 @@
     ok("crime info page", !!cardBy("자격 정보") && !!cardBy("자격증 파일") && !!cardBy("자료 불러오기 · 백업") && !$("#view .card .hint"));
     var fvIn = $("input[type=file]", cardBy("자격증 파일")), dt = new DataTransfer();
     dt.items.add(new File([new Uint8Array([137, 80, 78, 71, 1, 2, 3])], "자격증.png", { type: "image/png" }));
-    fvIn.files = dt.files; change(fvIn); await sleep(400);
+    fvIn.files = dt.files; change(fvIn);
+    /* reading the file is async: wait for the saved list instead of a fixed delay */
+    for (var fvWait = 0; fvWait < 40 && !(window.__MOCK_STORE["research/crime_certfiles"] && window.__MOCK_STORE["research/crime_certfiles"].items.length); fvWait++) { await sleep(100); }
+    await sleep(150);
     var fvDoc = window.__MOCK_STORE["research/crime_certfiles"];
     ok("file upload", !!fvDoc && fvDoc.items.length === 1 && fvDoc.items[0].name === "자격증.png" && !!window.__MOCK_STORE["research/file_" + fvDoc.items[0].id + "_0"] && $$(".fv-item", cardBy("자격증 파일")).length === 1, JSON.stringify(fvDoc));
     var fvId = fvDoc.items[0].id;
@@ -741,10 +744,42 @@
     var nBefore = window.__MOCK_STORE[lk].items.length;
     $$("#view .bud-inbox .btn").filter(function (b) { return /^모두 추가/.test(b.textContent); })[0].click(); await sleep(200);
     var ledNow = window.__MOCK_STORE[lk].items;
-    ok("inbox add all", ledNow.length === nBefore + 2 && ledNow.some(function (i) { return i.memo === "메가MGC커피" && i.amount === 8900 && i.cat === "카페 · 간식" && /^noti:/.test(i.src); }) && ledNow.some(function (i) { return i.type === "수입" && i.amount === 400000; }), JSON.stringify(ledNow.slice(-2)));
+    ok("inbox add all", ledNow.length === nBefore + 2 && ledNow.some(function (i) { return i.memo === "메가커피" && i.rawm === "메가MGC커피" && i.amount === 8900 && i.cat === "카페 · 간식" && /^noti:/.test(i.src); }) && ledNow.some(function (i) { return i.type === "수입" && i.amount === 400000; }), JSON.stringify(ledNow.slice(-2)));
     ok("inbox leaves unreadable only", Object.keys(window.__MOCK_STORE).filter(function (k) { return k.indexOf("budgetInbox/") === 0; }).length === 1 && $$("#view .bud-noti").length === 1);
     $("#view .bud-noti .icon-btn").click(); await sleep(120);
-    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));    /* 월별 리포트 */
+    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));
+    /* merchant clean-up, rules, memory, auto-add, raw text */
+    var BG = App.budget;
+    ok("clean merchant names", BG.cleanMerchant("메가MGC커피") === "메가커피" && BG.cleanMerchant("(주)우아한형제들") === "배달의민족" && BG.cleanMerchant("KG이니시스 코리아세븐") === "세븐일레븐" && BG.cleanMerchant("주식회사 비바리퍼블리카") === "토스" && BG.cleanMerchant("나이스페이먼츠") === "나이스페이먼츠" && BG.merchantKey("메가 MGC-커피") === "메가mgc커피",
+      [BG.cleanMerchant("메가MGC커피"), BG.cleanMerchant("(주)우아한형제들"), BG.cleanMerchant("KG이니시스 코리아세븐"), BG.cleanMerchant("주식회사 비바리퍼블리카")].join(" / "));
+    ok("word rules: 관리비 before 통신", BG.ruleCat("케이티텔레캅") === "주거 · 관리비" && BG.ruleCat("KT 통신요금") === "통신" && BG.ruleCat("김밥천국") === "식비" && BG.ruleCat("넷플릭스") === "구독" && BG.ruleCat("삼성화재") === "보험" && BG.ruleCat("정형외과의원") === "의료 · 건강",
+      [BG.ruleCat("케이티텔레캅"), BG.ruleCat("KT 통신요금"), BG.ruleCat("넷플릭스")].join(" / "));
+    var mem = (window.__MOCK_STORE["personal/budget"].merchants || {})[BG.merchantKey("메가MGC커피")];
+    ok("merchant remembered on add", mem && mem.name === "메가커피" && mem.cat === "카페 · 간식", JSON.stringify(window.__MOCK_STORE["personal/budget"].merchants));
+    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 4,500원(일시불)" + md + " 15:30 메가MGC커피 누적1,000원", k: "x" }); await sleep(150);
+    var memRow = $$("#view .bud-noti")[0];
+    ok("remembered merchant shown", /기억한 가게/.test(memRow.textContent) && $(".bud-noti-name-in", memRow).value === "메가커피");
+    setVal($(".bud-noti-name-in", memRow), "메가커피 성수점");
+    $$(".tool-btn", memRow).filter(function (b) { return b.textContent === "추가"; })[0].click(); await sleep(200);
+    ok("renamed in inbox → remembered", window.__MOCK_STORE["personal/budget"].merchants[BG.merchantKey("메가MGC커피")].name === "메가커피 성수점" && window.__MOCK_STORE[lk].items.some(function (i) { return i.memo === "메가커피 성수점" && i.amount === 4500; }));
+    var megaRow = $$("#view .bud-list .bud-entry").filter(function (r) { return /메가커피 성수점/.test(r.textContent); })[0];
+    $(".icon-btn[title='수정']", megaRow).click(); await sleep(60);
+    var bfEdit = $("#view form.bud-form");
+    $$("input", bfEdit).filter(function (i) { return /^내용/.test(i.placeholder); })[0].value = "메가커피 역삼";
+    $$("select", bfEdit).filter(function (s) { return s.getAttribute("aria-label") === "분류"; })[0].value = "식비";
+    submit(bfEdit); await sleep(200);
+    var mem2 = window.__MOCK_STORE["personal/budget"].merchants[BG.merchantKey("메가MGC커피")];
+    ok("ledger edit updates memory", mem2.name === "메가커피 역삼" && mem2.cat === "식비", JSON.stringify(mem2));
+    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 3,200원(일시불)" + md + " 16:00 GS25 성수점 누적1,000원", k: "x" });
+    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 7,700원(일시불)" + md + " 16:10 알수없는상점 누적1,000원", k: "x" });
+    await sleep(150);
+    ok("raw toggle + copy-all", !!Array.prototype.filter.call($$("#view .bud-inbox .tool-btn"), function (b) { return b.textContent === "원문 모두 복사"; })[0] && $$("#view .bud-noti .raw-btn").length === 2);
+    $("#view .bud-noti .raw-btn").click(); await sleep(40);
+    ok("raw line shows original", $$("#view .bud-noti-rawline").length === 1 && /승인/.test($("#view .bud-noti-rawline").textContent));
+    var autoCb = $("#view .bud-auto input"); autoCb.checked = true; change(autoCb); await sleep(300);
+    ok("auto-add only sure notices", window.__MOCK_STORE["personal/budget"].autoAdd === true && window.__MOCK_STORE[lk].items.some(function (i) { return i.memo === "GS25 성수점" && i.cat === "식비" && i.amount === 3200; }) && !window.__MOCK_STORE[lk].items.some(function (i) { return i.amount === 7700; }) && $$("#view .bud-noti").length === 1 && /알수없는상점/.test($("#view .bud-noti").textContent), $$("#view .bud-noti").length);
+    autoCb = $("#view .bud-auto input"); autoCb.checked = false; change(autoCb); await sleep(100);
+    $("#view .bud-noti .icon-btn").click(); await sleep(120);    /* 월별 리포트 */
     await App.budget.ledgerRef(App.budget.monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))).set({ items: [{ id: "pm1", date: "2000-01-01", type: "지출", cat: "식비", amount: 200000, method: "카드", memo: "지난달" }] });
     $$("#pageHead .bud-tab")[1].click(); await sleep(250);
     ok("report page", location.hash === "#/personal-budget-report" && $("#pageHead .bud-tab.on").textContent === "월별 리포트" && !$("#pageHead .page-desc"));

@@ -80,23 +80,49 @@
      The phone sends the raw SMS / push text; parsing lives here so formats can be fixed without touching the phone.
        신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원
        iM뱅크 09/27 13:52 50813*03093 입금 1,000,000 잔액 1,189,248 토스박선영 */
+  /* order matters: the first rule that matches wins (관리비 before 통신 so 케이티텔레캅 is not 통신) */
   var MERCHANT_HINTS = [
-    [/스타벅스|커피|카페|이디야|투썸|메가MGC|메가커피|빽다방|컴포즈|폴바셋|할리스|베이커리|파리바게뜨|뚜레쥬르|배스킨|던킨/i, "카페 · 간식"],
-    [/배달의민족|배민|요기요|쿠팡이츠|식당|김밥|분식|치킨|피자|버거|맥도날드|롯데리아|맘스터치|마트|이마트|홈플러스|롯데마트|GS25|CU|세븐일레븐|이마트24|편의점|정육|반찬/i, "식비"],
-    [/주유|오일|에너지|칼텍스|S-OIL|현대오일|택시|카카오T|티머니|코레일|SRT|고속|버스|주차|하이패스/i, "교통"],
-    [/약국|병원|의원|치과|한의원|내과|안과|피부과/, "의료 · 건강"],
-    [/다이소|쿠팡|올리브영|생활/, "생활용품"],
-    [/CGV|메가박스|롯데시네마|영화|티켓|넷플릭스|멜론|유튜브|게임/i, "문화 · 여가"],
-    [/서점|교보|yes24|알라딘|영풍/i, "교육 · 도서"],
-    [/미용|헤어|네일|유니클로|무신사|자라|H&M/i, "의류 · 미용"],
-    [/SKT|KT|LG ?U\+|통신/i, "통신"]
+    [/텔레캅|캡스|세콤|에스원|관리비|관리사무소|도시가스|가스공사|한국전력|한전|수도요금|상하수도|정수기|렌탈|월세/i, "주거 · 관리비"],
+    [/보험|삼성화재|현대해상|DB손해|KB손해|메리츠|한화생명|교보생명|흥국|라이나/i, "보험"],
+    [/축의|부의|조의|화환|경조|근조|답례/, "경조사 · 선물"],
+    [/넷플릭스|티빙|웨이브|왓챠|디즈니|쿠팡플레이|유튜브|멜론|지니뮤직|스포티파이|애플뮤직|클로드|Claude|Anthropic|OpenAI|ChatGPT|노션|Notion|Adobe|어도비|옵시디언|Obsidian|와우멤버십|쿠팡와우|네이버플러스|유독/i, "구독"],
+    [/스타벅스|커피|카페|이디야|투썸|메가커피|빽다방|컴포즈|폴바셋|할리스|엔제리너스|파스쿠찌|공차|베이커리|제과|파리바게뜨|뚜레쥬르|배스킨|던킨|설빙|도넛|디저트|아이스크림/i, "카페 · 간식"],
+    [/배달의민족|배민|요기요|쿠팡이츠|땡겨요|식당|김밥|분식|떡볶이|치킨|피자|버거|맥도날드|롯데리아|맘스터치|KFC|서브웨이|국밥|찌개|돈까스|돈가스|초밥|스시|라멘|우동|쌀국수|족발|보쌈|곱창|삼겹|고기|갈비|한식|중식|일식|양식|짜장|짬뽕|반점|냉면|칼국수|국수|샐러드|도시락|본죽|죽이야기|정육|반찬|마트|이마트|홈플러스|롯데마트|코스트코|트레이더스|하나로|농협|노브랜드|식자재|GS25|CU|세븐일레븐|이마트24|미니스톱|편의점|컬리|마켓/i, "식비"],
+    [/주유|오일뱅크|에너지|칼텍스|S-OIL|에쓰오일|알뜰주유|택시|카카오T|카카오모빌리티|우티|티머니|캐시비|코레일|KTX|SRT|고속|버스|지하철|철도|주차|하이패스|톨게이트|쏘카|그린카/i, "교통"],
+    [/약국|병원|의원|치과|한의원|내과|외과|안과|피부과|이비인후과|소아과|정형|산부인과|정신건강|검진|헬스|필라테스|요가|PT/i, "의료 · 건강"],
+    [/CGV|메가박스|롯데시네마|영화|공연|티켓|인터파크|예스24티켓|노래방|코인노래|PC방|볼링|당구|게임|스팀|닌텐도|여행|호텔|숙박|야놀자|여기어때|에어비앤비/i, "문화 · 여가"],
+    [/서점|교보문고|yes24|예스24|알라딘|영풍|리디|밀리의서재|학원|강의|인강|클래스101|학회|등록금/i, "교육 · 도서"],
+    [/미용|헤어|네일|유니클로|무신사|자라|H&M|탑텐|스파오|에이블리|지그재그|옷|의류/i, "의류 · 미용"],
+    [/다이소|쿠팡|올리브영|이케아|무인양품|오늘의집|생활용품|문구|알파/, "생활용품"],
+    [/SKT|SK텔레콤|KT|케이티|LG ?U\+|엘지유플러스|알뜰폰|통신|헬로모바일/i, "통신"]
   ];
+  function ruleCat(name) {
+    for (var i = 0; i < MERCHANT_HINTS.length; i++) { if (MERCHANT_HINTS[i][0].test(name)) { return MERCHANT_HINTS[i][1]; } }
+    return "";
+  }
   function guessMerchantCat(name, type, history) {
     if (type === "수입") { return /급여|월급/.test(name) ? "급여" : (/환급|환불/.test(name) ? "환급" : "기타"); }
     var seen = (history || []).filter(function (it) { return it.type !== "수입" && it.memo && it.memo === name; })[0];
     if (seen && seen.cat) { return seen.cat; }
-    for (var i = 0; i < MERCHANT_HINTS.length; i++) { if (MERCHANT_HINTS[i][0].test(name)) { return MERCHANT_HINTS[i][1]; } }
-    return "기타";
+    return ruleCat(name) || "기타";
+  }
+  /* the key a merchant is remembered under: its original notice text without spaces / symbols, lower-cased */
+  function merchantKey(raw) { return String(raw || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, ""); }
+  /* company names → the brand people know; payment gateways dropped */
+  var BRANDS = [
+    [/우아한\s*형제들/, "배달의민족"], [/코리아\s*세븐/, "세븐일레븐"], [/비지에프\s*리테일|BGF\s*리테일/i, "CU"],
+    [/지에스\s*리테일|GS\s*리테일/i, "GS25"], [/비바\s*리퍼블리카/, "토스"], [/메가\s*(MGC|엠지씨)\s*(커피)?/i, "메가커피"],
+    [/에스씨케이\s*컴퍼니|스타벅스\s*코리아/, "스타벅스"], [/쿠팡\s*이츠\s*서비스/, "쿠팡이츠"], [/딜리버리\s*히어로|위대한\s*상상/, "요기요"],
+    [/카카오\s*모빌리티/, "카카오T"], [/한국\s*철도\s*공사/, "코레일"], [/씨제이\s*씨지브이|CJ\s*CGV/i, "CGV"],
+    [/이마트\s*에브리데이/, "이마트에브리데이"], [/씨제이\s*올리브영/, "올리브영"], [/아성\s*다이소/, "다이소"]
+  ];
+  var GATEWAYS = /(KG\s*)?이니시스|나이스\s*페이(먼츠)?|토스\s*페이먼츠|(NHN\s*)?KCP|한국사이버결제|다날|KSNET|케이에스넷|페이레터|스마트로|KICC|한국정보통신/gi;
+  function cleanMerchant(raw) {
+    var s = String(raw || "").replace(/주식회사|유한회사|\(주\)|㈜|\(유\)/g, " ");
+    var stripped = s.replace(GATEWAYS, " ").replace(/\s+/g, " ").trim();
+    if (stripped) { s = stripped; }  /* keep the gateway name if it is all there is */
+    BRANDS.forEach(function (b) { s = s.replace(b[0], b[1]); });
+    return s.replace(/\s+/g, " ").trim() || String(raw || "").trim();
   }
   function parseNotice(raw, now) {
     now = now || new Date();
@@ -142,7 +168,7 @@
     r.ok = true;
     return r;
   }
-  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat };
+  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat, cleanMerchant: cleanMerchant, merchantKey: merchantKey, ruleCat: ruleCat };
 
   function select(options, value, label) {
     var s = el("select"); if (label) { s.setAttribute("aria-label", label); }
@@ -655,6 +681,8 @@
           id: old ? old.id : H.uid(), date: dateEl.value, type: state.type, cat: catEl.value, amount: amount, method: methodEl.value, memo: memoEl.value.trim()
         });
         state.sel = item.date;
+        /* fixing an entry that came from a phone notice teaches the merchant memory too */
+        if (old && old.rawm && item.memo) { rememberMerchant(old.rawm, item.memo, item.cat, item.type); }
         putItem(item);
         resetForm(); amtEl.focus();
       });
@@ -814,7 +842,24 @@
 
       /* ---------- 휴대폰 결제 알림 (budgetInbox) ---------- */
       var inboxRef = App.col("budgetInbox");
-      state.inboxCat = {};
+      state.inboxCat = {}; state.inboxName = {}; state.rawOpen = {}; state.autoDone = {};
+      /* name + category for a notice: remembered merchant → cleaned brand name + word rules */
+      function decide(p) {
+        var mem = (state.settings.merchants || {})[merchantKey(p.merchant)];
+        if (mem && (mem.type || "지출") === p.type) { return { name: mem.name || p.merchant, cat: mem.cat, remembered: true, sure: true }; }
+        var name = cleanMerchant(p.merchant), rule = p.type === "수입" ? "" : ruleCat(name);
+        return { name: name, cat: rule || guessMerchantCat(name, p.type, state.items), remembered: false, sure: !!rule };
+      }
+      function rememberMerchant(raw, name, cat, type) {
+        var key = merchantKey(raw);
+        if (!key || !name) { return; }
+        var map = Object.assign({}, state.settings.merchants || {});
+        var prev = map[key];
+        if (prev && prev.name === name && prev.cat === cat && (prev.type || "지출") === type) { return; }
+        map[key] = { name: name, cat: cat, type: type };
+        state.settings = Object.assign({}, state.settings, { merchants: map });
+        settingsRef().set({ merchants: map, updatedAt: new Date().toISOString() }, { merge: true }).catch(function () {});
+      }
       function inboxGroups() {
         var out = [], bySig = {};
         state.inbox.forEach(function (d) {
@@ -823,10 +868,13 @@
           if (bySig[p.sig]) { bySig[p.sig].ids.push(d.id); return; }  /* same payment via SMS and app push */
           var g = { ids: [d.id], p: p };
           if (p.cancel) {
-            g.match = state.items.filter(function (it) { return it.type !== "수입" && Number(it.amount) === p.amount && (it.memo === p.merchant || it.src); })[0] || null;
+            g.match = state.items.filter(function (it) { return it.type !== "수입" && Number(it.amount) === p.amount && (it.rawm === p.merchant || it.memo === p.merchant || it.src); })[0] || null;
           } else {
+            var dec = decide(p);
             g.dup = state.items.some(function (it) { return it.src === "noti:" + p.sig; });
-            g.cat = state.inboxCat[p.sig] || guessMerchantCat(p.merchant, p.type, state.items);
+            g.name = state.inboxName[p.sig] !== undefined ? state.inboxName[p.sig] : dec.name;
+            g.cat = state.inboxCat[p.sig] || dec.cat;
+            g.remembered = dec.remembered; g.sure = dec.sure && p.type === "지출";
           }
           bySig[p.sig] = g; out.push(g);
         });
@@ -837,7 +885,19 @@
         return Promise.all(ids.map(function (id) { return inboxRef.doc(id).delete(); })).catch(function (err) { window.alert("알림 삭제 실패: " + err.message); });
       }
       function inboxItem(g) {
-        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: g.p.method, memo: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
+        var name = String(g.name || "").trim() || g.p.merchant;
+        rememberMerchant(g.p.merchant, name, g.cat, g.p.type);
+        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: g.p.method, memo: name, rawm: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
+      }
+      /* 확실한 알림은 자동 추가: remembered merchants or a word-rule match, expenses only.
+         Runs only once the settings and this month's ledger have both loaded, so nothing is overwritten. */
+      function autoAdd(groups) {
+        if (!state.settings.autoAdd || !state.settingsLoaded || !state.itemsLoaded || state.autoBusy) { return; }
+        var todo = groups.filter(function (g) { return g.p.ok && !g.p.cancel && !g.dup && g.sure && !state.autoDone[g.p.sig]; });
+        if (!todo.length) { return; }
+        todo.forEach(function (g) { state.autoDone[g.p.sig] = true; });
+        state.autoBusy = true;
+        addFromInbox(todo).then(function () { state.autoBusy = false; }, function () { state.autoBusy = false; });
       }
       /* entries may belong to other months: merge each month's document, skipping ones already added */
       function addFromInbox(groups) {
@@ -869,7 +929,14 @@
         allDrop.addEventListener("click", function () {
           if (window.confirm("알림 " + groups.length + "건을 모두 버릴까요? (가계부 내역은 그대로예요)")) { dropInbox([].concat.apply([], groups.map(function (g) { return g.ids; }))); }
         });
-        acts.appendChild(allAdd); acts.appendChild(allDrop); head.appendChild(acts);
+        var copyAll = el("button", "tool-btn", "원문 모두 복사"); copyAll.type = "button";
+        copyAll.addEventListener("click", function () { H.copyText(groups.map(function (g) { return g.p.raw; }).join("\n"), copyAll); });
+        var auto = el("label", "bud-auto");
+        var autoCb = el("input"); autoCb.type = "checkbox"; autoCb.checked = !!state.settings.autoAdd;
+        autoCb.addEventListener("change", function () { saveSettings({ autoAdd: autoCb.checked }); });
+        auto.appendChild(autoCb); auto.appendChild(el("span", "", "확실한 알림은 자동 추가"));
+        [allAdd, allDrop, copyAll, auto].forEach(function (n) { acts.appendChild(n); });
+        head.appendChild(acts);
         inbox.appendChild(head);
         var list = el("div", "bud-inbox-list");
         groups.forEach(function (g) {
@@ -882,8 +949,15 @@
             var d = H.parseKey(p.date);
             row.appendChild(el("span", "bud-noti-when", (d.getMonth() + 1) + "/" + d.getDate() + (p.time ? " " + p.time : "")));
             var main = el("span", "bud-noti-main");
-            main.appendChild(el("span", "bud-noti-name", p.merchant || "(내용 없음)"));
-            main.appendChild(el("span", "mini-sub", [p.source, p.type, p.cancel ? "승인 취소" : "", g.dup ? "이미 추가됨" : ""].filter(Boolean).join(" · ")));
+            if (!p.cancel && !g.dup) {
+              /* the shop name can be fixed right here; it is remembered when the notice is added */
+              var nameIn = el("input", "bud-noti-name-in"); nameIn.value = g.name; nameIn.maxLength = 60; nameIn.setAttribute("aria-label", "가게 이름");
+              nameIn.addEventListener("input", function () { state.inboxName[p.sig] = nameIn.value; g.name = nameIn.value; });
+              main.appendChild(nameIn);
+            } else {
+              main.appendChild(el("span", "bud-noti-name", p.merchant || "(내용 없음)"));
+            }
+            main.appendChild(el("span", "mini-sub", [p.source, p.type, p.cancel ? "승인 취소" : "", g.dup ? "이미 추가됨" : "", g.remembered ? "기억한 가게" : ""].filter(Boolean).join(" · ")));
             row.appendChild(main);
             if (!p.cancel && !g.dup) {
               var cat = select(p.type === "수입" ? INC_CATS : EXP_CATS, g.cat, "분류");
@@ -899,16 +973,24 @@
               }
             } else if (!g.dup) {
               var add = el("button", "tool-btn on", "추가"); add.type = "button";
-              add.addEventListener("click", function () { g.cat = cat.value; addFromInbox([g]); });
+              add.addEventListener("click", function () { g.cat = cat.value; g.name = nameIn.value; addFromInbox([g]); });
               row.appendChild(add);
             }
+          }
+          if (p.ok) {
+            var rk = p.sig, rawBtn = el("button", "tool-btn raw-btn" + (state.rawOpen[rk] ? " on" : ""), "원문"); rawBtn.type = "button";
+            rawBtn.setAttribute("aria-expanded", state.rawOpen[rk] ? "true" : "false");
+            rawBtn.addEventListener("click", function () { state.rawOpen[rk] = !state.rawOpen[rk]; drawInbox(); });
+            row.appendChild(rawBtn);
           }
           var drop = el("button", "icon-btn", "×"); drop.type = "button"; drop.title = "버리기"; drop.setAttribute("aria-label", "알림 버리기");
           drop.addEventListener("click", function () { dropInbox(g.ids); });
           row.appendChild(drop);
+          if (p.ok && state.rawOpen[p.sig]) { row.appendChild(el("div", "bud-noti-rawline", p.raw)); }
           list.appendChild(row);
         });
         inbox.appendChild(list);
+        autoAdd(groups);
       }
 
       /* ---------- month navigation ---------- */
@@ -917,9 +999,9 @@
         state.mk = mk;
         if (state.sel.slice(0, 7) !== mk) { state.sel = mk === today.slice(0, 7) ? today : mk + "-01"; }
         if (!state.editId) { dateEl.value = state.sel; }
-        state.items = [];
+        state.items = []; state.itemsLoaded = false;
         if (unsubMonth) { unsubMonth(); }
-        unsubMonth = App.watchDoc(ledgerRef(mk), function (d) { state.items = (d && d.items) || []; drawAll(); });
+        unsubMonth = App.watchDoc(ledgerRef(mk), function (d) { state.items = (d && d.items) || []; state.itemsLoaded = true; drawAll(); });
         drawAll();
       }
       prev.addEventListener("click", function () { setMonth(shiftMonth(state.mk, -1)); });
@@ -927,7 +1009,7 @@
       thisM.addEventListener("click", function () { state.sel = today; setMonth(today.slice(0, 7)); });
 
       setType("지출"); drawFilters();
-      App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); drawAll(); });
+      App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); state.settingsLoaded = true; drawAll(); });
       App.watchQuery(inboxRef, function (docs) { state.inbox = docs; drawInbox(); });
       setMonth(state.mk);
     }
