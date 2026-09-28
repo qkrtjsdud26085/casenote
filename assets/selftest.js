@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 64, ids.length);
+    ok("page count", ids.length === 61, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -117,14 +117,14 @@
     goLinks[0].click(); await sleep(150);
     ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[0].classList.contains("active"), location.hash);
     await go("ias-home");
-    ok("논문 menu rows", $$("#subnav .sub-row").length === 2 && $("#subnav .sub-row .sub-parent.on").textContent === "IAS 척도 타당화" && $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|") === "1차 연구 기록|현재 진행중|오늘 논문 작성 기록" && $("#subnav a.active").getAttribute("data-page") === "ias-home", $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|"));
+    ok("논문 menu rows", $$("#subnav .sub-row").length === 1 && $$("#subnav .sub-row > *").map(function (n) { return (n.querySelector(".sub-go") || n).textContent; }).join("|") === "IAS 척도 타당화|비선형 공격성 임계점" && $("#subnav a.active").getAttribute("data-page") === "ias-home" && $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|") === "개요 · 진행 단계|연구 흐름|문항표|오늘 논문 작성 기록" && !cardBy("핵심 수치") && !cardBy("파일 위치"), $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|"));
     await go("home");
 
     await go("ias-home");
-    ok("ias empty notice", !!$("#view .ias-notice"));
+    ok("ias no import card", !$("#view .ias-notice") && !$("#view .ias-import"));
     await App.ias.importData({ docs: { meta: { stage: "분석", info: { title: "테스트 IAS" } }, items: { items: [{ id: "i1", no: 1, final: "문항", factor: "죄책감 유발", flag: "삭제 검토" }] }, bogus: { x: 1 } } });
     await sleep(150);
-    ok("ias import fills", !$("#view .ias-notice") && $("#view .flow-chip.active") && $("#view .flow-chip.active").textContent === "분석");
+    ok("ias import fills", $("#view .flow-chip.active") && $("#view .flow-chip.active").textContent === "분석");
     await go("ias-items");
     ok("ias items table", $$("#view .items-table tbody tr").length === 1 && /삭제 검토 1/.test($("#view .items-summary").textContent), $("#view .items-summary").textContent);
     var iasExp = await App.ias.exportData();
@@ -133,7 +133,7 @@
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
     ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[0].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[0].textContent) && /피해상담사/.test($$("#subnav .sub-group")[0].textContent) && /임상심리사/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
     await go("diss-overview");
-    ok("diss menu rows", $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중|연구계획서 내용 전체" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|"));
+    ok("diss menu rows", $$("#subnav .sub-row .sub-group.active .sub-item").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중|연구계획서 내용 전체" && $("#subnav .sub-row .sub-go").getAttribute("href") === "#/diss-overview" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row .sub-item").map(function (a) { return a.textContent; }).join("|"));
     await go("thesis-home");
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
     /* 연구 흐름도 (research-flow.js): template, accordion, editing, sub-steps */
@@ -163,9 +163,9 @@
     await sleep(150);
     ok("flow import", $$("#view .rf-track > .rf-step").length === 2 && $$("#view .rf-step")[0].getAttribute("data-status") === "done" && /검증/.test($("#view .rf-feedback").textContent));
     await go("ias-flow");
-    ok("ias flow tab", $("#view .page-tab.active").textContent === "연구 흐름" && $$("#view .rf-step").length === 6 && !!cardBy("IRT 재분석 체크리스트") && $("#subnav a.active").getAttribute("data-page") === "ias-home");
-    await go("ias-results");
-    ok("ias IRT card", !!cardBy("IRT 등급반응모형 (GRM) — 재분석") && !!cardBy("Rasch 평정척도모형 (이전 분석 · 참고)") && /IRT 전체 적합도/.test(cardBy("판단 기준 (복사 가능)").textContent));
+    ok("ias flow tab", $("#view .page-tab.active").textContent === "연구 흐름" && $$("#view .rf-step").length === 6 && !cardBy("IRT 재분석 체크리스트") && $("#subnav a.active").getAttribute("data-page") === "ias-home");
+    ok("ias removed pages", !App.pages["ias-results"] && !App.pages["ias-manuscript"] && !App.pages["ias-current"]);
+
 
     await go("cert-list");
     await App.doc("research/certs").set({ items: [{ id: "c1", name: "먼 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 60)) }, { id: "c2", name: "가까운 시험", exam: App.h.dateKey(App.h.addDays(new Date(), 5)), status: "접수 완료" }] }); await sleep(150);
@@ -249,7 +249,7 @@
     var fvId = fvDoc.items[0].id;
     $$(".fv-item .copy-btn", cardBy("자격증 파일")).filter(function (b) { return b.textContent === "삭제"; })[0].click(); await sleep(300);
     ok("file delete", window.__MOCK_STORE["research/crime_certfiles"].items.length === 0 && !window.__MOCK_STORE["research/file_" + fvId + "_0"] && !!$(".empty-state", cardBy("자격증 파일")));
-    await go("ias-current"); ok("ias current page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "ias-current" && $$("#view .page-tab").length === 2);
+
     /* 오늘 논문 작성 기록: structure, references, hwpx memos */
     var dst = App.draft.structure(["Ⅰ. 서론", "첫 문단이다.", "1. 연구의 필요성", "필요하다 필요하다.", "Ⅱ. 이론적 배경", "배경 문단이다.", "참고문헌", "홍길동 (2020). 가 연구.", "Adams, B. (2019). Title."]);
     ok("draft structure", dst.secs.map(function (x) { return x.lv + x.t; }).join("|") === "1Ⅰ. 서론|21. 연구의 필요성|1Ⅱ. 이론적 배경" && dst.secs[1].n === "1. 연구의 필요성".length + "필요하다 필요하다.".length && dst.secs[1].ns === "1.연구의필요성필요하다필요하다.".length && dst.refs.length === 2, JSON.stringify(dst.secs));
@@ -279,7 +279,7 @@
     await go("ias-writing"); await sleep(150);
     var dlog = window.__MOCK_STORE["research/ias_draftlog"], dtx = window.__MOCK_STORE["research/ias_drafttext"];
     ok("draft record", dlog && dlog.days[App.h.todayStr()].secs[0].t === "연구 배경" && dtx.refs.length === 1 && dtx.file === "t.hwpx", JSON.stringify(dlog));
-    ok("draft page", $$("#view .draft-table")[0].querySelectorAll("tr").length === 2 && $$("#view .draft-refs li").length === 1 && $$("#view .draft-view .draft-h").length === 1 && $("#subnav a.active").getAttribute("data-page") === "ias-current" && $("#subnav .sub-row3 .sub-item.active[data-link='ias-writing']") && $$("#view .page-tab").length === 2);
+    ok("draft page", $$("#view .draft-table")[0].querySelectorAll("tr").length === 2 && $$("#view .draft-refs li").length === 1 && $$("#view .draft-view .draft-h").length === 1 && $("#subnav a.active").getAttribute("data-page") === "ias-home" && $$("#view .page-tab").length === 4);
     /* 연구계획서 내용 전체 */
     await go("diss-plan");
     ok("plan empty", !!$("#view .plan-doc .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-plan");
@@ -296,8 +296,8 @@
     await go("ai-tools"); ok("ai tabs", $$("#view .page-tab").length === 3 && !!cardBy("연구용 AI 도구") && !!cardBy("자주 쓰는 프롬프트") && $("#subnav a.active").textContent === "AI");
     await go("ai-notes"); ok("ai notes page", !!cardBy("AI · 머신러닝 공부 노트") && $("#subnav a.active").getAttribute("data-page") === "ai-tools");
     await go("ai-log"); ok("ai log page", !!cardBy("AI 활용 기록 (연구윤리 · 공개 대비)") && /공개 필요/.test($("#view").textContent));
-    await go("ias-results");
-    ok("ias tabs", $$("#view .page-tab").length === 5 && $("#view .page-tab.active").textContent === "분석 결과" && $("#subnav a.active").getAttribute("data-page") === "ias-home");
+    await go("ias-items");
+    ok("ias tabs", $$("#view .page-tab").length === 4 && $("#view .page-tab.active").textContent === "문항표" && $("#subnav a.active").getAttribute("data-page") === "ias-home" && !cardBy("번안 과정 기록"));
     await go("diss-overview");
     ok("diss empty notice", !!$("#view .ias-notice") && $$("#view .page-tab").length === 5);
     await App.diss.importData({ docs: { meta: { stage: "선행연구 · 변수 선정", info: { title: "테스트 박사" } }, schedule: { items: [{ id: "s1", task: "선행연구", start: "2026-09-01", end: "2027-01-31" }, { id: "s2", task: "델파이", start: "2027-08-01", end: "2028-02-01" }] }, flow: { items: [{ id: "f1", label: "연구 1" }, { id: "f2", label: "연구 2" }] } } });

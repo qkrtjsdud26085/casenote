@@ -179,9 +179,9 @@
   App.draft = { parseHwpx: parseHwpx, structure: structure, sortRefs: sortRefs, record: record, readFile: readFile, titleKey: titleKey };
 
   /* ---------- page ---------- */
-  var TABS = ["ias-current", "ias-writing"];
+  var TABS = ["ias-home", "ias-flow", "ias-items", "ias-writing"];
   App.page({
-    id: "ias-writing", title: "오늘 논문 작성 기록", navHidden: true, navParent: "ias-current", tabLabel: "오늘 논문 작성 기록",
+    id: "ias-writing", title: "오늘 논문 작성 기록", navHidden: true, navParent: "ias-home", tabLabel: "오늘 논문 작성 기록",
     render: function (view) {
       App.rkit.pageTabs(view, TABS, "ias-writing");
       var grid = el("div", "draft-grid"); view.appendChild(grid);

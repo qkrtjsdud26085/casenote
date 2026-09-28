@@ -874,7 +874,11 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
   .draft-view { max-height: 70vh; }
 }
 .sub-link.sub-parent.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
-.sub-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0 2px; padding-left: 10px; border-top: 1px dashed var(--line); }
-.sub-row .sub-link { font-size: 0.82rem; padding-top: 7px; padding-bottom: 8px; }
-.sub-row3 { padding-left: 20px; }
-.sub-row3 .sub-link { font-size: 0.78rem; }
+/* second menu row (논문 › IAS · 비선형): small pills, left-aligned with the first row */
+.sub-row { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 7px 0 9px; border-top: 1px dashed var(--line); }
+.sub-row > .sub-link, .sub-row > .sub-group { border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.sub-row .sub-link { font-size: 0.8rem; padding: 4px 12px; border-bottom: none; }
+.sub-row .sub-caret { padding-left: 2px; }
+.sub-row > .sub-link.active, .sub-row > .sub-group.active { background: var(--ink); border-color: var(--ink); }
+.sub-row > .sub-link.active, .sub-row > .sub-group.active > .sub-link { color: var(--bg); }
+.sub-row .sub-menu { margin-top: 4px; }
