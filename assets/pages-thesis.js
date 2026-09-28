@@ -132,11 +132,12 @@
 
   function renderRecommend(view) {
     var recoRef = R("reco"), papersRef = R("papers");
-    var RECO = { interests: [], includePaywalled: false, proxy: "", seen: [], dismissed: [], daily: null };
+    var RECO = { interests: [], includePaywalled: true, proxy: "", seen: [], dismissed: [], daily: null };
     var PAPERS = [];
     var busy = false, msg = "", triedKey = "";
     var SUGGESTIONS = ["범죄심리학", "forensic psychology", "psychopathy", "recidivism risk assessment", "criminal profiling", "aggression", "empathy", "offender rehabilitation"];
     var yearFrom = new Date().getFullYear() - 4;
+    var YU_PROXY = "https://libproxy.yu.ac.kr/_Lib_Proxy_Url/", MIN_IMPACT = 3, RECO_V = 2;
 
     var c = ui.card(view, { tab: "Daily", tone: "t-2", title: "오늘의 논문 추천" });
     c.count.textContent = H.todayStr().slice(5).replace("-", "/");
@@ -150,10 +151,9 @@
     var det = el("details", "reco-settings");
     det.appendChild(el("summary", "", "열람 설정 (무료 논문 · 영남대 로그인)"));
     var pwLabel = el("label"); var pw = el("input"); pw.type = "checkbox"; pwLabel.appendChild(pw);
-    pwLabel.appendChild(document.createTextNode(" 학교 로그인이 필요한 논문도 일부 포함"));
-    var proxyEl = el("input"); proxyEl.type = "url"; proxyEl.placeholder = "학교 도서관 프록시 주소 (선택) 예: https://…/login?url="; proxyEl.maxLength = 300;
+    pwLabel.appendChild(document.createTextNode(" 영남대 로그인으로 볼 수 있는 논문도 포함"));
+    var proxyEl = el("input"); proxyEl.type = "url"; proxyEl.placeholder = YU_PROXY; proxyEl.maxLength = 300;
     det.appendChild(pwLabel); det.appendChild(proxyEl);
-    det.appendChild(el("p", "hint", "프록시 주소를 넣으면 유료 논문에 '학교 로그인으로 열기' 링크가 생겨요. 영남대 도서관 프록시 주소는 도서관 안내 페이지에서 확인하세요. 비워두면 논문 페이지가 그대로 열려요."));
     var refresh = el("button", "tool-btn", "새로 추천받기"); refresh.type = "button";
     var listEl = el("div", "reco-list");
     [statusEl, chipsEl, form, sugEl, det, refresh, listEl].forEach(function (n) { c.body.appendChild(n); });
@@ -201,7 +201,8 @@
       return {
         id: (w.id || "").replace("https://openalex.org/", ""), title: w.display_name || "", year: w.publication_year || "",
         authors: names.join(", ") + (auth.length > 3 ? " 외" : ""), journal: (loc.source && loc.source.display_name) || "",
-        oa: oa, pdf: pdf, url: url, abs: abstractFrom(w.abstract_inverted_index), kw: kw
+        oa: oa, pdf: pdf, url: url, abs: abstractFrom(w.abstract_inverted_index), kw: kw,
+        src: ((loc.source && loc.source.id) || "").replace("https://openalex.org/", ""), impact: null
       };
     }
     function interleave(list, rand) {
@@ -211,12 +212,26 @@
       while (more) { more = false; keys.forEach(function (k) { var x = groups[k].shift(); if (x) { out.push(x); more = true; } }); }
       return out;
     }
+    /* 학술지 영향력: OpenAlex 2년 평균 피인용(= 임팩트 팩터 계산 방식과 같은 기준의 공개 지표) */
+    async function attachImpact(list) {
+      var ids = []; list.forEach(function (it) { if (it.src && ids.indexOf(it.src) === -1) { ids.push(it.src); } });
+      var map = {};
+      for (var i = 0; i < ids.length; i += 50) {
+        var r = await fetch("https://api.openalex.org/sources?filter=openalex:" + ids.slice(i, i + 50).join("|") + "&per-page=50&select=id,summary_stats");
+        if (!r.ok) { throw new Error("HTTP " + r.status); }
+        ((await r.json()).results || []).forEach(function (x) {
+          map[(x.id || "").replace("https://openalex.org/", "")] = x.summary_stats && x.summary_stats["2yr_mean_citedness"];
+        });
+      }
+      list.forEach(function (it) { var v = map[it.src]; it.impact = typeof v === "number" ? Math.round(v * 10) / 10 : null; });
+      return list.filter(function (it) { return it.impact !== null && it.impact >= MIN_IMPACT; });
+    }
     async function buildDaily(n) {
       var kws = RECO.interests.slice(0, 8);
       var select = "id,doi,display_name,publication_year,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index";
       var oaFilter = RECO.includePaywalled ? "" : ",open_access.is_oa:true";
       var responses = await Promise.all(kws.map(function (kw) {
-        var url = "https://api.openalex.org/works?search=" + encodeURIComponent(kw) + "&filter=from_publication_date:" + yearFrom + "-01-01,type:article" + oaFilter + "&per-page=30&select=" + select;
+        var url = "https://api.openalex.org/works?search=" + encodeURIComponent(kw) + "&filter=from_publication_date:" + yearFrom + "-01-01,type:article" + oaFilter + "&per-page=50&select=" + select;
         return fetch(url).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); });
       }));
       var dismissed = {}; (RECO.dismissed || []).forEach(function (id) { dismissed[id] = true; });
@@ -230,6 +245,7 @@
           byId[it.id] = true; all.push(it);
         });
       });
+      all = await attachImpact(all);
       var fresh = all.filter(function (it) { return !seen[it.id]; });
       var pool = fresh.length >= 5 ? fresh : all;
       var rand = rng(hashStr(H.todayStr() + "|" + n));
@@ -246,7 +262,7 @@
     async function ensureDaily(force) {
       if (busy || !RECO.interests.length) { return; }
       var today = H.todayStr(), d = RECO.daily;
-      if (!force && d && d.date === today) { return; }
+      if (!force && d && d.date === today && d.v === RECO_V) { return; }
       var key = today + "|" + RECO.interests.join(",") + "|" + RECO.includePaywalled;
       if (!force && triedKey === key) { return; }
       triedKey = key; busy = true; msg = "추천 논문을 찾는 중…"; render();
@@ -254,9 +270,9 @@
       try {
         var items = await buildDaily(n);
         busy = false;
-        msg = items.length ? "" : "조건에 맞는 새 논문이 없어요. 키워드를 바꾸거나 '학교 로그인 논문 포함'을 켜 보세요.";
+        msg = items.length ? "" : "영향력 " + MIN_IMPACT + " 이상 학술지에서 새 논문을 찾지 못했어요. 키워드를 바꾸거나 넓혀 보세요.";
         var seenIds = (RECO.seen || []).concat(items.map(function (x) { return x.id; })).slice(-300);
-        await save({ daily: { date: today, n: n, items: items }, seen: seenIds });
+        await save({ daily: { date: today, n: n, v: RECO_V, items: items }, seen: seenIds });
       } catch (err) {
         busy = false; msg = "추천을 불러오지 못했어요 (" + err.message + "). 잠시 후 '새로 추천받기'를 눌러 주세요."; render();
       }
@@ -288,7 +304,7 @@
       }
       pw.checked = !!RECO.includePaywalled;
       if (document.activeElement !== proxyEl) { proxyEl.value = RECO.proxy || ""; }
-      statusEl.textContent = "OpenAlex 기준 · 최근 5개년(" + yearFrom + "~" + new Date().getFullYear() + ") · " + (RECO.includePaywalled ? "무료 원문(PDF 우선) + 학교 로그인 논문" : "무료 공개 원문만 (PDF 우선)") + " · 하루 5편";
+      statusEl.textContent = "OpenAlex 기준 · 최근 5개년(" + yearFrom + "~" + new Date().getFullYear() + ") · " + (RECO.includePaywalled ? "무료 원문(PDF 우선) + 영남대 로그인 논문" : "무료 공개 원문만 (PDF 우선)") + " · 학술지 영향력 " + MIN_IMPACT + " 이상 · 하루 5편";
       H.clear(listEl);
       var d = RECO.daily, today = H.todayStr(), dismissed = RECO.dismissed || [];
       var items = d && d.date === today ? (d.items || []).filter(function (it) { return dismissed.indexOf(it.id) === -1; }) : [];
@@ -298,7 +314,8 @@
       }
       items.forEach(function (it) {
         var li = el("div", "reco-item"), top = el("div", "reco-top");
-        top.appendChild(el("span", "reco-badge " + (it.oa ? "free" : "inst"), it.pdf ? "PDF 바로 열림" : (it.oa ? "무료 원문" : "학교 로그인 필요할 수 있음")));
+        top.appendChild(el("span", "reco-badge " + (it.oa ? "free" : "inst"), it.pdf ? "PDF 바로 열림" : (it.oa ? "무료 원문" : "영남대 로그인으로 열람")));
+        if (it.impact !== null && it.impact !== undefined) { var ib = el("span", "reco-badge impact", "IF " + it.impact.toFixed(1)); ib.title = "학술지 2년 평균 피인용 (OpenAlex)"; top.appendChild(ib); }
         top.appendChild(el("span", "", [it.year, it.journal].filter(Boolean).join(" · ")));
         top.appendChild(el("span", "", "#" + it.kw));
         li.appendChild(top);
@@ -307,8 +324,8 @@
         if (it.abs) { li.appendChild(el("div", "reco-abs", it.abs)); }
         var links = el("div", "reco-links");
         link(links, scholarUrl(it.title), "Google Scholar");
-        var proxy = (RECO.proxy || "").trim();
-        if (!it.oa && /^https:\/\//i.test(proxy)) { link(links, proxy + it.url, "학교 로그인으로 열기"); }
+        var proxy = (RECO.proxy || "").trim() || YU_PROXY;
+        if (!it.oa && /^https:\/\//i.test(proxy)) { link(links, proxy + it.url, "영남대 로그인으로 열기"); }
         var saved = PAPERS.some(function (p) { return p.link === it.url || p.title === it.title; });
         var sv = el("button", "", saved ? "저장됨" : "내 문헌함에 저장"); sv.type = "button"; sv.disabled = saved;
         sv.addEventListener("click", function () {
@@ -346,7 +363,7 @@
     App.watchDoc(papersRef, function (d) { PAPERS = d && d.items ? d.items : []; render(); });
     App.watchDoc(recoRef, function (d) {
       d = d || {};
-      RECO = { interests: d.interests || [], includePaywalled: !!d.includePaywalled, proxy: d.proxy || "", seen: d.seen || [], dismissed: d.dismissed || [], daily: d.daily || null };
+      RECO = { interests: d.interests || [], includePaywalled: d.includePaywalled !== false, proxy: d.proxy || "", seen: d.seen || [], dismissed: d.dismissed || [], daily: d.daily || null };
       render(); ensureDaily(false);
     });
   }

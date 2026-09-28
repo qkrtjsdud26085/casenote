@@ -191,8 +191,13 @@
       var text = null, log = null, handle = null;
 
       /* 1. 오늘 */
-      var today = ui.card(left, { tab: "Today", tone: "t-2", title: "오늘 쓴 양", wide: true });
-      var stats = el("div", "draft-stats"); today.body.appendChild(stats);
+      var today = ui.card(left, { tab: "Daily", tone: "t-2", title: "논문 집필 기록", wide: true });
+      /* same look as the writing log (ui.writingLog), filled from the hwpx records instead of typing */
+      var progHost = el("div"), goalRow = el("div", "quick-add");
+      var goalEl = el("input", "w-sm"); goalEl.type = "number"; goalEl.min = 0; goalEl.step = 100; goalEl.setAttribute("aria-label", "하루 목표");
+      goalRow.appendChild(goalEl); goalRow.appendChild(el("span", "prog-label", "자 · 하루 목표"));
+      var stats = el("div", "stat-row"), bars = el("div", "bars");
+      [progHost, goalRow, stats, bars].forEach(function (n) { today.body.appendChild(n); });
       var bar = el("div", "draft-bar"); today.body.appendChild(bar);
       var linkBtn = el("button", "btn", "한글 파일 연결"); linkBtn.type = "button";
       var rereadBtn = el("button", "tool-btn", "다시 읽기"); rereadBtn.type = "button"; rereadBtn.hidden = true;
@@ -231,13 +236,33 @@
       }
       function dayTotal(d) { return d ? (noSpace ? d.totalNs : d.total) : 0; }
 
+      /* written per day = that day's total minus the previous record (never below 0) */
+      function written() {
+        /* the very first record is the starting point, not a day's writing */
+        var w = {}; dayKeys().forEach(function (k) { var pv = prevDay(k); w[k] = pv ? Math.max(0, dayTotal(log.days[k]) - dayTotal(pv)) : 0; }); return w;
+      }
       function drawStats() {
+        var w = written(), tk = H.todayStr(), goal = log && typeof log.goal === "number" ? log.goal : 1500, tc = w[tk] || 0;
+        if (document.activeElement !== goalEl) { goalEl.value = goal || ""; }
+        H.clear(progHost);
+        var pct = goal ? Math.min(100, Math.round(tc / goal * 100)) : 0;
+        progHost.appendChild(ui.progress(pct, goal ? "오늘 " + fmt(tc) + " / " + fmt(goal) + "자 (" + pct + "%)" : "오늘 " + fmt(tc) + "자"));
+        var month = 0; Object.keys(w).forEach(function (k) { if (k.indexOf(tk.slice(0, 7)) === 0) { month += w[k]; } });
+        var streak = 0, cur = new Date();
+        if (!w[H.dateKey(cur)]) { cur = H.addDays(cur, -1); }
+        while (w[H.dateKey(cur)]) { streak++; cur = H.addDays(cur, -1); }
         H.clear(stats);
-        var tk = H.todayStr(), d = log && log.days && log.days[tk], last = dayKeys().slice(-1)[0];
-        var cur = d || (last && log.days[last]);
-        var add = d ? dayTotal(d) - dayTotal(prevDay(tk)) : 0;
-        [["오늘", signed(add) + "자"], ["전체", fmt(dayTotal(cur)) + "자"], ["기록한 날", dayKeys().length + "일"]].forEach(function (x) {
-          var b = el("div", "draft-stat"); b.appendChild(el("span", "draft-stat-label", x[0])); b.appendChild(el("strong", "", x[1])); stats.appendChild(b);
+        [["이번 달 ", fmt(month), "자"], ["연속 ", String(streak), "일"], ["전체 ", fmt(dayTotal(log && log.days && log.days[dayKeys().slice(-1)[0]])), "자"]].forEach(function (x) {
+          var sp = el("span"); sp.appendChild(document.createTextNode(x[0])); sp.appendChild(el("strong", "", x[1])); sp.appendChild(document.createTextNode(x[2])); stats.appendChild(sp);
+        });
+        var days = []; for (var i = 6; i >= 0; i--) { days.push(H.addDays(new Date(), -i)); }
+        var max = Math.max(goal, 1); days.forEach(function (d) { max = Math.max(max, w[H.dateKey(d)] || 0); });
+        H.clear(bars);
+        days.forEach(function (d) {
+          var k = H.dateKey(d), v = w[k] || 0;
+          var col = el("div", "bar-col"), wrap = el("div", "bar-wrap"), b = el("div", "bar" + (k === tk ? " today" : ""));
+          b.style.height = Math.round(v / max * 100) + "%"; b.title = k + " · " + fmt(v) + "자";
+          wrap.appendChild(b); col.appendChild(wrap); col.appendChild(el("div", "bar-label", H.DOW[d.getDay()])); bars.appendChild(col);
         });
         spBtn.textContent = noSpace ? "공백 제외" : "공백 포함";
         status.textContent = text && text.savedAt ? (text.file ? text.file + " · " : "") + H.fmtDateTime(text.savedAt) + " 기록" : "";
@@ -255,7 +280,7 @@
           a.addEventListener("click", function () { jump(s.t); });
           tr.appendChild(a);
           tr.appendChild(el("td", "narrow num", fmt(ds[i].sum)));
-          tr.appendChild(el("td", "narrow num" + (ds[i].d > 0 ? " up" : ""), d === (log.days[tk]) ? signed(ds[i].d) : "–"));
+          tr.appendChild(el("td", "narrow num" + (ds[i].d > 0 ? " up" : ""), d === log.days[tk] && prevDay(tk) ? signed(ds[i].d) : "–"));
           t.appendChild(tr);
         });
         sc.body.appendChild(wrap);
@@ -273,8 +298,8 @@
           var tr = el("tr");
           tr.appendChild(el("td", "narrow", k.slice(5).replace("-", "/") + " (" + H.DOW[H.parseKey(k).getDay()] + ")"));
           tr.appendChild(el("td", "narrow num", fmt(dayTotal(d))));
-          tr.appendChild(el("td", "narrow num" + (dayTotal(d) - dayTotal(pv) > 0 ? " up" : ""), signed(dayTotal(d) - dayTotal(pv))));
-          tr.appendChild(el("td", "", best >= 0 && ownD(d, pv, best) > 0 ? d.secs[best].t : "–"));
+          tr.appendChild(el("td", "narrow num" + (dayTotal(d) - dayTotal(pv) > 0 ? " up" : ""), pv ? signed(dayTotal(d) - dayTotal(pv)) : "첫 기록"));
+          tr.appendChild(el("td", "", pv && best >= 0 && ownD(d, pv, best) > 0 ? d.secs[best].t : "–"));
           t.appendChild(tr);
         });
         lc.body.appendChild(wrap);
@@ -338,6 +363,7 @@
         if (!ta.value.trim()) { return; }
         record({ lines: ta.value.replace(/\r\n?/g, "\n").split("\n"), lv: [], memos: [], file: "", fileModified: 0 }).then(function (ok) { if (ok) { ta.value = ""; paste.open = false; } });
       });
+      goalEl.addEventListener("change", function () { App.setDoc(LOG(), { goal: Math.max(0, Number(goalEl.value) || 0) }); });
       spBtn.addEventListener("click", function () { noSpace = !noSpace; H.safeSet("hds_draft_ns", noSpace ? "1" : "0"); drawAll(); });
       koBtn.addEventListener("click", function () { koFirst = true; H.safeSet("hds_draft_en", "0"); drawRefs(); });
       enBtn.addEventListener("click", function () { koFirst = false; H.safeSet("hds_draft_en", "1"); drawRefs(); });

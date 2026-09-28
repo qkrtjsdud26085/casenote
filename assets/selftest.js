@@ -108,7 +108,7 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 26 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 25 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|논문|자격증|AI|기타 자료" && !$("#subnav .sub-row"), $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
     var drop = $("#subnav .sub-caret"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
@@ -117,7 +117,7 @@
     goLinks[0].click(); await sleep(150);
     ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[0].classList.contains("active"), location.hash);
     await go("ias-home");
-    ok("논문 menu rows", $$("#subnav .sub-row").length === 1 && $$("#subnav .sub-row > *").map(function (n) { return (n.querySelector(".sub-go") || n).textContent; }).join("|") === "IAS 척도 타당화|비선형 공격성 임계점" && $("#subnav a.active").getAttribute("data-page") === "ias-home" && $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|") === "개요 · 진행 단계|연구 흐름|문항표|오늘 논문 작성 기록" && !cardBy("핵심 수치") && !cardBy("파일 위치"), $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|"));
+    ok("논문 menu rows", $$("#subnav .sub-row").length === 1 && $$("#subnav .sub-row > *").map(function (n) { return (n.querySelector(".sub-go") || n).textContent; }).join("|") === "① IAS 척도 타당화|② 비선형 공격성 임계점|논문 추천" && $("#subnav a.active").getAttribute("data-page") === "ias-home" && $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|") === "개요 · 진행 단계|연구 흐름|문항표|오늘 논문 작성 기록" && !cardBy("핵심 수치") && !cardBy("파일 위치"), $$("#view .page-tab").map(function (a) { return a.textContent; }).join("|"));
     await go("home");
 
     await go("ias-home");
@@ -478,10 +478,32 @@
     await go("thesis-refs");
     ok("scale text templates", $$("#view .card").some(function (c) { return /척도 타당화 결과 서술 문장/.test(c.textContent); }));
 
+    var recoFetch = window.fetch;
+    window.fetch = function (url) {
+      url = String(url);
+      function j(o) { return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve(o); } }); }
+      if (url.indexOf("https://api.openalex.org/works") === 0) {
+        return j({ results: [
+          { id: "https://openalex.org/W1", display_name: "High impact open paper", publication_year: 2024, open_access: { is_oa: true, oa_url: "https://example.org/w1" }, best_oa_location: { pdf_url: "https://example.org/w1.pdf" }, primary_location: { source: { id: "https://openalex.org/S1", display_name: "Journal A" } } },
+          { id: "https://openalex.org/W2", display_name: "Low impact paper", publication_year: 2024, open_access: { is_oa: true, oa_url: "https://example.org/w2" }, primary_location: { source: { id: "https://openalex.org/S2", display_name: "Journal B" } } },
+          { id: "https://openalex.org/W3", display_name: "Closed high impact paper", publication_year: 2023, open_access: { is_oa: false }, doi: "https://doi.org/10.1/x", primary_location: { landing_page_url: "https://doi.org/10.1/x", source: { id: "https://openalex.org/S1", display_name: "Journal A" } } }
+        ] });
+      }
+      if (url.indexOf("https://api.openalex.org/sources") === 0) {
+        return j({ results: [{ id: "https://openalex.org/S1", summary_stats: { "2yr_mean_citedness": 4.23 } }, { id: "https://openalex.org/S2", summary_stats: { "2yr_mean_citedness": 1.1 } }] });
+      }
+      return recoFetch.apply(window, arguments);
+    };
     await go("thesis-recommend");
+    ok("recommend in 논문 menu", $("#subnav .sub-row a.active") && $("#subnav .sub-row a.active").getAttribute("data-page") === "thesis-recommend");
     var rf = $("#view form.quick-add");
-    setVal($("input", rf), "psychopathy"); submit(rf); await sleep(150);
+    setVal($("input", rf), "psychopathy"); submit(rf); await sleep(400);
     ok("interest add", $$("#view .interest-chip").length === 1, $$("#view .interest-chip").length);
+    var recoTitles = $$("#view .reco-title").map(function (a) { return a.textContent; });
+    ok("reco impact >= 3 only, open first", recoTitles.join("|") === "High impact open paper|Closed high impact paper" && /IF 4\.2/.test($("#view .reco-item").textContent), recoTitles.join("|"));
+    var yuLink = $$("#view .reco-links a").filter(function (a) { return a.textContent === "영남대 로그인으로 열기"; })[0];
+    ok("reco YU proxy link", !!yuLink && yuLink.href === "https://libproxy.yu.ac.kr/_Lib_Proxy_Url/https://doi.org/10.1/x", yuLink && yuLink.href);
+    window.fetch = recoFetch;
     ok("interest scholar link", /scholar\.google\.com/.test($("#view .interest-chip a").href));
 
     /* google calendar (fake Google API responses) */

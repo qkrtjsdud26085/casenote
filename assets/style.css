@@ -853,10 +853,6 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .draft-view h3.draft-h { font-size: 1.12rem; }
 .draft-view h4.draft-h { font-size: 1rem; }
 .draft-view h5.draft-h { font-size: 0.92rem; }
-.draft-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
-.draft-stat { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--bg); }
-.draft-stat-label { display: block; font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-soft); }
-.draft-stat strong { font-size: 1.15rem; }
 .draft-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 .draft-status { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 8px; }
 .draft-paste > summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
@@ -882,3 +878,4 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .sub-row > .sub-link.active, .sub-row > .sub-group.active { background: var(--ink); border-color: var(--ink); }
 .sub-row > .sub-link.active, .sub-row > .sub-group.active > .sub-link { color: var(--bg); }
 .sub-row .sub-menu { margin-top: 4px; }
+.reco-badge.impact { font-weight: 600; color: var(--ink); }

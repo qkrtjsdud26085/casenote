@@ -93,14 +93,15 @@
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
       { label: "논문", sections: [
-        { label: "IAS 척도 타당화", pages: ["ias-home", "ias-flow", "ias-items", "ias-writing"] },
-        { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] }
+        { label: "① IAS 척도 타당화", pages: ["ias-home", "ias-flow", "ias-items", "ias-writing"] },
+        { label: "② 비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
+        { label: "논문 추천", pages: ["thesis-recommend"] }
       ] },
       { label: "자격증", go: true, pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },
       { pages: ["ai-tools", "ai-notes", "ai-log"] },
       { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
         "proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit",
-        "thesis-library", "thesis-recommend", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
+        "thesis-library", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
       { pages: ["writer-desk"] },
