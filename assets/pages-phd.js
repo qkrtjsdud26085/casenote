@@ -151,6 +151,42 @@
     h1.insertAdjacentElement("afterend", nav);
   }
 
+  /* D-day: the nearest upcoming exam in large type + the list of exam dates */
+  function ddayCard(parent, ref) {
+    var c = ui.card(parent, { tab: "D-day", tone: "t-2", title: "시험 D-day" });
+    var big = el("div", "dday-big"); c.body.appendChild(big);
+    ui.itemsPanel(c.body, {
+      ref: ref, views: ["table"], dueKey: "date", ddayInTable: true, quickFields: ["name", "date"],
+      sort: function (a, b) { return String(a.date || "9999").localeCompare(String(b.date || "9999")); }, empty: "시험 날짜를 추가하세요.",
+      onItems: function (items) {
+        H.clear(big);
+        var t = H.todayStr();
+        var next = items.filter(function (x) { return x.date && x.date >= t; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0];
+        if (!next) { big.appendChild(el("div", "dday-big-none", "다가오는 시험 없음")); return; }
+        var info = H.ddayInfo(next.date);
+        big.appendChild(el("div", "dday-big-num " + info.cls, info.text));
+        big.appendChild(el("div", "dday-big-name", next.name + " · " + next.date.replace(/-/g, ".")));
+      },
+      fields: [
+        { key: "name", label: "시험", type: "text", title: true, required: true, col: true, maxLength: 60, placeholder: "예: 임상심리사 2급 필기" },
+        { key: "date", label: "날짜", type: "date", col: true }
+      ]
+    });
+  }
+  /* quick links to past-exam (기출문제) sites; defaults can be edited or restored */
+  function examLinks(parent, ref, defaults) {
+    var c = ui.card(parent, { tab: "Exams", tone: "t-3", title: "기출문제 바로가기", wide: true });
+    ui.itemsPanel(c.body, {
+      ref: ref, grid: true, titleLink: "url", defaults: defaults, addLabel: "+ 사이트 추가", empty: "사이트를 추가하세요.",
+      fields: [
+        { key: "name", label: "사이트", type: "text", title: true, required: true, maxLength: 80 },
+        { key: "kind", label: "구분", type: "select", options: ["필기 기출", "실기 기출", "시험 정보", "기타"], meta: true },
+        { key: "url", label: "링크", type: "url", required: true, hideInCard: true },
+        { key: "memo", label: "메모", type: "text", maxLength: 120 }
+      ]
+    });
+  }
+
   function certDetailPage(cfg) {
     App.page({
       id: cfg.id,
@@ -161,7 +197,7 @@
         certHeadTabs(cfg.id);
         var g = ui.grid(view, true);
 
-        var o = ui.card(g, { tab: "Info", tone: "t-1", title: cfg.title + " 자격 정보 · 목표", wide: true });
+        var o = ui.card(g, { tab: "Info", tone: "t-1", title: cfg.title + " 자격 정보 · 목표", wide: !cfg.dday });
         ui.fieldsPanel(o.body, {
           ref: R(cfg.key + "_info"), docKey: "info",
           fields: [
@@ -172,6 +208,9 @@
             { key: "note", label: "메모 · 요건 요약", type: "textarea", rows: 2, wide: true, placeholder: "응시 자격 요건, 학점/수련 기준 등 메모" }
           ]
         });
+
+        if (cfg.dday) { ddayCard(g, R(cfg.key + "_dday")); }
+        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links); }
 
         var r = ui.card(g, { tab: "Requirements", tone: "t-2", title: "취득 요건 · 수련 체크리스트", wide: true });
         ui.itemsPanel(r.body, {
@@ -237,7 +276,15 @@
     title: "임상심리사",
     key: "cert_clinical",
     defaultLevel: "정신건강임상심리사 1급·2급 / 임상심리사 1급·2급",
-    defaultOrg: "보건복지부 / 한국산업인력공단"
+    defaultOrg: "보건복지부 / 한국산업인력공단",
+    dday: true,
+    links: [
+      { name: "최강 자격증 기출문제 CBT (comcbt)", kind: "필기 기출", url: "https://www.comcbt.com/xe/bk", memo: "임상심리사 2급 필기 · 해설 · 모의고사" },
+      { name: "킨즈 (kinz)", kind: "필기 기출", url: "https://www.kinz.kr/subject/6291", memo: "임상심리사 2급 객관식 필기 · 연도별" },
+      { name: "CBT문제은행", kind: "필기 기출", url: "https://cbtbank.kr/category/%EC%9E%84%EC%83%81%EC%8B%AC%EB%A6%AC%EC%82%AC-2%EA%B8%89", memo: "필기 기출 · 자동 채점" },
+      { name: "모두CBT", kind: "실기 기출", url: "https://www.moducbt.com/category/%EC%9E%84%EC%83%81%EC%8B%AC%EB%A6%AC%EC%82%AC2%EA%B8%89-%EC%8B%A4%EA%B8%B0-%EA%B8%B0%EC%B6%9C-%EA%B3%BC%EB%85%84%EB%8F%84-%EC%95%94%EA%B8%B0%EC%9E%A5", memo: "실기 기출 · 모범답안" },
+      { name: "Q-Net 임상심리사2급 시험 정보", kind: "시험 정보", url: "https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=9540", memo: "시험 일정 · 응시 자격 · 출제 기준" }
+    ]
   });
 
   /* =========================================================
@@ -501,7 +548,8 @@
     id: "cert-crime-info", tabLabel: "자격 정보",
     render: function (view) {
       crimeHead(view, "cert-crime-info");
-      var o = ui.card(view, { tab: "Info", tone: "t-1", title: "자격 정보", wide: true });
+      var top = ui.grid(view, true);
+      var o = ui.card(top, { tab: "Info", tone: "t-1", title: "자격 정보" });
       ui.fieldsPanel(o.body, {
         ref: CD("info"), docKey: "info",
         fields: [
@@ -512,6 +560,8 @@
           { key: "status", label: "상태", type: "select", options: ["취득", "갱신 필요", "준비 중"] }
         ]
       });
+      var up = ui.card(top, { tab: "Certificate", tone: "t-3", title: "자격증 파일" });
+      ui.fileVault(up.body, { ref: CD("certfiles") });
       var f = ui.card(view, { tab: "Files", tone: "t-2", title: "자료 · 증빙 링크", wide: true });
       ui.itemsPanel(f.body, {
         ref: R("cert_crime_files"), views: ["table", "cards"], titleLink: "url", addLabel: "+ 링크 추가",

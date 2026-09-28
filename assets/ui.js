@@ -546,6 +546,103 @@
     return { inputs: inputs };
   };
 
+  /* ---------- file vault: upload / view / download small files (자격증 사본 등) ----------
+     Files are kept in Firestore itself (no Storage bucket needed): the list lives in cfg.ref
+     ({ items: [{ id, name, type, size, chunks, uploadedAt }] }) and each file's bytes are split
+     into base64 pieces saved as research/file_<id>_<n> (each well under Firestore's 1 MB limit). */
+  var CHUNK = 700000;
+  function chunkRef(id, n) { return App.doc("research/file_" + id + "_" + n); }
+  function fmtSize(b) { return b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+  ui.fileVault = function (parent, cfg) {
+    var maxMB = cfg.maxMB || 10;
+    var items = [];
+    var root = el("div", "file-vault");
+    var row = el("div", "fv-upload");
+    var input = el("input"); input.type = "file"; input.accept = cfg.accept || "image/*,application/pdf";
+    input.setAttribute("aria-label", "올릴 파일");
+    var pick = el("button", "btn", "+ 파일 올리기"); pick.type = "button";
+    pick.addEventListener("click", function () { input.click(); });
+    var status = el("span", "prog-label");
+    input.hidden = true;
+    [input, pick, status].forEach(function (n) { row.appendChild(n); });
+    var list = el("div", "fv-list");
+    root.appendChild(row); root.appendChild(list);
+    parent.appendChild(root);
+
+    function saveList(next) { items = next; draw(); return cfg.ref.set({ items: next, updatedAt: new Date().toISOString() }, { merge: true }); }
+    function readBytes(it) {
+      var jobs = [];
+      for (var n = 0; n < it.chunks; n++) { jobs.push(chunkRef(it.id, n).get()); }
+      return Promise.all(jobs).then(function (snaps) {
+        var b64 = snaps.map(function (s) { return s.exists ? (s.data().data || "") : ""; }).join("");
+        var bin = atob(b64), bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+        return new Blob([bytes], { type: it.type || "application/octet-stream" });
+      });
+    }
+    function open(it, download, btn) {
+      var w = download ? null : window.open("", "_blank");
+      var old = btn.textContent; btn.textContent = "여는 중…"; btn.disabled = true;
+      readBytes(it).then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        if (w) { w.location.href = url; }
+        else { var a = el("a"); a.href = url; a.download = it.name; document.body.appendChild(a); a.click(); a.remove(); }
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      }).catch(function (err) { if (w) { w.close(); } window.alert("파일을 열지 못했어요: " + err.message); })
+        .then(function () { btn.textContent = old; btn.disabled = false; });
+    }
+    function draw() {
+      H.clear(list);
+      if (!items.length) { list.appendChild(ui.empty("아직 올린 파일이 없어요.")); return; }
+      items.slice().sort(function (a, b) { return String(b.uploadedAt).localeCompare(String(a.uploadedAt)); }).forEach(function (it) {
+        var li = el("div", "fv-item");
+        li.appendChild(el("span", "fv-icon", /^image\//.test(it.type) ? "IMG" : (/pdf/.test(it.type) ? "PDF" : "FILE")));
+        var info = el("div", "fv-info");
+        info.appendChild(el("div", "fv-name", it.name));
+        info.appendChild(el("div", "fv-meta", fmtSize(it.size || 0) + " · " + String(it.uploadedAt || "").slice(0, 10)));
+        li.appendChild(info);
+        var btns = el("div", "item-btns");
+        var v = el("button", "copy-btn", "보기"); v.type = "button"; v.addEventListener("click", function () { open(it, false, v); });
+        var d = el("button", "copy-btn", "내려받기"); d.type = "button"; d.addEventListener("click", function () { open(it, true, d); });
+        var x = el("button", "copy-btn danger", "삭제"); x.type = "button"; x.title = "삭제";
+        x.addEventListener("click", function () {
+          if (!window.confirm("'" + it.name + "' 파일을 삭제할까요?")) { return; }
+          var jobs = [];
+          for (var n = 0; n < it.chunks; n++) { jobs.push(chunkRef(it.id, n).delete()); }
+          Promise.all(jobs).then(function () { return saveList(items.filter(function (y) { return y.id !== it.id; })); })
+            .catch(function (err) { window.alert("삭제 실패: " + err.message); });
+        });
+        [v, d, x].forEach(function (b) { btns.appendChild(b); });
+        li.appendChild(btns);
+        list.appendChild(li);
+      });
+    }
+    input.addEventListener("change", function () {
+      var f = input.files && input.files[0];
+      input.value = "";
+      if (!f) { return; }
+      if (f.size > maxMB * 1048576) { window.alert(maxMB + "MB보다 큰 파일은 올릴 수 없어요."); return; }
+      status.textContent = "올리는 중…"; pick.disabled = true;
+      new Promise(function (res, rej) {
+        var r = new FileReader();
+        r.onload = function () { res(String(r.result).replace(/^data:[^,]*,/, "")); };
+        r.onerror = function () { rej(r.error || new Error("파일을 읽지 못했어요.")); };
+        r.readAsDataURL(f);
+      }).then(function (b64) {
+        var id = H.uid(), parts = [];
+        for (var i = 0; i < b64.length; i += CHUNK) { parts.push(b64.slice(i, i + CHUNK)); }
+        return Promise.all(parts.map(function (p, n) { return chunkRef(id, n).set({ data: p, n: n }); })).then(function () {
+          return saveList(items.concat([{ id: id, name: f.name, type: f.type || "", size: f.size, chunks: parts.length, uploadedAt: new Date().toISOString() }]));
+        });
+      }).then(function () { status.textContent = "올림 ✓"; })
+        .catch(function (err) { status.textContent = ""; window.alert("업로드 실패: " + err.message); })
+        .then(function () { pick.disabled = false; });
+    });
+    draw();
+    App.watchDoc(cfg.ref, function (d) { items = d && Array.isArray(d.items) ? d.items : []; draw(); });
+    return { root: root, input: input };
+  };
+
   /* ---------- static copyable references ---------- */
   ui.refList = function (parent, items) {
     var ul = el("ul", "ref-list");

@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 62, ids.length);
+    ok("page count", ids.length === 63, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -108,14 +108,15 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 30 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
-    ok("thesis grouped menu", $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 31 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
     var drop = $("#subnav .sub-caret"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
     var goLinks = $$("#subnav .sub-go");
-    ok("group labels go to first page", goLinks.length === 2 && goLinks[0].getAttribute("href") === "#/diss-overview" && goLinks[1].getAttribute("href") === "#/cert-list" && !$("#subnav .sub-group .sub-drop:not(.sub-go)").matches(".sub-go"), goLinks.map(function (a) { return a.getAttribute("href"); }).join(","));
-    goLinks[1].click(); await sleep(150);
-    ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[1].classList.contains("active"), location.hash);
+    ok("group labels go to first page", goLinks.length === 3 && goLinks[0].getAttribute("href") === "#/ias-home" && goLinks[1].getAttribute("href") === "#/diss-overview" && goLinks[2].getAttribute("href") === "#/cert-list" && !$("#subnav .sub-group .sub-drop:not(.sub-go)").matches(".sub-go"), goLinks.map(function (a) { return a.getAttribute("href"); }).join(","));
+    goLinks[2].click(); await sleep(150);
+    ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[2].classList.contains("active"), location.hash);
+    ok("IAS menu items", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 2 && /1차 연구 기록/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent));
     await go("home");
 
     await go("ias-home");
@@ -129,7 +130,7 @@
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
-    ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 3 && /연구계획서 내용 전체/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && /연구재단 선정/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent) && $$("#subnav .sub-group")[1].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[1].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[1].textContent) && /피해상담사/.test($$("#subnav .sub-group")[1].textContent) && /임상심리사/.test($$("#subnav .sub-group")[1].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
+    ok("nav labels", $$("#subnav .sub-group")[1].querySelectorAll(".sub-item").length === 3 && /연구계획서 내용 전체/.test($$("#subnav .sub-group")[1].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && /연구재단 선정/.test($$("#subnav .sub-group")[1].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[1].textContent) && $$("#subnav .sub-group")[2].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[2].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[2].textContent) && /피해상담사/.test($$("#subnav .sub-group")[2].textContent) && /임상심리사/.test($$("#subnav .sub-group")[2].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
     /* 연구 흐름도 (research-flow.js): template, accordion, editing, sub-steps */
     await go("diss-current");
@@ -173,6 +174,9 @@
     await go("cert-files"); ok("cert files page", $("#subnav a.active").getAttribute("data-page") === "cert-list" && !!cardBy("취득 증빙 파일 링크"));
     await go("cert-victim"); ok("cert-victim page", $$("#pageHead .cert-head-tabs .bud-tab").length === 3 && $("#pageHead .bud-tab.on").textContent === "피해상담사" && !$("#view .page-tab") && !!cardBy("피해상담사 자격 정보 · 목표"));
     await go("cert-clinical"); ok("cert-clinical page", $$("#pageHead .cert-head-tabs .bud-tab").length === 3 && !!cardBy("임상심리사 자격 정보 · 목표"));
+    ok("clinical exam links", $$(".item-card", cardBy("기출문제 바로가기")).length === 5 && /q-net\.or\.kr.*jmCd=9540/.test($$(".item-card a", cardBy("기출문제 바로가기")).map(function (a) { return a.href; }).join(" ")));
+    var ddf = $(".quick-add", cardBy("시험 D-day")); $("input", ddf).value = "필기"; $("input[type=date]", ddf).value = App.h.dateKey(App.h.addDays(new Date(), 10)); submit(ddf); await sleep(150);
+    ok("clinical D-day", /D-10/.test($(".dday-big-num", cardBy("시험 D-day")).textContent) && /필기/.test($(".dday-big-name", cardBy("시험 D-day")).textContent), $(".dday-big", cardBy("시험 D-day")).textContent);
     /* 범죄심리사: 5 in-page tabs, title switcher, stats, filters, copy, schedule → Google Calendar */
     await go("cert-crime");
     ok("crime head tabs", $("#pageHead .page-title").textContent === "범죄심리사" && $$("#pageHead .cert-head-tabs .bud-tab").map(function (a) { return a.textContent; }).join("|") === "범죄심리사|피해상담사|임상심리사" && $("#pageHead .bud-tab.on").textContent === "범죄심리사");
@@ -229,7 +233,16 @@
     $("#view .crime-prompt-edit").value = "고친 지침"; $$("#view .btn").filter(function (b) { return b.textContent === "저장"; })[0].click(); await sleep(120);
     ok("prompt edit saves", window.__MOCK_STORE["research/crime_prompt"].text === "고친 지침" && $("#view .crime-prompt").textContent === "고친 지침" && !$("#view .crime-prompt").hidden);
     await go("cert-crime-info");
-    ok("crime info page", !!cardBy("자격 정보") && !!cardBy("자료 불러오기 · 백업") && !$("#view .card .hint"));
+    ok("crime info page", !!cardBy("자격 정보") && !!cardBy("자격증 파일") && !!cardBy("자료 불러오기 · 백업") && !$("#view .card .hint"));
+    var fvIn = $("input[type=file]", cardBy("자격증 파일")), dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array([137, 80, 78, 71, 1, 2, 3])], "자격증.png", { type: "image/png" }));
+    fvIn.files = dt.files; change(fvIn); await sleep(400);
+    var fvDoc = window.__MOCK_STORE["research/crime_certfiles"];
+    ok("file upload", !!fvDoc && fvDoc.items.length === 1 && fvDoc.items[0].name === "자격증.png" && !!window.__MOCK_STORE["research/file_" + fvDoc.items[0].id + "_0"] && $$(".fv-item", cardBy("자격증 파일")).length === 1, JSON.stringify(fvDoc));
+    var fvId = fvDoc.items[0].id;
+    $$(".fv-item .copy-btn", cardBy("자격증 파일")).filter(function (b) { return b.textContent === "삭제"; })[0].click(); await sleep(300);
+    ok("file delete", window.__MOCK_STORE["research/crime_certfiles"].items.length === 0 && !window.__MOCK_STORE["research/file_" + fvId + "_0"] && !!$(".empty-state", cardBy("자격증 파일")));
+    await go("ias-current"); ok("ias current page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "ias-current");
     /* 연구계획서 내용 전체 */
     await go("diss-plan");
     ok("plan empty", !!$("#view .plan-doc .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-plan");

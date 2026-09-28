@@ -92,7 +92,7 @@
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
-      { pages: ["ias-home", "ias-flow", "ias-items", "ias-results", "ias-manuscript"] },
+      { label: "IAS 척도 타당화", go: true, pages: ["ias-home", "ias-current", "ias-flow", "ias-items", "ias-results", "ias-manuscript"] },
       { label: "비선형 공격성 임계점", go: true, pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
       { label: "자격증", go: true, pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },
       { pages: ["ai-tools", "ai-notes", "ai-log"] },

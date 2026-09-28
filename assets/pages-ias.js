@@ -31,7 +31,7 @@
      1. IAS 대시보드
      ========================================================= */
   App.page({
-    id: "ias-home", title: "IAS 대시보드", navLabel: "IAS 척도 타당화", tabLabel: "대시보드",
+    id: "ias-home", title: "IAS 대시보드", navLabel: "1차 연구 기록", tabLabel: "대시보드",
     desc: "간접적 공격성 척도 가해자판(IAS-A) 한국판 타당화 논문의 현재 단계, 핵심 수치, 다음 할 일, 결정 기록, 파일 위치를 한눈에 봅니다.",
     render: function (view) {
       head(view, "ias-home");
@@ -185,6 +185,17 @@
           { key: "file", label: "파일", type: "text", maxLength: 200 }
         ]
       });
+    }
+  });
+
+  /* =========================================================
+     IAS › 현재 진행중 (내용은 아직 정하지 않은 빈 자리)
+     ========================================================= */
+  App.page({
+    id: "ias-current", title: "IAS 척도 타당화 · 현재 진행중", navLabel: "현재 진행중",
+    render: function (view) {
+      var c = ui.card(view, { tab: "Now", tone: "t-2", title: "현재 진행중", wide: true });
+      c.body.appendChild(ui.empty("아직 비어 있어요."));
     }
   });
 

@@ -821,3 +821,17 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .sub-go { padding-right: 2px; }
 .sub-caret { padding-left: 4px; padding-right: 8px; font-size: 0.72em; opacity: 0.75; }
 .sub-group.active > .sub-caret { color: var(--ink); border-bottom-color: var(--accent); }
+/* 파일 올리기 · 내려받기 (ui.fileVault) */
+.fv-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.fv-list { display: flex; flex-direction: column; gap: 8px; }
+.fv-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.fv-icon { flex-shrink: 0; width: 42px; height: 42px; border-radius: 6px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.66rem; font-weight: 600; background: var(--surface); border: 1px solid var(--line); color: var(--accent); }
+.fv-info { flex: 1; min-width: 0; }
+.fv-name { font-weight: 600; font-size: 0.88rem; overflow-wrap: anywhere; }
+.fv-meta { font-size: 0.74rem; color: var(--ink-soft); margin-top: 2px; }
+/* 시험 D-day */
+.dday-big { text-align: center; padding: 6px 0 14px; margin-bottom: 10px; border-bottom: 1px dashed var(--line); }
+.dday-big-num { font-family: var(--font-display); font-size: 2.6rem; font-weight: 700; line-height: 1.1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.dday-big-num.past { color: var(--ink-soft); }
+.dday-big-name { margin-top: 6px; font-size: 0.86rem; color: var(--ink-soft); }
+.dday-big-none { font-size: 0.9rem; color: var(--ink-soft); padding: 14px 0; }
