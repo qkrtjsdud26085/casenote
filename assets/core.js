@@ -92,8 +92,10 @@
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
       { pages: ["thesis-home"] },
-      { label: "IAS 척도 타당화", go: true, pages: ["ias-home", "ias-current", "ias-flow", "ias-items", "ias-results", "ias-manuscript"] },
-      { label: "비선형 공격성 임계점", go: true, pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
+      { label: "논문", sections: [
+        { label: "IAS 척도 타당화", pages: ["ias-home", "ias-current", "ias-flow", "ias-items", "ias-results", "ias-manuscript", "ias-writing"], subs: { "ias-current": ["ias-writing"] } },
+        { label: "비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] }
+      ] },
       { label: "자격증", go: true, pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },
       { pages: ["ai-tools", "ai-notes", "ai-log"] },
       { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
@@ -111,6 +113,7 @@
   ];
   App.MENU.forEach(function (g) {
     if (!g.groups) { g.groups = g.pages.map(function (p) { return { pages: [p] }; }); }
+    g.groups.forEach(function (gr) { if (gr.sections) { gr.pages = [].concat.apply([], gr.sections.map(function (s) { return s.pages; })); } });
     g.pages = [].concat.apply([], g.groups.map(function (x) { return x.pages; }));
   });
   App.page = function (def) { App.pages[def.id] = def; };
@@ -157,14 +160,62 @@
       if (pid === page.id) { a.setAttribute("aria-current", "page"); }
       return a;
     }
+    var rows = [];
     grp.groups.forEach(function (gr) {
       if (!gr.label) {
         gr.pages.forEach(function (pid) { var a = link(pid, "sub-link"); if (a) { subnavEl.appendChild(a); } });
         return;
       }
+      /* sections: three rows — 논문 / its sections / the current section's pages */
+      if (gr.sections) {
+        var inIt = gr.pages.indexOf(page.id) !== -1;
+        var top = el("a", "sub-link sub-parent" + (inIt ? " on" : ""), gr.label); top.href = "#/" + firstOf(gr.pages);
+        subnavEl.appendChild(top);
+        if (!inIt) { return; }
+        rows.push(el("div", "sub-row"));
+        var cur = null;
+        gr.sections.forEach(function (sec) {
+          var on = sec.pages.indexOf(page.id) !== -1; if (on) { cur = sec; }
+          var a = el("a", "sub-link sub-parent" + (on ? " on" : ""), sec.label); a.href = "#/" + firstOf(sec.pages);
+          rows[0].appendChild(a);
+        });
+        if (!cur) { return; }
+        var r3 = el("div", "sub-row sub-row3"); rows.push(r3);
+        cur.pages.forEach(function (pid) {
+          var subs = (cur.subs || {})[pid] || [];
+          var a = link(pid, "sub-link" + (subs.length ? " sub-drop sub-go" : "")); if (!a) { return; }
+          if (!subs.length) { r3.appendChild(a); return; }
+          /* subs: navHidden pages in a small dropdown on their parent */
+          var wrap = el("div", "sub-group" + (pid === page.id || pid === page.navParent ? " active" : ""));
+          var btn = el("button", "sub-link sub-caret", "▾"); btn.type = "button";
+          btn.setAttribute("aria-label", a.textContent + " 하위 메뉴"); btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
+          var menu = el("div", "sub-menu");
+          subs.forEach(function (cid) {
+            var cp = App.pages[cid]; if (!cp) { return; }
+            var c = el("a", "sub-item" + (cid === page.id ? " active" : ""), cp.tabLabel || cp.title);
+            c.href = "#/" + cid; c.setAttribute("data-link", cid);
+            menu.appendChild(c);
+          });
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var wasOpen = wrap.classList.contains("open");
+            closeMenus();
+            if (!wasOpen) { wrap.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+          });
+          wrap.appendChild(a); wrap.appendChild(btn); wrap.appendChild(menu);
+          r3.appendChild(wrap);
+        });
+        return;
+      }
+      subnavEl.appendChild(dropGroup(gr));
+    });
+    rows.forEach(function (r) { subnavEl.appendChild(r); });
+
+    function firstOf(pages) { return pages.filter(function (pid) { return App.pages[pid] && !App.pages[pid].navHidden; })[0]; }
+    function dropGroup(gr) {
       var wrap = el("div", "sub-group" + (gr.pages.indexOf(page.id) !== -1 ? " active" : ""));
       /* go: the label itself opens the first sub-page; a small ▾ beside it opens the list */
-      var first = gr.go ? gr.pages.filter(function (pid) { return App.pages[pid] && !App.pages[pid].navHidden; })[0] : null;
+      var first = gr.go ? firstOf(gr.pages) : null;
       var btn;
       if (first) {
         var go = el("a", "sub-link sub-drop sub-go", gr.label); go.href = "#/" + first;
@@ -175,7 +226,10 @@
       }
       btn.type = "button"; btn.setAttribute("aria-haspopup", "true"); btn.setAttribute("aria-expanded", "false");
       var menu = el("div", "sub-menu");
-      gr.pages.forEach(function (pid) { var a = link(pid, "sub-item"); if (a) { menu.appendChild(a); } });
+      gr.pages.forEach(function (pid) {
+        var a = link(pid, "sub-item"); if (!a) { return; }
+        menu.appendChild(a);
+      });
       (gr.links || []).forEach(function (l) {
         var a = el("a", "sub-item", l.label); a.href = "#/" + l.to; a.setAttribute("data-link", l.to);
         menu.appendChild(a);
@@ -187,8 +241,8 @@
         if (!wasOpen) { wrap.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
       });
       wrap.appendChild(btn); wrap.appendChild(menu);
-      subnavEl.appendChild(wrap);
-    });
+      return wrap;
+    }
   }
   function closeMenus() {
     Array.prototype.forEach.call(document.querySelectorAll(".sub-group.open"), function (g) {

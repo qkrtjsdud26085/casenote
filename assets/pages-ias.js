@@ -192,8 +192,9 @@
      IAS › 현재 진행중 (내용은 아직 정하지 않은 빈 자리)
      ========================================================= */
   App.page({
-    id: "ias-current", title: "IAS 척도 타당화 · 현재 진행중", navLabel: "현재 진행중",
+    id: "ias-current", title: "IAS 척도 타당화 · 현재 진행중", navLabel: "현재 진행중", tabLabel: "현재 진행중",
     render: function (view) {
+      RK.pageTabs(view, ["ias-current", "ias-writing"], "ias-current");
       var c = ui.card(view, { tab: "Now", tone: "t-2", title: "현재 진행중", wide: true });
       c.body.appendChild(ui.empty("아직 비어 있어요."));
     }

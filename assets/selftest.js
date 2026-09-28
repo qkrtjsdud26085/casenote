@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 63, ids.length);
+    ok("page count", ids.length === 64, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -108,15 +108,16 @@
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
     ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
-    ok("subnav count thesis", $$("#subnav a[data-page]").length === 31 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
-    ok("thesis grouped menu", $$("#subnav .sub-group").length === 4 && $$("#subnav > *").length === 6 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|IAS 척도 타당화|비선형 공격성 임계점|자격증|AI|기타 자료", $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
+    ok("subnav count thesis", $$("#subnav a[data-page]").length === 26 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
+    ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|논문|자격증|AI|기타 자료" && !$("#subnav .sub-row"), $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
     var drop = $("#subnav .sub-caret"); drop.click(); ok("dropdown opens on click", drop.parentNode.classList.contains("open") && drop.getAttribute("aria-expanded") === "true");
     document.body.click(); ok("dropdown closes on outside click", !drop.parentNode.classList.contains("open"));
     var goLinks = $$("#subnav .sub-go");
-    ok("group labels go to first page", goLinks.length === 3 && goLinks[0].getAttribute("href") === "#/ias-home" && goLinks[1].getAttribute("href") === "#/diss-overview" && goLinks[2].getAttribute("href") === "#/cert-list" && !$("#subnav .sub-group .sub-drop:not(.sub-go)").matches(".sub-go"), goLinks.map(function (a) { return a.getAttribute("href"); }).join(","));
-    goLinks[2].click(); await sleep(150);
-    ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[2].classList.contains("active"), location.hash);
-    ok("IAS menu items", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 2 && /1차 연구 기록/.test($$("#subnav .sub-group")[0].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[0].textContent));
+    ok("group labels go to first page", goLinks.length === 1 && goLinks[0].getAttribute("href") === "#/cert-list" && $("#subnav a.sub-parent").getAttribute("href") === "#/ias-home", goLinks.map(function (a) { return a.getAttribute("href"); }).join(","));
+    goLinks[0].click(); await sleep(150);
+    ok("자격증 label opens 전체 현황", location.hash === "#/cert-list" && $$("#subnav .sub-group")[0].classList.contains("active"), location.hash);
+    await go("ias-home");
+    ok("논문 menu rows", $$("#subnav .sub-row").length === 2 && $("#subnav .sub-row .sub-parent.on").textContent === "IAS 척도 타당화" && $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|") === "1차 연구 기록|현재 진행중|오늘 논문 작성 기록" && $("#subnav a.active").getAttribute("data-page") === "ias-home", $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|"));
     await go("home");
 
     await go("ias-home");
@@ -130,7 +131,10 @@
     ok("ias export", iasExp.docs.meta && iasExp.docs.meta.info.title === "테스트 IAS" && !iasExp.docs.bogus);
     await go("thesis-home");
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
-    ok("nav labels", $$("#subnav .sub-group")[1].querySelectorAll(".sub-item").length === 3 && /연구계획서 내용 전체/.test($$("#subnav .sub-group")[1].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && /연구재단 선정/.test($$("#subnav .sub-group")[1].textContent) && /현재 진행중/.test($$("#subnav .sub-group")[1].textContent) && $$("#subnav .sub-group")[2].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[2].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[2].textContent) && /피해상담사/.test($$("#subnav .sub-group")[2].textContent) && /임상심리사/.test($$("#subnav .sub-group")[2].textContent) && !$("#subnav a[data-page='ias-items']") && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
+    ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[0].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[0].textContent) && /피해상담사/.test($$("#subnav .sub-group")[0].textContent) && /임상심리사/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
+    await go("diss-overview");
+    ok("diss menu rows", $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중|연구계획서 내용 전체" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row3 a").map(function (a) { return a.textContent; }).join("|"));
+    await go("thesis-home");
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
     /* 연구 흐름도 (research-flow.js): template, accordion, editing, sub-steps */
     await go("diss-current");
@@ -245,7 +249,37 @@
     var fvId = fvDoc.items[0].id;
     $$(".fv-item .copy-btn", cardBy("자격증 파일")).filter(function (b) { return b.textContent === "삭제"; })[0].click(); await sleep(300);
     ok("file delete", window.__MOCK_STORE["research/crime_certfiles"].items.length === 0 && !window.__MOCK_STORE["research/file_" + fvId + "_0"] && !!$(".empty-state", cardBy("자격증 파일")));
-    await go("ias-current"); ok("ias current page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "ias-current");
+    await go("ias-current"); ok("ias current page", !!$("#view .empty-state") && $("#subnav a.active").getAttribute("data-page") === "ias-current" && $$("#view .page-tab").length === 2);
+    /* 오늘 논문 작성 기록: structure, references, hwpx memos */
+    var dst = App.draft.structure(["Ⅰ. 서론", "첫 문단이다.", "1. 연구의 필요성", "필요하다 필요하다.", "Ⅱ. 이론적 배경", "배경 문단이다.", "참고문헌", "홍길동 (2020). 가 연구.", "Adams, B. (2019). Title."]);
+    ok("draft structure", dst.secs.map(function (x) { return x.lv + x.t; }).join("|") === "1Ⅰ. 서론|21. 연구의 필요성|1Ⅱ. 이론적 배경" && dst.secs[1].n === "1. 연구의 필요성".length + "필요하다 필요하다.".length && dst.secs[1].ns === "1.연구의필요성필요하다필요하다.".length && dst.refs.length === 2, JSON.stringify(dst.secs));
+    var drefs = App.draft.sortRefs(["Baron, R. (1994). A.", "[3] 김철수 (2019). 나.", "가나다 (2018). 다.", "baron, r (1994) a", "Adams, B. (2019)."]);
+    ok("draft refs sort + dedupe", drefs.join("|") === "가나다 (2018). 다.|김철수 (2019). 나.|Adams, B. (2019).|Baron, R. (1994). A." && App.draft.sortRefs(drefs, false)[0] === "Adams, B. (2019).", drefs.join("|"));
+    function zipStored(files) {
+      var enc = new TextEncoder(), parts = [], cd = [], off = 0;
+      Object.keys(files).forEach(function (n) {
+        var nb = enc.encode(n), d = enc.encode(files[n]);
+        var h = new Uint8Array(30 + nb.length), v = new DataView(h.buffer); v.setUint32(0, 0x04034b50, true); v.setUint32(18, d.length, true); v.setUint32(22, d.length, true); v.setUint16(26, nb.length, true); h.set(nb, 30);
+        var c = new Uint8Array(46 + nb.length), w = new DataView(c.buffer); w.setUint32(0, 0x02014b50, true); w.setUint32(20, d.length, true); w.setUint32(24, d.length, true); w.setUint16(28, nb.length, true); w.setUint32(42, off, true); c.set(nb, 46);
+        parts.push(h, d); cd.push(c); off += h.length + d.length;
+      });
+      var cdLen = cd.reduce(function (a, c) { return a + c.length; }, 0), e = new Uint8Array(22), ev = new DataView(e.buffer);
+      ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, cd.length, true); ev.setUint16(10, cd.length, true); ev.setUint32(12, cdLen, true); ev.setUint32(16, off, true);
+      return new Blob(parts.concat(cd, [e])).arrayBuffer();
+    }
+    var HP = ' xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph"';
+    var hx = await zipStored({
+      "Contents/header.xml": '<hh:head xmlns:hh="http://www.hancom.co.kr/hwpml/2011/head"><hh:styles><hh:style id="0" name="바탕글"/><hh:style id="1" name="개요 1" engName="Outline 1"/></hh:styles></hh:head>',
+      "Contents/section0.xml": '<hs:sec' + HP + '><hp:p styleIDRef="1"><hp:run><hp:t>연구 배경</hp:t></hp:run></hp:p><hp:p styleIDRef="0"><hp:run><hp:t>본문 첫 문장이다.</hp:t><hp:ctrl><hp:fieldBegin type="MEMO"><hp:parameters><hp:stringParam name="Author">x</hp:stringParam></hp:parameters><hp:subList><hp:p><hp:run><hp:t>Baron, R. A. (1994). Human aggression.</hp:t></hp:run></hp:p></hp:subList></hp:fieldBegin></hp:ctrl><hp:t>이어지는 글.</hp:t></hp:run></hp:p></hs:sec>'
+    });
+    var hp = await App.draft.parseHwpx(hx);
+    ok("hwpx parse: body, outline style, memo", hp.lines.join("|") === "연구 배경|본문 첫 문장이다.이어지는 글." && hp.lv.join(",") === "1,0" && hp.memos.join("|") === "Baron, R. A. (1994). Human aggression.", JSON.stringify(hp));
+    hp.file = "t.hwpx"; hp.fileModified = 1;
+    await App.draft.record(hp);
+    await go("ias-writing"); await sleep(150);
+    var dlog = window.__MOCK_STORE["research/ias_draftlog"], dtx = window.__MOCK_STORE["research/ias_drafttext"];
+    ok("draft record", dlog && dlog.days[App.h.todayStr()].secs[0].t === "연구 배경" && dtx.refs.length === 1 && dtx.file === "t.hwpx", JSON.stringify(dlog));
+    ok("draft page", $$("#view .draft-table")[0].querySelectorAll("tr").length === 2 && $$("#view .draft-refs li").length === 1 && $$("#view .draft-view .draft-h").length === 1 && $("#subnav a.active").getAttribute("data-page") === "ias-current" && $("#subnav .sub-row3 .sub-item.active[data-link='ias-writing']") && $$("#view .page-tab").length === 2);
     /* 연구계획서 내용 전체 */
     await go("diss-plan");
     ok("plan empty", !!$("#view .plan-doc .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-plan");

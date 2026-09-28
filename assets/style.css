@@ -840,3 +840,41 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .dday-big-num.past { color: var(--ink-soft); }
 .dday-big-name { margin-top: 6px; font-size: 0.86rem; color: var(--ink-soft); }
 .dday-big-none { font-size: 0.9rem; color: var(--ink-soft); padding: 14px 0; }
+
+/* 논문 메뉴: 소제목 · 들여쓴 하위 항목 */
+
+/* 오늘 논문 작성 기록 */
+.draft-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.draft-col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.draft-right { position: sticky; top: 12px; }
+.draft-view { max-height: calc(100vh - 150px); min-height: 360px; overflow-y: auto; padding: 4px 6px 4px 0; font-size: 0.9rem; line-height: 1.8; }
+.draft-view p { margin: 0 0 0.7em; white-space: pre-wrap; word-break: break-word; }
+.draft-view .draft-h { font-family: var(--font-display); color: var(--ink); margin: 1.2em 0 0.5em; line-height: 1.4; }
+.draft-view h3.draft-h { font-size: 1.12rem; }
+.draft-view h4.draft-h { font-size: 1rem; }
+.draft-view h5.draft-h { font-size: 0.92rem; }
+.draft-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.draft-stat { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--bg); }
+.draft-stat-label { display: block; font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-soft); }
+.draft-stat strong { font-size: 1.15rem; }
+.draft-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.draft-status { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 8px; }
+.draft-paste > summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
+.draft-paste textarea { width: 100%; margin: 8px 0; }
+.draft-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.draft-table td.up { color: var(--accent-2); font-weight: 600; }
+.draft-table tr.lv-1 td { font-weight: 600; }
+.draft-table td.draft-sec { cursor: pointer; }
+.draft-table td.draft-sec:hover { color: var(--accent); }
+.draft-refs { margin: 0; padding-left: 1.4em; font-size: 0.82rem; line-height: 1.6; max-height: 420px; overflow-y: auto; }
+.draft-refs li { margin-bottom: 6px; padding-left: 2.2em; text-indent: -2.2em; word-break: break-word; }
+@media (max-width: 900px) {
+  .draft-grid { grid-template-columns: minmax(0, 1fr); }
+  .draft-right { position: static; }
+  .draft-view { max-height: 70vh; }
+}
+.sub-link.sub-parent.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.sub-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 0 2px; padding-left: 10px; border-top: 1px dashed var(--line); }
+.sub-row .sub-link { font-size: 0.82rem; padding-top: 7px; padding-bottom: 8px; }
+.sub-row3 { padding-left: 20px; }
+.sub-row3 .sub-link { font-size: 0.78rem; }
