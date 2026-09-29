@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 61, ids.length);
+    ok("page count", ids.length === 62, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -106,7 +106,7 @@
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
-    ok("subnav count writer", $$("#subnav a[data-page]").length === 10 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 4, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
+    ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
     ok("subnav count thesis", $$("#subnav a[data-page]").length === 25 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|논문|자격증|AI|기타 자료" && !$("#subnav .sub-row"), $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
@@ -484,7 +484,7 @@
     /* 집필 책상 = 공모 · 투고 현황 + 책상 카드 */
     await go("writer-desk"); await sleep(150);
     var cBar = $("#view .contest-bar"), presetFresh = App.writer.PRESETS.filter(function (p) { return p.deadline >= App.h.todayStr(); }).length;
-    ok("desk: contest board, then submit; no deadline card", $$("#view .card h2")[0].textContent === "마감 다가오는 공모" && $$("#view .card h2")[1].textContent === "공모 · 투고 현황" && !cardBy("공모 · 투고 마감") && !!cardBy("글감 빨리 적기") && $("#view .capture-text").rows >= 6);
+    ok("desk order: 질문 → 공모 → 현황 → 오늘의 집필 → 글감, no upcoming", $$("#view .card h2").map(function (h) { return h.textContent; }).slice(0, 4).join("|") === "오늘의 글쓰기 질문|마감 다가오는 공모|오늘의 집필|글감 빨리 적기" && !cardBy("공모 · 투고 현황") && !cardBy("글쓰기 일정") && !!$(".bars", cardBy("오늘의 집필")) && !cardBy("공모 · 투고 마감") && !!cardBy("글감 빨리 적기") && $("#view .capture-text").rows >= 6);
     ok("contest presets offered", presetFresh === 0 ? cBar.hidden : (!cBar.hidden && /새 공모/.test(cBar.textContent)));
     if (presetFresh) {
       $(".btn", cBar).click(); await sleep(300);
@@ -598,7 +598,7 @@
     function tap(n) { var r = n.getBoundingClientRect(); pe(n, "pointerdown", r.left + 8, r.top + 8); pe(n, "pointerup", r.left + 8, r.top + 8); }
 
     await go("writer-desk");
-    ok("desk cards", $$("#view .card").length >= 6 && !!$("#view .desk-prompt") && $("#view .desk-prompt").textContent.length > 8, $$("#view .card").length);
+    ok("desk cards", $$("#view .card").length >= 5 && !!$("#view .desk-prompt") && $("#view .desk-prompt").textContent.length > 8, $$("#view .card").length);
     var dq = $("#view form.capture-form");
     setVal($("textarea.capture-text", dq), "책상에서 적은 글감"); submit(dq); await sleep(120);
     var ideasStore = window.__MOCK_STORE["writer/ideas"];
@@ -698,12 +698,12 @@
     await sleep(40);
     var wo = $$("#view .item-form select[name=work] option").map(function (o) { return o.textContent; }).join("|");
     ok("world work select lists works", wo === "(미지정)|테스트 장편|테스트 산문", wo);
-    await go("writer-desk"); await sleep(100);
+    await go("writer-submit"); await sleep(100);
     $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0].click(); await sleep(40);
     var sform = $("#view .item-form"); fillForm(sform); $("input[type=date]", sform).value = App.h.dateKey(App.h.addDays(new Date(), 5)); submit(sform); await sleep(100);
     ok("submission shows dday", !!$("#view .item-card .dday"), $("#view .item-card") && $("#view .item-card").textContent);
     await go("writer-desk"); await sleep(120);
-    ok("desk shows work, submission dday in list", $$("#view .desk-work").length >= 1 && !!$("#view .item-card .dday"));
+    ok("desk shows work, submission on contest board", $$("#view .desk-work").length >= 1 && !!$("#view .contest-dday"));
     await App.doc("writer/works").set({ items: [] });
 
     await go("personal-budget"); await sleep(120);

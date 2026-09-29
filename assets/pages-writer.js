@@ -121,12 +121,11 @@
     desc: "작가 섹션의 시작 화면이에요. 오늘의 글쓰기 질문, 지금 쓰는 작품, 오늘의 집필량, 떠오른 글감을 한곳에서 봅니다.",
     render: function (view) {
       W.track();
-      contestBoard(view, doc("writer/submissions"));
-      submitCard(view);
-      var g = ui.grid(view, true);
+      /* order: 질문 → 공모 → 오늘의 집필 → 글감 → 작품 */
+      var g0 = ui.grid(view, true); g0.classList.add("desk-gap");
 
       /* today's prompt */
-      var c0 = ui.card(g, { tab: "Prompt", tone: "t-3", title: "오늘의 글쓰기 질문", wide: true });
+      var c0 = ui.card(g0, { tab: "Prompt", tone: "t-3", title: "오늘의 글쓰기 질문", wide: true });
       var idx = Math.floor(Date.now() / 86400000) % PROMPTS.length;
       var promptEl = el("p", "desk-prompt", PROMPTS[idx]);
       var pRow = el("div", "items-tools");
@@ -138,42 +137,12 @@
       [bNext, bSave, pMsg].forEach(function (n) { pRow.appendChild(n); });
       c0.body.appendChild(promptEl); c0.body.appendChild(pRow);
 
-      /* works in progress */
-      var c1 = ui.card(g, { tab: "Now", tone: "t-1", title: "지금 쓰고 있는 작품", link: "writer-works" });
-      var wBox = el("div", "plain-list"); c1.body.appendChild(wBox);
-      App.watchDoc(doc("writer/works"), function (d) {
-        H.clear(wBox);
-        var items = ((d && d.items) || []).filter(function (w) { return w.status !== "완결"; });
-        var order = { "집필중": 0, "퇴고": 1, "구상": 2 };
-        items.sort(function (a, b) { return (order[a.status || "구상"] || 0) - (order[b.status || "구상"] || 0); });
-        if (!items.length) { wBox.appendChild(ui.empty("진행 중인 작품이 없어요. 작품 관리에서 추가해 보세요.")); return; }
-        items.slice(0, 5).forEach(function (w) {
-          var row = el("div", "desk-work");
-          var top = el("div", "desk-work-top");
-          top.appendChild(el("strong", "", w.title || "(제목 없음)"));
-          top.appendChild(el("span", "cat-chip", (w.form ? w.form + " · " : "") + (w.status || "구상")));
-          row.appendChild(top);
-          var t = Number(w.target) || 0;
-          if (t) { var cur = Number(w.current) || 0; row.appendChild(ui.progress(Math.min(100, Math.round(cur / t * 100)), fmtN(cur) + " / " + fmtN(t) + "자")); }
-          if (w.due) { var dd = el("div", "desk-due"); dd.appendChild(document.createTextNode("마감 · 목표일 ")); dd.appendChild(H.ddayEl(w.due)); row.appendChild(dd); }
-          wBox.appendChild(row);
-        });
-      });
+      contestBoard(view, doc("writer/submissions"));
+      var g = ui.grid(view, true);
 
-      /* today's writing */
-      var c2 = ui.card(g, { tab: "Today", tone: "t-2", title: "오늘의 집필", link: "writer-log" });
-      var lBox = el("div"); c2.body.appendChild(lBox);
-      App.watchDoc(doc("writer/log"), function (d) {
-        H.clear(lBox);
-        var entries = (d && d.entries) || [], goal = Number(d && d.goal) || 0, today = H.todayStr(), tc = 0, days = {};
-        entries.forEach(function (e) { days[e.date] = (days[e.date] || 0) + (Number(e.count) || 0); if (e.date === today) { tc += Number(e.count) || 0; } });
-        var pct = goal ? Math.min(100, Math.round(tc / goal * 100)) : 0;
-        lBox.appendChild(ui.progress(pct, goal ? "오늘 " + fmtN(tc) + " / " + fmtN(goal) + "자 (" + pct + "%)" : "오늘 " + fmtN(tc) + "자 · 집필 기록에서 목표를 정해 보세요"));
-        var streak = 0, cur = new Date();
-        if (!days[H.dateKey(cur)]) { cur = H.addDays(cur, -1); }
-        while (days[H.dateKey(cur)]) { streak++; cur = H.addDays(cur, -1); }
-        lBox.appendChild(el("p", "hint", streak ? "연속 " + streak + "일째 쓰는 중이에요." : "오늘 한 줄이라도 써 볼까요?"));
-      });
+      /* today's writing: same log as 집필 기록 (goal bar · month · streak · last 7 days) */
+      var c2 = ui.card(g, { tab: "Today", tone: "t-2", title: "오늘의 집필", link: "writer-log", wide: true });
+      ui.writingLog(c2.body, { ref: doc("writer/log"), goal: 1000, unit: "자" });
 
       /* quick capture */
       var c3 = ui.card(g, { tab: "Capture", tone: "t-3", title: "글감 빨리 적기", wide: true });
@@ -205,8 +174,28 @@
         });
       });
 
-      var c5 = ui.card(g, { tab: "Upcoming", tone: "t-2", title: "글쓰기 일정" });
-      ui.upcoming(c5.body, "글쓰기", 5);
+      /* works in progress */
+      var c1 = ui.card(g, { tab: "Now", tone: "t-1", title: "지금 쓰고 있는 작품", link: "writer-works" });
+      var wBox = el("div", "plain-list"); c1.body.appendChild(wBox);
+      App.watchDoc(doc("writer/works"), function (d) {
+        H.clear(wBox);
+        var items = ((d && d.items) || []).filter(function (w) { return w.status !== "완결"; });
+        var order = { "집필중": 0, "퇴고": 1, "구상": 2 };
+        items.sort(function (a, b) { return (order[a.status || "구상"] || 0) - (order[b.status || "구상"] || 0); });
+        if (!items.length) { wBox.appendChild(ui.empty("진행 중인 작품이 없어요. 작품 관리에서 추가해 보세요.")); return; }
+        items.slice(0, 5).forEach(function (w) {
+          var row = el("div", "desk-work");
+          var top = el("div", "desk-work-top");
+          top.appendChild(el("strong", "", w.title || "(제목 없음)"));
+          top.appendChild(el("span", "cat-chip", (w.form ? w.form + " · " : "") + (w.status || "구상")));
+          row.appendChild(top);
+          var t = Number(w.target) || 0;
+          if (t) { var cur = Number(w.current) || 0; row.appendChild(ui.progress(Math.min(100, Math.round(cur / t * 100)), fmtN(cur) + " / " + fmtN(t) + "자")); }
+          if (w.due) { var dd = el("div", "desk-due"); dd.appendChild(document.createTextNode("마감 · 목표일 ")); dd.appendChild(H.ddayEl(w.due)); row.appendChild(dd); }
+          wBox.appendChild(row);
+        });
+      });
+
     }
   });
 
@@ -631,6 +620,7 @@
   function contestBoard(parent, ref) {
     var c = ui.card(parent, { tab: "Contest", tone: "t-2", title: "마감 다가오는 공모", wide: true });
     c.el.classList.add("desk-submit");
+    presetBar(c.body, ref);
     var grid = el("div", "contest-grid");
     c.body.appendChild(grid);
     var ITEMS = [];
@@ -697,10 +687,15 @@
   /* =========================================================
      공모 · 투고
      ========================================================= */
+  /* 글쓰기 기록: every contest / submission I track (준비 → 제출 → 결과) */
+  App.page({
+    id: "writer-submit", title: "글쓰기 기록",
+    render: function (view) { W.track(); submitCard(view); }
+  });
   function submitCard(view) {
       var c1 = ui.card(view, { tab: "Submit", tone: "t-1", title: "공모 · 투고 현황", wide: true });
       c1.el.classList.add("desk-submit");
-      presetBar(c1.body, doc("writer/submissions"));
+
       var DONE = ["당선 · 게재", "낙선", "철회"];
       ui.itemsPanel(c1.body, {
         ref: doc("writer/submissions"), views: ["cards", "table"], search: true, statusKey: "status", filters: ["status", "kind"], grid: true, dueKey: "deadline",

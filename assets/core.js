@@ -104,7 +104,7 @@
         "thesis-library", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
-      { pages: ["writer-desk"] },
+      { pages: ["writer-desk", "writer-submit"] },
       { label: "구상", pages: ["writer-canvas", "writer-ideas", "writer-quotes"] },
       { label: "소설 · 에세이", pages: ["writer-plot", "writer-world", "writer-essay"] },
       { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] }
