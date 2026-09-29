@@ -859,6 +859,7 @@
     var BG = App.budget;
     ok("clean merchant names", BG.cleanMerchant("메가MGC커피") === "메가커피" && BG.cleanMerchant("(주)우아한형제들") === "배달의민족" && BG.cleanMerchant("KG이니시스 코리아세븐") === "세븐일레븐" && BG.cleanMerchant("주식회사 비바리퍼블리카") === "토스" && BG.cleanMerchant("나이스페이먼츠") === "나이스페이먼츠" && BG.merchantKey("메가 MGC-커피") === "메가mgc커피",
       [BG.cleanMerchant("메가MGC커피"), BG.cleanMerchant("(주)우아한형제들"), BG.cleanMerchant("KG이니시스 코리아세븐"), BG.cleanMerchant("주식회사 비바리퍼블리카")].join(" / "));
+    ok("AI category", BG.ruleCat("ChatGPT Plus") === "AI" && BG.ruleCat("클로드") === "AI" && BG.ruleCat("넷플릭스") === "구독" && App.budget.parseFixed("클로드 31,000원")[0].cat === "AI", BG.ruleCat("클로드") + "/" + App.budget.parseFixed("클로드 31,000원")[0].cat);
     ok("word rules: 관리비 before 통신", BG.ruleCat("케이티텔레캅") === "주거 · 관리비" && BG.ruleCat("KT 통신요금") === "통신" && BG.ruleCat("김밥천국") === "식비" && BG.ruleCat("넷플릭스") === "구독" && BG.ruleCat("삼성화재") === "보험" && BG.ruleCat("정형외과의원") === "의료 · 건강",
       [BG.ruleCat("케이티텔레캅"), BG.ruleCat("KT 통신요금"), BG.ruleCat("넷플릭스")].join(" / "));
     var mem = (window.__MOCK_STORE["personal/budget"].merchants || {})[BG.merchantKey("메가MGC커피")];
