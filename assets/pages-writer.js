@@ -121,6 +121,7 @@
     desc: "작가 섹션의 시작 화면이에요. 오늘의 글쓰기 질문, 지금 쓰는 작품, 오늘의 집필량, 떠오른 글감을 한곳에서 봅니다.",
     render: function (view) {
       W.track();
+      submitCard(view);
       var g = ui.grid(view, true);
 
       /* today's prompt */
@@ -174,13 +175,16 @@
       });
 
       /* quick capture */
-      var c3 = ui.card(g, { tab: "Capture", tone: "t-3", title: "글감 빨리 적기" });
-      var form = el("form", "quick-add");
+      var c3 = ui.card(g, { tab: "Capture", tone: "t-3", title: "글감 빨리 적기", wide: true });
+      /* a roomy box for longer notes; kind · 담기 on the line below (Ctrl+Enter also saves) */
+      var form = el("form", "quick-add capture-form");
       var kindEl = el("select"); kindEl.setAttribute("aria-label", "종류");
       W.KINDS.forEach(function (k) { var o = el("option", "", k); o.value = k; kindEl.appendChild(o); });
-      var txt = el("input"); txt.placeholder = "떠오른 문장 · 소재 · 장면…"; txt.maxLength = 600; txt.required = true;
+      var txt = el("textarea", "capture-text"); txt.rows = 6; txt.placeholder = "떠오른 문장 · 소재 · 장면…"; txt.maxLength = 3000; txt.required = true; txt.setAttribute("aria-label", "글감");
+      txt.addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true })); } });
       var addB = el("button", "btn", "담기"); addB.type = "submit";
-      [kindEl, txt, addB].forEach(function (n) { form.appendChild(n); });
+      var capRow = el("div", "capture-row"); capRow.appendChild(kindEl); capRow.appendChild(addB);
+      form.appendChild(txt); form.appendChild(capRow);
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var v = txt.value.trim(); if (!v) { return; }
@@ -200,22 +204,6 @@
         });
       });
 
-      /* deadlines */
-      var c4 = ui.card(g, { tab: "Deadline", tone: "t-1", title: "공모 · 투고 마감", link: "writer-submit" });
-      var dBox = el("div", "plain-list"); c4.body.appendChild(dBox);
-      App.watchDoc(doc("writer/submissions"), function (d) {
-        H.clear(dBox);
-        var t = H.todayStr();
-        var items = ((d && d.items) || []).filter(function (s) { return s.deadline && s.deadline >= t && (s.status === "준비" || s.status === "제출" || !s.status); }).sort(function (a, b) { return a.deadline < b.deadline ? -1 : 1; }).slice(0, 5);
-        if (!items.length) { dBox.appendChild(ui.empty("다가오는 마감이 없어요.")); return; }
-        items.forEach(function (s) {
-          var li = el("div", "upcoming-item");
-          li.appendChild(H.ddayEl(s.deadline));
-          li.appendChild(el("span", "u-title", s.title + (s.venue ? " · " + s.venue : "")));
-          li.appendChild(el("span", "u-date", s.deadline.slice(5).replace("-", "/")));
-          dBox.appendChild(li);
-        });
-      });
       var c5 = ui.card(g, { tab: "Upcoming", tone: "t-2", title: "글쓰기 일정" });
       ui.upcoming(c5.body, "글쓰기", 5);
     }
@@ -588,15 +576,62 @@
   });
 
   /* =========================================================
+     공모 · 투고 — 마감 다가오는 공모 카드
+     PRESETS: 공개된 공모 공고(개인 정보 아님). 아직 목록에 없으면 버튼 하나로 추가해요.
+     ========================================================= */
+  var PRESETS = [
+    {
+      preset: "baengnok-46", title: "제46회 백록문학상", kind: "공모전", venue: "제주대학교", status: "준비",
+      deadline: "2026-10-11", deadlineTime: "18:00", announce: "2026-11-18",
+      eligibility: "전국 대학(원) 재학생 (휴학생 제외)",
+      specs: "시 1인 3편 이상\n소설 1편 · A4 70매 이내\n수필 1편 · A4 20매 이내\n휴먼명조 11pt · 줄간격 170%",
+      prize: "총 480만원 · 부문별 대상 100만원 · 우수상 60만원",
+      caution: "이메일로 신청서 + 원고 제출 후 확인 전화 필수",
+      email: "press@jejunu.ac.kr", phone: "064-754-2278, 2282",
+      checklist: "신청서 작성\n원고 형식 (휴먼명조 11pt · 줄간격 170%)\n이메일 제출\n확인 전화"
+    },
+    {
+      preset: "offbooks-office", title: "오프북스 앤솔로지 「망한 직장생활 이야기」", kind: "공모전", venue: "오프북스", status: "준비",
+      deadline: "2026-10-15", deadlineTime: "", announce: "2026년 11월 초",
+      eligibility: "직장생활에 애환이 있었던 누구나 · 에세이",
+      specs: "200자 원고지 100~150매\nA4 12~15장 · 10pt · 여백 160%\nhwp · doc",
+      prize: "최종 3명 · 선인세 각 50만원 + 정식 출판계약 · 단행본 출간 · 마케팅 지원",
+      caution: "순수 창작물 (다른 문학상 수상작 불가)\nAI 활용 불가",
+      email: "onpbooks1@gmail.com", phone: "",
+      checklist: "원고에 이름 · 연락처 · 이메일 기재\n분량 확인 (원고지 100~150매)\n이메일 제출"
+    }
+  ];
+  /* 새 공모 공고를 목록에 한 번에 넣는 줄 (이미 넣은 것 · 마감 지난 것은 안 보임) */
+  function presetBar(parent, ref) {
+    var bar = el("div", "contest-bar"); bar.hidden = true; parent.appendChild(bar);
+    App.watchDoc(ref, function (d) {
+      var items = (d && d.items) || [], today = H.todayStr(), have = {};
+      items.forEach(function (x) { if (x.preset) { have[x.preset] = true; } });
+      var fresh = PRESETS.filter(function (p) { return !have[p.preset] && p.deadline >= today; });
+      H.clear(bar); bar.hidden = !fresh.length;
+      if (!fresh.length) { return; }
+      bar.appendChild(el("span", "", "새 공모 " + fresh.length + "개: " + fresh.map(function (p) { return p.title; }).join(" · ")));
+      var addBtn = el("button", "btn", "모두 추가"); addBtn.type = "button";
+      addBtn.addEventListener("click", function () {
+        addBtn.disabled = true;
+        ref.get().then(function (snap) {
+          var cur = (snap.exists && snap.data().items) || [];
+          var add = fresh.map(function (p) { return Object.assign({ id: H.uid(), createdAt: new Date().toISOString() }, p); });
+          return ref.set({ items: cur.concat(add), updatedAt: new Date().toISOString() }, { merge: true });
+        }).catch(function (err) { addBtn.disabled = false; window.alert("저장 실패: " + err.message); });
+      });
+      bar.appendChild(addBtn);
+    });
+  }
+  App.writer.PRESETS = PRESETS;
+
+  /* =========================================================
      공모 · 투고
      ========================================================= */
-  App.page({
-    id: "writer-submit", title: "공모 · 투고",
-    desc: "공모전 · 신춘문예 · 문예지 투고 · 웹 연재 · 출간 제안을 마감일과 결과까지 한곳에서 관리합니다.",
-    render: function (view) {
-      W.track();
-      var g = ui.grid(view, true);
-      var c1 = ui.card(g, { tab: "Submit", tone: "t-1", title: "공모 · 투고 현황", wide: true });
+  function submitCard(view) {
+      var c1 = ui.card(view, { tab: "Submit", tone: "t-1", title: "공모 · 투고 현황", wide: true });
+      c1.el.classList.add("desk-submit");
+      presetBar(c1.body, doc("writer/submissions"));
       var DONE = ["당선 · 게재", "낙선", "철회"];
       ui.itemsPanel(c1.body, {
         ref: doc("writer/submissions"), views: ["cards", "table"], search: true, statusKey: "status", filters: ["status", "kind"], grid: true, dueKey: "deadline",
@@ -615,6 +650,15 @@
           { key: "venue", label: "주최 · 매체", type: "text", meta: true, col: true, maxLength: 80 },
           { key: "work", label: "제출 작품", type: "select", options: W.workOpts, meta: true },
           { key: "url", label: "공고 링크", type: "url" },
+          { key: "deadlineTime", label: "마감 시각", type: "text", maxLength: 10 },
+          { key: "announce", label: "결과 발표", type: "text", maxLength: 30 },
+          { key: "eligibility", label: "응모 자격", type: "text", maxLength: 120 },
+          { key: "specs", label: "분량 · 형식 (한 줄에 하나)", type: "textarea", rows: 3 },
+          { key: "prize", label: "상금 · 혜택", type: "text", maxLength: 160 },
+          { key: "caution", label: "유의사항 (한 줄에 하나)", type: "textarea", rows: 2 },
+          { key: "checklist", label: "제출 체크리스트 (한 줄에 하나)", type: "textarea", rows: 3 },
+          { key: "email", label: "접수 이메일", type: "text", maxLength: 120 },
+          { key: "phone", label: "문의 전화", type: "text", maxLength: 60 },
           { key: "rule", label: "규정 (분량 · 양식 · 유의사항)", type: "textarea", rows: 3 },
           { key: "note", label: "메모 · 결과", type: "textarea", rows: 2 }
         ],
@@ -623,14 +667,5 @@
           return items.length ? "총 " + items.length + "건 · 준비 " + (m["준비"] || 0) + " · 제출 " + (m["제출"] || 0) + " · 심사중 " + (m["심사중"] || 0) + " · 당선/게재 " + (m["당선 · 게재"] || 0) : "";
         }
       });
-      var c2 = ui.card(g, { tab: "Upcoming", tone: "t-3", title: "글쓰기 분류 일정" });
-      ui.upcoming(c2.body, "글쓰기", 6);
-      var c3 = ui.card(g, { tab: "Checklist", tone: "t-2", title: "제출 전 점검 (복사 가능)" });
-      ui.refList(c3.body, [
-        { label: "규정", text: "분량(원고지 매수 · 자수) · 글꼴 · 파일 형식 · 익명(이름 제거) 여부 · 제출 방식(우편 · 메일 · 사이트)" },
-        { label: "원고", text: "제목 · 첫 문장 · 마지막 문장을 한 번 더 · 맞춤법 · 시점 · 고유명사 확인 · 미발표작인지(이중 투고 금지) 확인" },
-        { label: "기록", text: "제출일 · 접수 확인 · 결과 발표일을 메모하고 상태를 '제출'로 바꾸기" }
-      ]);
-    }
-  });
+  }
 })(window.App);

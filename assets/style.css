@@ -899,3 +899,11 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .todo-line2 .w-date { flex: 0 0 auto; }
 .cal-right-in > .todo-card { flex: 1 1 0; }
 .gsync-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 10px 14px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--surface); font-size: 0.86rem; }
+/* 공모 카드 */
+.contest-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border: 1px dashed var(--accent); border-radius: 8px; font-size: 0.84rem; }
+
+/* 글감 빨리 적기: 넓은 입력칸 + 종류 · 담기 한 줄 */
+.capture-form { flex-direction: column; flex-wrap: nowrap; }
+.capture-form .capture-text { width: 100%; min-height: 9em; }
+.capture-row { display: flex; gap: 8px; justify-content: flex-end; }
+.desk-submit { margin-bottom: 26px; }

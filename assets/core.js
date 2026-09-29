@@ -107,8 +107,7 @@
       { pages: ["writer-desk"] },
       { label: "구상", pages: ["writer-canvas", "writer-ideas", "writer-quotes"] },
       { label: "소설 · 에세이", pages: ["writer-plot", "writer-world", "writer-essay"] },
-      { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] },
-      { pages: ["writer-submit"] }
+      { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] }
     ] },
     { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-weekly"] }
   ];

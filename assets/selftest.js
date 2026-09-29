@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 62, ids.length);
+    ok("page count", ids.length === 61, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -106,7 +106,7 @@
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
-    ok("subnav count writer", $$("#subnav a[data-page]").length === 11 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 5, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
+    ok("subnav count writer", $$("#subnav a[data-page]").length === 10 && $$("#subnav .sub-group").length === 3 && $$("#subnav > *").length === 4, $$("#subnav a[data-page]").length + "/" + $$("#subnav .sub-group").length + "/" + $$("#subnav > *").length);
     $("#sections .sec-btn[data-section='thesis']").click(); await sleep(150);
     ok("subnav count thesis", $$("#subnav a[data-page]").length === 25 && !$("#subnav a[data-link]"), $$("#subnav a[data-page]").length);
     ok("thesis grouped menu", $$("#subnav .sub-group").length === 2 && $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|") === "홈|논문|자격증|AI|기타 자료" && !$("#subnav .sub-row"), $$("#subnav > *").map(function (n) { return (n.querySelector(".sub-drop") || n).textContent; }).join("|"));
@@ -481,6 +481,16 @@
     await go("thesis-refs");
     ok("scale text templates", $$("#view .card").some(function (c) { return /척도 타당화 결과 서술 문장/.test(c.textContent); }));
 
+    /* 집필 책상 = 공모 · 투고 현황 + 책상 카드 */
+    await go("writer-desk"); await sleep(150);
+    var cBar = $("#view .contest-bar"), presetFresh = App.writer.PRESETS.filter(function (p) { return p.deadline >= App.h.todayStr(); }).length;
+    ok("desk: submit first, no board/deadline", $$("#view .card h2")[0].textContent === "공모 · 투고 현황" && !cardBy("마감 다가오는 공모") && !cardBy("공모 · 투고 마감") && !!cardBy("글감 빨리 적기") && $("#view .capture-text").rows >= 6);
+    ok("contest presets offered", presetFresh === 0 ? cBar.hidden : (!cBar.hidden && /새 공모/.test(cBar.textContent)));
+    if (presetFresh) {
+      $(".btn", cBar).click(); await sleep(300);
+      ok("contest presets added", window.__MOCK_STORE["writer/submissions"].items.filter(function (x) { return x.preset; }).length === presetFresh && cBar.hidden);
+      delete window.__MOCK_STORE["writer/submissions"];
+    }
     /* 카드 분석 */
     var cmk = new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0"), cspend = {}; cspend[cmk] = { t1: 350000 };
     await App.cardsImport({ cards: [{ id: "t1", name: "테스트 체크", type: "체크", perf: 300000, benefits: [{ area: "카페", rate: "10% 할인" }] }, { id: "t2", name: "테스트 신용", type: "신용", perf: 400000, benefits: [{ area: "카페", rate: "5% 적립" }] }], spend: cspend });
@@ -586,8 +596,8 @@
 
     await go("writer-desk");
     ok("desk cards", $$("#view .card").length >= 6 && !!$("#view .desk-prompt") && $("#view .desk-prompt").textContent.length > 8, $$("#view .card").length);
-    var dq = $("#view form.quick-add");
-    setVal($$("input", dq)[0], "책상에서 적은 글감"); submit(dq); await sleep(120);
+    var dq = $("#view form.capture-form");
+    setVal($("textarea.capture-text", dq), "책상에서 적은 글감"); submit(dq); await sleep(120);
     var ideasStore = window.__MOCK_STORE["writer/ideas"];
     ok("desk quick capture saves idea", !!ideasStore && ideasStore.items.some(function (x) { return x.text === "책상에서 적은 글감" && x.createdAt; }), JSON.stringify(ideasStore));
     $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.indexOf("글감함에 저장") !== -1; })[0].click(); await sleep(120);
@@ -685,12 +695,12 @@
     await sleep(40);
     var wo = $$("#view .item-form select[name=work] option").map(function (o) { return o.textContent; }).join("|");
     ok("world work select lists works", wo === "(미지정)|테스트 장편|테스트 산문", wo);
-    await go("writer-submit"); await sleep(100);
+    await go("writer-desk"); await sleep(100);
     $$("#view .items-tools .tool-btn").filter(function (b) { return b.textContent.charAt(0) === "+"; })[0].click(); await sleep(40);
     var sform = $("#view .item-form"); fillForm(sform); $("input[type=date]", sform).value = App.h.dateKey(App.h.addDays(new Date(), 5)); submit(sform); await sleep(100);
     ok("submission shows dday", !!$("#view .item-card .dday"), $("#view .item-card") && $("#view .item-card").textContent);
     await go("writer-desk"); await sleep(120);
-    ok("desk shows work + deadline", $$("#view .desk-work").length >= 1 && $$("#view .upcoming-item").some(function (r) { return /D-/.test(r.textContent); }));
+    ok("desk shows work, submission dday in list", $$("#view .desk-work").length >= 1 && !!$("#view .item-card .dday"));
     await App.doc("writer/works").set({ items: [] });
 
     await go("personal-budget"); await sleep(120);
