@@ -797,6 +797,23 @@
     window.confirm = realConfirm;
     ok("fixed pick delete", window.__MOCK_STORE["personal/budget"].fixed.length === 1 && !$("#view .bud-fixed .bud-pick"), JSON.stringify(window.__MOCK_STORE["personal/budget"].fixed));
     $$("#view .bud-arr")[0].click(); await sleep(40);    /* phone payment notifications */
+    /* 결제 캘린더 → 고정지출 */
+    var GF = App.budget.gcalFixed, tk0 = App.h.todayStr(), nx = App.h.dateKey(App.h.addDays(new Date(), 10));
+    var gd = { syncedAt: "x", calendars: [{ id: "pay", name: "결제" }, { id: "me", name: "내 캘린더" }], events: [
+      { id: "a1", cal: "pay", rid: "R1", title: "넷플릭스 17,000원", date: nx, desc: "" },
+      { id: "b1", cal: "pay", rid: "R2", title: "보험료", date: nx, desc: "월 52,300원 자동이체" },
+      { id: "c1", cal: "pay", rid: "R3", title: "금액 없는 일정", date: nx, desc: "" },
+      { id: "d1", cal: "pay", rid: "", title: "한 번뿐인 결제 9,900원", date: nx },
+      { id: "e1", cal: "me", rid: "R9", title: "다른 캘린더 5,000원", date: nx }] };
+    var g1 = GF([{ id: "keep", name: "월세", amount: 400000, day: 25 }], gd);
+    ok("pay calendar adds repeating payments", !!g1 && g1.fixed.length === 3 && g1.skipped === 1 && g1.fixed.some(function (f) { return f.gcal === "R1" && f.name === "넷플릭스" && f.amount === 17000 && f.day === Number(nx.slice(8)); }) && g1.fixed.some(function (f) { return f.gcal === "R2" && f.amount === 52300; }), JSON.stringify(g1));
+    ok("pay calendar: no change → null", GF(g1.fixed, gd) === null);
+    var gd2 = JSON.parse(JSON.stringify(gd)); gd2.events = gd2.events.filter(function (e) { return e.rid !== "R1"; }); gd2.events[0].title = "보험료 60,000원";
+    var g2 = GF(g1.fixed, gd2);
+    ok("pay calendar removes / updates", !!g2 && !g2.fixed.some(function (f) { return f.gcal === "R1"; }) && g2.fixed.some(function (f) { return f.gcal === "R2" && f.amount === 60000; }) && g2.fixed.some(function (f) { return f.id === "keep"; }), JSON.stringify(g2 && g2.fixed));
+    var g3 = GF([{ id: "mine", kind: "지출", name: "넷플릭스", amount: 13500, day: 1, cat: "구독", method: "간편결제", memo: "" }], gd);
+    ok("pay calendar links my own entry (no duplicate)", !!g3 && g3.fixed.filter(function (f) { return /넷플릭스/.test(f.name); }).length === 1 && g3.fixed.some(function (f) { return f.id === "mine" && f.gcal === "R1" && f.amount === 17000 && f.method === "간편결제"; }), JSON.stringify(g3 && g3.fixed));
+    ok("no pay calendar → untouched", GF([], { syncedAt: "x", calendars: [{ id: "me", name: "내 캘린더" }], events: [] }) === null);
     var PN = App.budget.parseNotice, sep = new Date(2026, 8, 28);
     var payN = PN("결제가 완료되었어요 해외결제 가맹점에서 2,400원을 결제했어요.", sep);
     ok("notice: pay-app sentence", payN.ok && payN.amount === 2400 && payN.type === "지출" && payN.merchant === "해외결제 가맹점" && !payN.cancel, JSON.stringify(payN));

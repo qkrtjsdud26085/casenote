@@ -78,7 +78,8 @@
       if (end > date && d2.getHours() === 0 && d2.getMinutes() === 0) { end = H.dateKey(H.addDays(d2, -1)); }
     }
     if (end < date) { end = date; }
-    return { id: ev.id, cal: cal.id, title: String(ev.summary || "(제목 없음)").slice(0, 120), date: date, end: end, time: time, allDay: allDay, link: ev.htmlLink || "" };
+    return { id: ev.id, cal: cal.id, title: String(ev.summary || "(제목 없음)").slice(0, 120), date: date, end: end, time: time, allDay: allDay, link: ev.htmlLink || "",
+      rid: ev.recurringEventId || "", desc: String(ev.description || "").replace(/<[^>]*>/g, " ").slice(0, 200) };
   }
 
   /* Read calendars + events and store them in Firestore. Resolves with {calendars, events}. */
@@ -100,7 +101,8 @@
     var events = [];
     for (var i = 0; i < calendars.length; i++) {
       var c = calendars[i];
-      if (!c.on) { continue; }
+      /* a calendar named "…결제…" is always read: the 가계부 turns its repeating events into 고정지출 */
+      if (!c.on && !G.isPayCal(c)) { continue; }
       var pageToken = "", pages = 0;
       do {
         var q = "/calendars/" + encodeURIComponent(c.id) + "/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=" +
@@ -119,6 +121,8 @@
     await ref.set({ calendars: calendars, events: events, syncedAt: new Date().toISOString(), range: { from: H.dateKey(from), to: H.dateKey(to) } }, { merge: true });
     return { calendars: calendars, events: events };
   };
+
+  G.isPayCal = function (c) { return /결제/.test((c && c.name) || ""); };
 
   /* Save calendar choices (on / category) without contacting Google. */
   G.saveCalendars = function (calendars) {

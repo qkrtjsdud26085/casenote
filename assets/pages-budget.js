@@ -175,7 +175,49 @@
     r.ok = true;
     return r;
   }
-  App.budget = { won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat, cleanMerchant: cleanMerchant, merchantKey: merchantKey, ruleCat: ruleCat };
+  /* Google 캘린더 '결제' 캘린더의 반복 일정 → 고정지출. Returns the new fixed list, or null when nothing changes. */
+  function gcalAmount(text) {
+    var m = String(text || "").match(/([\d][\d,]*)\s*원/) || String(text || "").match(/(\d{1,3}(?:,\d{3})+|\d{3,})/);
+    return m ? num(m[1]) : 0;
+  }
+  function gcalFixed(fixed, gdoc) {
+    var cals = ((gdoc && gdoc.calendars) || []).filter(function (c) { return /결제/.test(c.name || ""); });
+    if (!gdoc || !gdoc.syncedAt || !cals.length) { return null; }
+    var payIds = {}; cals.forEach(function (c) { payIds[c.id] = true; });
+    var today = H.todayStr(), groups = {};
+    (gdoc.events || []).forEach(function (ev) {
+      if (!payIds[ev.cal] || !ev.rid) { return; }
+      var g = groups[ev.rid];
+      /* the next upcoming instance decides the day; its title / memo give name and amount */
+      if (!g || (g.date < today && ev.date >= today) || (ev.date >= today && ev.date < g.date)) { groups[ev.rid] = ev; }
+    });
+    var want = {}, skipped = 0;
+    Object.keys(groups).forEach(function (rid) {
+      var ev = groups[rid], amount = gcalAmount(ev.title) || gcalAmount(ev.desc);
+      if (!amount) { skipped++; return; }
+      var name = String(ev.title || "").replace(/[\d][\d,]*\s*원/, "").replace(/\s+/g, " ").trim() || "정기결제";
+      want[rid] = { name: name.slice(0, 60), amount: amount, day: Number(ev.date.slice(8, 10)) };
+    });
+    var changed = false, out = [];
+    (fixed || []).forEach(function (f) {
+      if (!f.gcal) { out.push(f); return; }
+      var w = want[f.gcal];
+      if (!w) { changed = true; return; }
+      delete want[f.gcal];
+      if (f.name !== w.name || Number(f.amount) !== w.amount || Number(f.day) !== w.day) { changed = true; f = Object.assign({}, f, w); }
+      out.push(f);
+    });
+    /* a payment I already typed in (same name, spaces and symbols ignored) gets linked instead of added twice */
+    function sameName(x, y) { var a = merchantKey(x), b = merchantKey(y); return !!a && !!b && (a === b || (Math.min(a.length, b.length) >= 3 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1))); }
+    Object.keys(want).forEach(function (rid) {
+      var w = want[rid]; changed = true;
+      var mine = out.filter(function (f) { return !f.gcal && !isInc(f) && sameName(f.name, w.name); })[0];
+      if (mine) { out[out.indexOf(mine)] = Object.assign({}, mine, { amount: w.amount, day: w.day, gcal: rid }); return; }
+      out.push({ id: H.uid(), kind: "지출", name: w.name, amount: w.amount, day: w.day, cat: ruleCat(w.name) || "구독", method: "카드", memo: "결제 캘린더", gcal: rid });
+    });
+    return changed ? { fixed: out, skipped: skipped } : null;
+  }
+  App.budget = { gcalFixed: gcalFixed, won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat, cleanMerchant: cleanMerchant, merchantKey: merchantKey, ruleCat: ruleCat };
 
   /* my cards (personal/cards) are extra payment methods, so each expense can name the card used */
   var MY_CARDS = [];
@@ -1045,7 +1087,15 @@
       thisM.addEventListener("click", function () { state.sel = today; setMonth(today.slice(0, 7)); });
 
       setType("지출"); drawFilters();
-      App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); state.settingsLoaded = true; drawAll(); });
+      App.watchDoc(settingsRef(), function (d) { state.settings = Object.assign({ fixed: [], budget: 0 }, d || {}); state.settingsLoaded = true; drawAll(); syncPayCal(); });
+      /* 결제 캘린더 ↔ 고정지출: after both the settings and the synced calendar copy are loaded */
+      var gdocPay = null;
+      function syncPayCal() {
+        if (!state.settingsLoaded || !gdocPay) { return; }
+        var r = gcalFixed(state.settings.fixed, gdocPay);
+        if (r) { saveSettings({ fixed: r.fixed }); }
+      }
+      App.watchDoc(App.doc("personal/gcal"), function (d) { gdocPay = d; syncPayCal(); });
       App.watchQuery(inboxRef, function (docs) { state.inbox = docs; drawInbox(); });
       setMonth(state.mk);
     }
