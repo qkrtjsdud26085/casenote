@@ -907,3 +907,22 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .capture-form .capture-text { width: 100%; min-height: 9em; }
 .capture-row { display: flex; gap: 8px; justify-content: flex-end; }
 .desk-submit { margin-bottom: 26px; }
+/* 공모 카드 */
+.contest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.contest { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+.contest-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.contest-dday { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 700; color: var(--ink); }
+.contest-dday.near { color: var(--accent); }
+.contest-due { font-size: 0.8rem; color: var(--ink-soft); flex: 1; }
+.contest-title { font-family: var(--font-display); font-size: 1.08rem; margin: 2px 0 0; line-height: 1.4; }
+.contest-sub { font-size: 0.8rem; color: var(--ink-soft); margin: 0; }
+.contest-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.contest-chip { font-size: 0.74rem; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); }
+.contest-prize { font-size: 0.84rem; margin: 0; font-weight: 600; }
+.contest-warn { font-size: 0.8rem; margin: 0; color: var(--accent); }
+.contest-checks { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 6px; background: var(--surface); }
+.contest-check { font-size: 0.82rem; cursor: pointer; }
+.contest-check.done { color: var(--ink-soft); text-decoration: line-through; }
+.contest-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.contest-foot a.copy-btn { text-decoration: none; }
+.contest-meta { font-size: 0.72rem; color: var(--ink-soft); }

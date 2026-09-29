@@ -149,7 +149,7 @@
         .replace(/승인|취소|일시불|할부\s*\d*\s*(개월)?|체크|신용|해외|국내/g, " ")
         .replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
     }
-    var bank = s.match(/(입금|출금|지급|이체)\s*([\d,]+)\s*원?/);
+    var bank = s.match(/(입금|출금|지급|이체)\s*([\d,]+)\s*원?/), pay;
     if (/카드/.test(s) && /승인|취소/.test(s) && !bank) {
       var am = s.match(/([\d,]+)\s*원/);
       if (!am) { return r; }
@@ -160,6 +160,13 @@
       r.amount = num(bank[2]); r.type = bank[1] === "입금" ? "수입" : "지출"; r.method = "계좌이체";
       var bm = s.match(/\[KB\]|KB국민|국민은행/) ? ["", "KB국민은행"] : (s.match(/iM뱅크|대구은행|DGB/i) ? ["", "iM뱅크"] : s.match(/([가-힣A-Za-z]+(?:뱅크|은행))/));
       r.source = bm ? bm[1] : "은행";
+    } else if ((pay = s.match(/(\S(?:.*?\S)?)\s*에서\s*([\d,]+)\s*원(?:을|를)?\s*(결제|사용|결제\s*취소|취소)/))) {
+      /* 간편결제 · 앱 알림: "○○에서 2,400원을 결제했어요" */
+      r.amount = num(pay[2]); r.type = "지출"; r.method = "간편결제"; r.cancel = /취소/.test(s.slice(pay.index + pay[0].length - pay[3].length)); r.source = "";
+      r.merchant = pay[1].replace(/^.*?(결제가\s*(완료|취소)\s*(되었어요|됐어요|되었습니다)|결제\s*(완료|알림|취소))\s*/, "").replace(/\s+/g, " ").trim().slice(0, 60);
+      r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
+      r.ok = !!r.amount;
+      return r;
     } else { return r; }
     r.merchant = leftover(s);
     if (!r.amount) { return r; }

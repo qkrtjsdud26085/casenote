@@ -121,6 +121,7 @@
     desc: "작가 섹션의 시작 화면이에요. 오늘의 글쓰기 질문, 지금 쓰는 작품, 오늘의 집필량, 떠오른 글감을 한곳에서 봅니다.",
     render: function (view) {
       W.track();
+      contestBoard(view, doc("writer/submissions"));
       submitCard(view);
       var g = ui.grid(view, true);
 
@@ -622,6 +623,74 @@
       });
       bar.appendChild(addBtn);
     });
+  }
+  var LIVE = ["준비", "제출", "심사중"];
+  function lines(s) { return String(s || "").split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean); }
+  function mmdd(k) { var d = H.parseKey(k); return (d.getMonth() + 1) + "/" + d.getDate() + "(" + H.DOW[d.getDay()] + ")"; }
+
+  function contestBoard(parent, ref) {
+    var c = ui.card(parent, { tab: "Contest", tone: "t-2", title: "마감 다가오는 공모", wide: true });
+    c.el.classList.add("desk-submit");
+    var grid = el("div", "contest-grid");
+    c.body.appendChild(grid);
+    var ITEMS = [];
+    /* one item changed → write the whole list back (same shape itemsPanel uses) */
+    function patch(id, fn) {
+      return ref.get().then(function (snap) {
+        var items = (snap.exists && snap.data().items) || [];
+        return ref.set({ items: items.map(function (x) { return x.id === id ? fn(Object.assign({}, x)) : x; }), updatedAt: new Date().toISOString() }, { merge: true });
+      }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+    }
+    function draw() {
+      H.clear(grid);
+      var today = H.todayStr();
+      var live = ITEMS.filter(function (x) { return LIVE.indexOf(x.status || "준비") !== -1 && (!x.deadline || x.deadline >= today); })
+        .sort(function (a, b) { return String(a.deadline || "9999").localeCompare(String(b.deadline || "9999")); });
+      if (!live.length) { grid.appendChild(ui.empty("마감을 앞둔 공모가 없어요.")); return; }
+      live.forEach(function (x) {
+        var card = el("article", "contest");
+        var top = el("div", "contest-top");
+        if (x.deadline) {
+          var di = H.ddayInfo(x.deadline);
+          top.appendChild(el("span", "contest-dday " + (di.diff <= 7 ? "near" : ""), di.text));
+          top.appendChild(el("span", "contest-due", mmdd(x.deadline) + (x.deadlineTime ? " " + x.deadlineTime : "") + " 마감"));
+        }
+        top.appendChild(el("span", "status-chip", x.status || "준비"));
+        card.appendChild(top);
+        var t = el("h3", "contest-title", x.title || ""); card.appendChild(t);
+        var sub = [x.venue, x.eligibility].filter(Boolean).join(" · ");
+        if (sub) { card.appendChild(el("p", "contest-sub", sub)); }
+        var sp = lines(x.specs);
+        if (sp.length) { var chips = el("div", "contest-chips"); sp.forEach(function (s) { chips.appendChild(el("span", "contest-chip", s)); }); card.appendChild(chips); }
+        if (x.prize) { card.appendChild(el("p", "contest-prize", "상금 · 혜택  " + x.prize)); }
+        lines(x.caution).forEach(function (s) { card.appendChild(el("p", "contest-warn", "⚠ " + s)); });
+        var cl = lines(x.checklist);
+        if (cl.length) {
+          var box = el("div", "contest-checks"), checks = x.checks || {};
+          cl.forEach(function (label) {
+            var lab = el("label", "contest-check" + (checks[label] ? " done" : ""));
+            var cb = el("input"); cb.type = "checkbox"; cb.checked = !!checks[label];
+            cb.addEventListener("change", function () {
+              patch(x.id, function (it) { var m = Object.assign({}, it.checks || {}); m[label] = cb.checked; it.checks = m; return it; });
+            });
+            lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + label)); box.appendChild(lab);
+          });
+          card.appendChild(box);
+        }
+        var foot = el("div", "contest-foot");
+        if (x.email) {
+          var eb = el("button", "copy-btn", "이메일 복사"); eb.type = "button"; eb.title = x.email;
+          eb.addEventListener("click", function () { H.copyText(x.email, eb); });
+          foot.appendChild(eb);
+        }
+        if (x.url) { var a = el("a", "copy-btn", "공고 보기"); a.href = H.safeUrl(x.url); a.target = "_blank"; a.rel = "noopener noreferrer"; foot.appendChild(a); }
+        var meta = [x.email, x.phone ? "문의 " + x.phone : "", x.announce ? "발표 " + (/^\d{4}-\d{2}-\d{2}$/.test(x.announce) ? mmdd(x.announce) : x.announce) : ""].filter(Boolean).join(" · ");
+        if (meta) { foot.appendChild(el("span", "contest-meta", meta)); }
+        card.appendChild(foot);
+        grid.appendChild(card);
+      });
+    }
+    App.watchDoc(ref, function (d) { ITEMS = (d && d.items) || []; draw(); });
   }
   App.writer.PRESETS = PRESETS;
 

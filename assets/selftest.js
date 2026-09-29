@@ -484,11 +484,14 @@
     /* 집필 책상 = 공모 · 투고 현황 + 책상 카드 */
     await go("writer-desk"); await sleep(150);
     var cBar = $("#view .contest-bar"), presetFresh = App.writer.PRESETS.filter(function (p) { return p.deadline >= App.h.todayStr(); }).length;
-    ok("desk: submit first, no board/deadline", $$("#view .card h2")[0].textContent === "공모 · 투고 현황" && !cardBy("마감 다가오는 공모") && !cardBy("공모 · 투고 마감") && !!cardBy("글감 빨리 적기") && $("#view .capture-text").rows >= 6);
+    ok("desk: contest board, then submit; no deadline card", $$("#view .card h2")[0].textContent === "마감 다가오는 공모" && $$("#view .card h2")[1].textContent === "공모 · 투고 현황" && !cardBy("공모 · 투고 마감") && !!cardBy("글감 빨리 적기") && $("#view .capture-text").rows >= 6);
     ok("contest presets offered", presetFresh === 0 ? cBar.hidden : (!cBar.hidden && /새 공모/.test(cBar.textContent)));
     if (presetFresh) {
       $(".btn", cBar).click(); await sleep(300);
       ok("contest presets added", window.__MOCK_STORE["writer/submissions"].items.filter(function (x) { return x.preset; }).length === presetFresh && cBar.hidden);
+      ok("contest cards", $$("#view .contest").length === presetFresh && /D-/.test($("#view .contest-dday").textContent) && $$("#view .contest .contest-chip").length > 0);
+      var cc = $("#view .contest-check input"); cc.checked = true; change(cc); await sleep(250);
+      ok("contest checklist saves", window.__MOCK_STORE["writer/submissions"].items.some(function (x) { return x.checks && Object.keys(x.checks).some(function (k) { return x.checks[k]; }); }));
       delete window.__MOCK_STORE["writer/submissions"];
     }
     /* 카드 분석 */
@@ -795,6 +798,10 @@
     ok("fixed pick delete", window.__MOCK_STORE["personal/budget"].fixed.length === 1 && !$("#view .bud-fixed .bud-pick"), JSON.stringify(window.__MOCK_STORE["personal/budget"].fixed));
     $$("#view .bud-arr")[0].click(); await sleep(40);    /* phone payment notifications */
     var PN = App.budget.parseNotice, sep = new Date(2026, 8, 28);
+    var payN = PN("결제가 완료되었어요 해외결제 가맹점에서 2,400원을 결제했어요.", sep);
+    ok("notice: pay-app sentence", payN.ok && payN.amount === 2400 && payN.type === "지출" && payN.merchant === "해외결제 가맹점" && !payN.cancel, JSON.stringify(payN));
+    var payC = PN("스타벅스 강남점에서 4,500원 결제가 취소되었어요", sep);
+    ok("notice: pay-app cancel", payC.ok && payC.amount === 4500 && payC.cancel && payC.merchant === "스타벅스 강남점", JSON.stringify(payC));
     var n1 = PN("iM뱅크 09/27 13:52\n50813*03093\n입금 1,000,000\n잔액 1,189,248\n토스박선영", sep);
     ok("notice iM deposit", n1.ok && n1.type === "수입" && n1.amount === 1000000 && n1.date === "2026-09-27" && n1.time === "13:52" && n1.merchant === "토스박선영" && n1.source === "iM뱅크" && n1.method === "계좌이체", JSON.stringify(n1));
     var n2 = PN("[Web발신]\n신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원", sep);
