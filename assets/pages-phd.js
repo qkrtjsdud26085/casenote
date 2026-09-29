@@ -20,8 +20,10 @@
      ========================================================= */
   App.page({
     id: "diss-current", title: "비선형 공격성 임계점 · 현재 진행중", navLabel: "현재 진행중",
+    tabLabel: "현재 진행중",
     render: function (view) {
       var DD = App.diss.D;
+      App.rkit.pageTabs(view, ["diss-current", "diss-report1"], "diss-current");
       var c = ui.card(view, { tab: "Process", tone: "t-1", title: "연구 프로세스", wide: true });
       ui.researchFlow(c.body, { ref: DD("process") });
       var n = ui.card(view, { tab: "Start", tone: "t-2", title: "연구 시작 체크리스트", wide: true });
@@ -37,6 +39,106 @@
         ]
       });
       App.diss.importCard(view, "", "자료 불러오기 · 백업");
+    }
+  });
+
+  /* =========================================================
+     비선형 › 현재 진행중 › 1차년도 보고서 (= 연구 지도 확인서, 2026 신청요강 붙임7)
+     연구윤리교육 ~11.30 · 연구 지도 확인서 e-R&D 제출 ~12.31 (research/diss_report1 · diss_r1steps · diss_r1advice · diss_r1outputs)
+     ========================================================= */
+  var R1_TABS = ["diss-current", "diss-report1"];
+  var R1_DUE = [{ label: "연구윤리교육 이수", date: "2026-11-30" }, { label: "연구 지도 확인서 제출 (e-R&D)", date: "2026-12-31" }];
+  var R1_STEPS = [
+    { text: "연구윤리교육 이수", phase: "필수", due: "2026-11-30" },
+    { text: "1. 연구진행상황 초안 쓰기", phase: "확인서", due: "2026-12-05" },
+    { text: "2. 연구지도내용 정리 (지도 기록에서 모으기)", phase: "확인서", due: "2026-12-05" },
+    { text: "지도교수께 초안 보내고 검토 받기", phase: "지도교수", due: "2026-12-15" },
+    { text: "지도교수 확인 · 서명 받기", phase: "지도교수", due: "2026-12-22" },
+    { text: "e-R&D에 연구 지도 확인서 온라인 제출", phase: "제출", due: "2026-12-31" }
+  ];
+  var R1_SECTIONS = [
+    { key: "s1", title: "1. 연구진행상황", ph: "예: 문헌 검토 범위 · 자료 수집 진행률 · 분석 진행 · 계획서 대비 달라진 점" },
+    { key: "s2", title: "2. 연구지도내용", ph: "예: 지도 날짜별 핵심 조언 · 그 뒤 고친 점 (아래 '지도 기록'에서 모으기)" },
+    { key: "s3", title: "3. 기타", ph: "예: 연구윤리교육 이수 · 학회 발표 · 논문 투고 계획" }
+  ];
+  var R1_STATUS = ["계획", "자료 모음", "초안", "완료"];
+  App.page({
+    id: "diss-report1", title: "1차년도 보고서 · 연구 지도 확인서", navHidden: true, navParent: "diss-current", tabLabel: "1차년도 보고서",
+    render: function (view) {
+      var DD = App.diss.D;
+      App.rkit.pageTabs(view, R1_TABS, "diss-report1");
+
+      /* 마감 · 단계 */
+      var dc = ui.card(view, { tab: "Deadline", tone: "t-1", title: "제출 일정", wide: true });
+      var dues = el("div", "r1-dues");
+      R1_DUE.forEach(function (d) {
+        var b = el("div", "r1-due"); b.appendChild(H.ddayEl(d.date));
+        b.appendChild(el("span", "r1-due-label", d.label)); b.appendChild(el("span", "r1-due-date", d.date.slice(5).replace("-", "/")));
+        dues.appendChild(b);
+      });
+      dc.body.appendChild(dues);
+      ui.itemsPanel(dc.body, {
+        ref: DD("r1steps"), checkKey: "done", dueKey: "due", ddayInTable: true, views: ["table"], defaults: R1_STEPS,
+        addLabel: "+ 단계 추가", reorder: { resetLabel: "기본 순서로" }, empty: "단계가 없어요.",
+        fields: [
+          { key: "text", label: "할 일", type: "text", title: true, required: true, col: true, maxLength: 200 },
+          { key: "phase", label: "구분", type: "text", meta: true, col: true, maxLength: 20 },
+          { key: "due", label: "기한", type: "date", col: true },
+          { key: "note", label: "메모", type: "textarea", rows: 2 }
+        ]
+      });
+
+      /* 확인서 목차별 계획 · 초안 */
+      var grid = el("div", "r1-sections"); view.appendChild(grid);
+      R1_SECTIONS.forEach(function (sec) {
+        var c = ui.card(grid, { tab: "Section", tone: "t-2", title: sec.title, wide: true });
+        ui.fieldsPanel(c.body, {
+          ref: DD("report1"), docKey: sec.key,
+          fields: [
+            { key: "status", label: "상태", type: "select", options: R1_STATUS },
+            { key: "plan", label: "쓸 내용 (한 줄에 하나)", type: "textarea", rows: 4, placeholder: sec.ph },
+            { key: "evidence", label: "근거 자료 · 파일 위치", type: "text", wide: true, maxLength: 300 },
+            { key: "draft", label: "초안", type: "textarea", rows: 7 }
+          ],
+          onData: function (src) {
+            src = src || {};
+            var n = String(src.draft || "").replace(/\s/g, "").length;
+            c.count.textContent = (src.status || R1_STATUS[0]) + (n ? " · " + n.toLocaleString("ko-KR") + "자" : "");
+            c.el.classList.toggle("r1-done", src.status === "완료");
+          }
+        });
+      });
+
+      var g = ui.grid(view, true);
+      /* 지도 기록 → 2. 연구지도내용 */
+      var ac = ui.card(g, { tab: "Advice", tone: "t-3", title: "지도 기록" });
+      ui.itemsPanel(ac.body, {
+        ref: DD("r1advice"), views: ["cards", "table"], addLabel: "+ 지도 기록", empty: "지도받은 날마다 적어 두면 '2. 연구지도내용'에 옮기기 쉬워요.",
+        sort: function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); },
+        fields: [
+          { key: "date", label: "날짜", type: "date", col: true },
+          { key: "text", label: "지도 내용", type: "textarea", title: true, required: true, col: true, rows: 3 },
+          { key: "applied", label: "반영한 점", type: "textarea", col: true, rows: 2 }
+        ]
+      });
+      /* 연구 성과 (사사표기 확인) */
+      var oc = ui.card(g, { tab: "Outputs", tone: "t-1", title: "연구 성과" });
+      ui.itemsPanel(oc.body, {
+        ref: DD("r1outputs"), views: ["table", "cards"], addLabel: "+ 성과 추가", empty: "논문 투고 · 학회 발표를 적어 두세요.",
+        fields: [
+          { key: "title", label: "제목", type: "text", title: true, required: true, col: true, maxLength: 200 },
+          { key: "kind", label: "구분", type: "select", options: ["학술지 논문", "학회 발표", "저서", "기타"], meta: true, col: true },
+          { key: "status", label: "상태", type: "select", options: ["준비", "투고", "게재 확정", "게재", "발표 완료"], col: true },
+          { key: "date", label: "날짜", type: "date", col: true },
+          { key: "ack", label: "사사표기", type: "check", col: true },
+          { key: "note", label: "학술지 · 학회 · 메모", type: "text", maxLength: 200 }
+        ]
+      });
+      var ak = ui.card(g, { tab: "Credit", tone: "t-2", title: "사사표기 문구", wide: true });
+      ui.refList(ak.body, [
+        { label: "국문", text: "이 논문 또는 저서는 2026년 대한민국 교육부와 한국연구재단의 지원을 받아 수행된 연구임 (NRF-과제번호)" },
+        { label: "영문", text: "This work was supported by the Ministry of Education of the Republic of Korea and the National Research Foundation of Korea (NRF-과제번호)" }
+      ]);
     }
   });
 

@@ -878,6 +878,8 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .sub-row > .sub-link.active, .sub-row > .sub-group.active { background: var(--ink); border-color: var(--ink); }
 .sub-row > .sub-link.active, .sub-row > .sub-group.active > .sub-link { color: var(--bg); }
 .sub-row .sub-menu { margin-top: 4px; }
+/* invisible bridge over the gap, so moving the mouse down to the list keeps it open */
+.sub-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -12px; height: 12px; }
 .reco-badge.impact { font-weight: 600; color: var(--ink); }
 /* 카드 분석 */
 .cardx-cond { font-size: 0.86rem; margin-bottom: 8px; }
@@ -927,3 +929,11 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .contest-foot a.copy-btn { text-decoration: none; }
 .contest-meta { font-size: 0.72rem; color: var(--ink-soft); }
 .desk-gap { margin-bottom: 26px; }
+/* 1차년도 보고서 */
+.r1-dues { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.r1-due { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 0.86rem; }
+.r1-due .dday { font-size: 1rem; }
+.r1-due-label { font-weight: 600; }
+.r1-due-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
+.r1-sections { display: flex; flex-direction: column; gap: 26px; margin: 26px 0; }
+.r1-sections .card.r1-done { border-color: var(--accent-2); }

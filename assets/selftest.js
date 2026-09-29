@@ -79,7 +79,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 62, ids.length);
+    ok("page count", ids.length === 63, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -133,6 +133,10 @@
     ok("thesis-home: no IAS / 학위논문 / 프로젝트 cards", !/진행중 프로젝트 ① · IAS/.test($("#view").textContent) && !/박사학위논문 · 비선형/.test($("#view").textContent) && !cardBy("논문 프로젝트") && !$("#pageHead .page-desc"));
     ok("nav labels", $$("#subnav .sub-group")[0].querySelectorAll(".sub-item").length === 4 && /전체 현황/.test($$("#subnav .sub-group")[0].textContent) && /범죄심리사/.test($$("#subnav .sub-group")[0].textContent) && /피해상담사/.test($$("#subnav .sub-group")[0].textContent) && /임상심리사/.test($$("#subnav .sub-group")[0].textContent) && !$("#subnav a[data-page='cert-crime-guide']") && !$("#subnav a[data-page='cert-study']") && !$("#subnav a[data-page='ai-log']"));
     await go("diss-overview");
+    var dg = $("#subnav .sub-row .sub-group"); dg.classList.add("open");
+    var dm = $(".sub-menu", dg).getBoundingClientRect(), gapEl = document.elementFromPoint(dm.left + 20, dm.top - 3);
+    ok("dropdown gap keeps hover (bridge)", !!gapEl && dg.contains(gapEl), gapEl && gapEl.className);
+    dg.classList.remove("open");
     ok("diss menu rows", $$("#subnav .sub-row .sub-group.active .sub-item").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중|연구계획서 내용 전체" && $("#subnav .sub-row .sub-go").getAttribute("href") === "#/diss-overview" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row .sub-item").map(function (a) { return a.textContent; }).join("|"));
     await go("thesis-home");
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
@@ -481,6 +485,14 @@
     await go("thesis-refs");
     ok("scale text templates", $$("#view .card").some(function (c) { return /척도 타당화 결과 서술 문장/.test(c.textContent); }));
 
+    /* 1차년도 보고서 */
+    await go("diss-report1"); await sleep(150);
+    ok("report1 page", $$("#view .page-tab").length === 2 && $("#view .page-tab.active").textContent === "1차년도 보고서" && $$("#view .r1-due").length === 2 && !!cardBy("1. 연구진행상황") && !!cardBy("2. 연구지도내용") && !!cardBy("3. 기타") && !!cardBy("지도 기록") && !!cardBy("연구 성과") && !!cardBy("사사표기 문구") && $$(".items-table tbody tr", cardBy("제출 일정")).length === 6 && $("#subnav a.active").getAttribute("data-page") === "diss-current");
+    var r1d = $("textarea", cardBy("1. 연구진행상황").querySelector(".f.wide:last-of-type") || cardBy("1. 연구진행상황"));
+    var r1ta = $$("textarea", cardBy("1. 연구진행상황")); r1ta[r1ta.length - 1].value = "자료 수집 60% 완료"; change(r1ta[r1ta.length - 1]); await sleep(200);
+    var r1doc = window.__MOCK_STORE["research/diss_report1"];
+    ok("report1 draft saves", !!r1doc && r1doc.s1 && r1doc.s1.draft === "자료 수집 60% 완료" && /자/.test(cardBy("1. 연구진행상황").querySelector(".count").textContent), JSON.stringify(r1doc));
+    await go("diss-current"); ok("diss-current tabs", $$("#view .page-tab").length === 2 && $("#view .page-tab.active").textContent === "현재 진행중");
     /* 집필 책상 = 공모 · 투고 현황 + 책상 카드 */
     await go("writer-desk"); await sleep(150);
     var cBar = $("#view .contest-bar"), presetFresh = App.writer.PRESETS.filter(function (p) { return p.deadline >= App.h.todayStr(); }).length;
