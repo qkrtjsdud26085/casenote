@@ -91,7 +91,6 @@
   /* ---------- menu ---------- */
   App.MENU = [
     { key: "thesis", short: "박사", label: "박사", groups: [
-      { pages: ["thesis-home"] },
       { label: "논문", sections: [
         { label: "① IAS 척도 타당화", pages: ["ias-home", "ias-flow", "ias-items", "ias-writing"] },
         { label: "② 비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-report1", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
@@ -104,7 +103,7 @@
         "thesis-library", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
-      { pages: ["writer-desk", "writer-submit"] },
+      { pages: ["writer-desk", "writer-submit", "writer-compose"] },
       { label: "구상", pages: ["writer-canvas", "writer-ideas", "writer-quotes"] },
       { label: "소설 · 에세이", pages: ["writer-plot", "writer-world", "writer-essay"] },
       { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] }

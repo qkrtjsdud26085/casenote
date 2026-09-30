@@ -7,7 +7,7 @@
     id: "home", title: "홈",
     render: function (view) {
       var B = App.budget, curMonth = B.monthKey(new Date());
-      var D = { todos: [], schedule: [], projects: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, budget: null, ledger: null, reco: null, gcal: null };
+      var D = { todos: [], schedule: [], projects: null, tlog: null, wlog: null, budget: null, ledger: null, gcal: null };
 
       /* ---------- affiliation badges, shown in the topbar itself (today's quote sits beside the logo) ---------- */
       var strip = document.getElementById("homeStrip");
@@ -99,7 +99,6 @@
         paintMood();
       });
 
-      var dash = el("div", "home-rest"); view.appendChild(dash);
 
       /* ---------- summaries ---------- */
       function tile(label, value, sub, page) {
@@ -121,7 +120,7 @@
         list.appendChild(row); return row;
       }
       function draw() {
-        H.clear(dash); H.clear(tilesHost); H.clear(todaySlot);
+        H.clear(tilesHost); H.clear(todaySlot);
         var today = H.todayStr();
         var allTasks = (D.gtasks && D.gtasks.items) || [];
         var openTodos = allTasks.filter(function (t) { return t.status !== "completed"; })
@@ -140,7 +139,6 @@
         tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
         tilesHost.appendChild(tiles);
 
-        var g = ui.grid(dash, true);
 
         /* 오늘 · 이번 주 */
         var c1 = ui.card(todaySlot, { tab: "Today", tone: "t-2", title: "오늘 · 이번 주", link: "personal-calendar" });
@@ -172,72 +170,14 @@
           nodes.push(chip);
           miniItem(l2, nodes);
         });
-
-        /* 박사 학위논문 */
-        var c2 = ui.card(g, { tab: "Thesis", tone: "t-1", title: "박사", link: "thesis-home" });
-        var plist = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
-        c2.body.appendChild(el("div", "mini-title", "논문 프로젝트"));
-        var lp = mini(c2.body);
-        plist.forEach(function (p) {
-          var st = App.proj.stagesFor(p)[App.proj.stageIndex(p)];
-          var a = el("a", "", p.title); a.href = "#/proj-overview"; a.addEventListener("click", function () { H.safeSet("hds_proj", p.id); });
-          var w = el("span", "grow"); w.appendChild(a);
-          miniItem(lp, [el("span", "status-chip", st), w, el("span", "mini-sub", App.proj.stagePct(p) + "%")]);
-        });
-        var meets = ((D.meetings && D.meetings.items) || []).filter(function (m) { return m.next && m.next >= today; }).sort(function (a, b) { return a.next < b.next ? -1 : 1; });
-        c2.body.appendChild(el("div", "mini-title", "지도교수 다음 면담"));
-        var l4 = mini(c2.body);
-        if (meets.length) { miniItem(l4, [H.ddayEl(meets[0].next), el("span", "grow", meets[0].topic || "면담")]); } else { l4.appendChild(el("span", "mini-sub", "예정된 면담이 없어요.")); }
-        var reco = D.reco && D.reco.daily && D.reco.daily.date === today ? (D.reco.daily.items || []) : [];
-        c2.body.appendChild(el("div", "mini-title", "오늘의 추천 논문"));
-        var l5 = mini(c2.body);
-        if (!reco.length) {
-          var lk = el("a", "more-link", (D.reco && (D.reco.interests || []).length) ? "추천 불러오는 중이거나 오늘 추천이 없어요 →" : "관심 키워드를 설정하고 추천받기 →");
-          lk.href = "#/thesis-recommend"; l5.appendChild(lk);
-        }
-        reco.slice(0, 2).forEach(function (r) {
-          var a = el("a", "", r.title); a.href = r.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-          var w = el("span", "grow"); w.appendChild(a);
-          miniItem(l5, [el("span", "reco-badge " + (r.oa ? "free" : "inst"), r.pdf ? "PDF" : "무료"), w]);
-        });
-
-        /* 가계부 */
-        var c3 = ui.card(g, { tab: "Budget", tone: "t-3", title: "가계부", link: "personal-budget" });
-        c3.body.appendChild(el("div", "mini-title", "이번 달"));
-        var l6 = mini(c3.body);
-        miniItem(l6, [el("span", "grow", "수입 " + B.won(money.inc) + " · 지출 " + B.won(money.exp)), el("span", "mini-sub", "잔액 " + (money.inc - money.exp < 0 ? "−" : "") + B.won(Math.abs(money.inc - money.exp)))]);
-        if (budget) {
-          var bp = ui.progress(Math.min(100, Math.round(money.exp / budget * 100)), "예산 " + Math.round(money.exp / budget * 100) + "% 사용");
-          if (money.exp > budget) { bp.classList.add("over"); }
-          c3.body.appendChild(bp);
-        }
-        c3.body.appendChild(el("div", "mini-title", "아직 반영 안 된 고정지출"));
-        var l6b = mini(c3.body);
-        var unpaid = B.unpaidFixed(D.budget, ledger, curMonth);
-        if (!unpaid.length) { l6b.appendChild(ui.empty(D.budget && (D.budget.fixed || []).length ? "이번 달 고정지출을 모두 반영했어요." : "가계부에서 고정지출을 등록해 보세요.")); }
-        unpaid.slice(0, 4).forEach(function (f) { miniItem(l6b, [H.ddayEl(f.date), el("span", "grow", f.name), el("span", "mini-sub", B.won(f.amount))]); });
-
-        /* 작가 */
-        var c4 = ui.card(g, { tab: "Writer", tone: "t-2", title: "작가", link: "writer-desk" });
-        var works = ((D.works && D.works.items) || []).filter(function (w) { return w.status && w.status !== "완결"; }).slice(0, 3);
-        c4.body.appendChild(el("div", "mini-title", "진행 중인 작품"));
-        var l7 = mini(c4.body);
-        if (!works.length) { l7.appendChild(el("span", "mini-sub", "진행 중인 작품이 없어요.")); }
-        works.forEach(function (w) {
-          var t = Number(w.target) || 0, cur = Number(w.current) || 0;
-          var chip = el("span", "status-chip", w.status); chip.setAttribute("data-tone", String(ui.tone(["구상", "집필중", "퇴고", "완결"], w.status)));
-          var nodes = [chip, el("span", "grow", w.title)];
-          if (t) { nodes.push(el("span", "mini-sub", Math.min(100, Math.round(cur / t * 100)) + "%")); }
-          miniItem(l7, nodes);
-        });
       }
 
       draw();
       App.watchDoc(App.doc("personal/gtasks"), function (d) { D.gtasks = d; draw(); });
       if (App.gtasks.token()) { App.gtasks.sync().catch(function () {}); }
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
-      [["projects", "research/projects"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
-        ["works", "writer/works"], ["habits", "personal/habits"], ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["reco", "research/reco"], ["gcal", "personal/gcal"]]
+      [["projects", "research/projects"], ["tlog", "research/log"], ["wlog", "writer/log"],
+        ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }
   });
