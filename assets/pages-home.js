@@ -7,13 +7,12 @@
     id: "home", title: "홈",
     render: function (view) {
       var B = App.budget, curMonth = B.monthKey(new Date());
-      var D = { todos: [], schedule: [], projects: null, grad: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, budget: null, ledger: null, reco: null, gcal: null };
+      var D = { todos: [], schedule: [], projects: null, meetings: null, tlog: null, wlog: null, works: null, habits: null, budget: null, ledger: null, reco: null, gcal: null };
 
       /* ---------- affiliation badges, shown in the topbar itself (today's quote sits beside the logo) ---------- */
       var strip = document.getElementById("homeStrip");
       H.clear(strip);
       var badges = el("div", "badges");
-      badges.appendChild(el("span", "badge company", "한국가이던스 대구점"));
       badges.appendChild(el("span", "badge academic", "영남대학교 대학원 범죄심리학과 석·박사 수료"));
       strip.appendChild(badges);
       strip.hidden = false;
@@ -36,7 +35,71 @@
         qt.value = ""; qd.value = ""; qh.value = "";
       });
 
-      var dash = el("div"); view.appendChild(dash);
+      var tilesHost = el("div"); view.appendChild(tilesHost);
+
+      /* ---------- first row: Today (redrawn with data) · 오늘의 기분 (built once so typing is never interrupted) ---------- */
+      var top = ui.grid(view, true);
+      var todaySlot = el("div", "home-slot"); top.appendChild(todaySlot);
+      var MOODS = [["😆", "최고"], ["😊", "좋음"], ["🙂", "괜찮음"], ["😐", "그저 그럼"], ["😔", "울적"], ["😢", "슬픔"], ["😡", "화남"], ["😴", "피곤"]];
+      var moodRef = App.doc("personal/mood"), moodDays = {}, moodDate = H.todayStr();
+      var cm = ui.card(top, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
+      cm.el.classList.add("mood-card");
+      var pick = el("div", "mood-pick"); pick.setAttribute("role", "radiogroup"); pick.setAttribute("aria-label", "오늘의 기분");
+      var moodBtns = MOODS.map(function (m) {
+        var b = el("button", "mood-btn", m[0]); b.type = "button"; b.title = m[1];
+        b.setAttribute("role", "radio"); b.setAttribute("aria-label", m[1]); b.setAttribute("data-mood", m[0]);
+        b.addEventListener("click", function () {
+          var cur = moodDays[moodDate] || {};
+          saveMood({ mood: cur.mood === m[0] ? "" : m[0] });
+        });
+        pick.appendChild(b); return b;
+      });
+      cm.body.appendChild(pick);
+      var diary = el("textarea", "mood-diary"); diary.rows = 5; diary.maxLength = 1000;
+      diary.placeholder = "오늘 하루를 한두 줄로 남겨 보세요. (자동 저장)"; diary.setAttribute("aria-label", "오늘의 일기");
+      cm.body.appendChild(diary);
+      var moodStatus = el("div", "fields-status"); cm.body.appendChild(moodStatus);
+      cm.body.appendChild(el("div", "mini-title", "최근 7일"));
+      var week = el("div", "mood-week"); cm.body.appendChild(week);
+      var diaryTimer = null;
+      function saveMood(patch) {
+        var day = {}; day[moodDate] = Object.assign({}, moodDays[moodDate] || {}, patch, { at: new Date().toISOString() });
+        moodDays[moodDate] = day[moodDate]; paintMood();
+        moodRef.set({ days: day, updatedAt: new Date().toISOString() }, { merge: true }).then(function () {
+          var d = new Date(); moodStatus.textContent = "저장됨 · " + H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes());
+        }).catch(function (err) { window.alert("저장 실패: " + err.message); });
+      }
+      function flushDiary() {
+        if (!diaryTimer) { return; }
+        clearTimeout(diaryTimer); diaryTimer = null;
+        saveMood({ note: diary.value });
+      }
+      diary.addEventListener("input", function () {
+        clearTimeout(diaryTimer);
+        diaryTimer = setTimeout(flushDiary, 800);
+      });
+      diary.addEventListener("blur", flushDiary);
+      function paintMood() {
+        var cur = moodDays[moodDate] || {};
+        moodBtns.forEach(function (b) { var on = b.getAttribute("data-mood") === cur.mood; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); });
+        if (document.activeElement !== diary && !diaryTimer) { diary.value = cur.note || ""; }
+        H.clear(week);
+        for (var i = 6; i >= 0; i--) {
+          var k = H.dateKey(H.addDays(new Date(), -i)), d = moodDays[k] || {};
+          var cell = el("div", "mood-day" + (i === 0 ? " today" : ""));
+          cell.appendChild(el("span", "mood-day-emo", d.mood || "·"));
+          cell.appendChild(el("span", "mood-day-lab", i === 0 ? "오늘" : String(Number(k.slice(8)))));
+          if (d.note) { cell.title = d.note; }
+          week.appendChild(cell);
+        }
+      }
+      paintMood();
+      App.watchDoc(moodRef, function (d) {
+        moodDays = (d && d.days) || {};
+        paintMood();
+      });
+
+      var dash = el("div", "home-rest"); view.appendChild(dash);
 
       /* ---------- summaries ---------- */
       function tile(label, value, sub, page) {
@@ -58,7 +121,7 @@
         list.appendChild(row); return row;
       }
       function draw() {
-        H.clear(dash);
+        H.clear(dash); H.clear(tilesHost); H.clear(todaySlot);
         var today = H.todayStr();
         var allTasks = (D.gtasks && D.gtasks.items) || [];
         var openTodos = allTasks.filter(function (t) { return t.status !== "completed"; })
@@ -68,25 +131,19 @@
         var todaySpend = B.byDate(ledger, "지출")[today] || 0;
         var tCount = todaySum(D.tlog), wCount = todaySum(D.wlog);
 
-        var tiles = el("div", "tiles");
+        var tiles = el("div", "tiles home-tiles");
         var plist0 = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
-        var reqs = (D.grad && D.grad.items) ? D.grad.items : App.proj.REQ_DEFAULTS;
-        var reqDone = reqs.filter(function (x) { return x.done; }).length;
-        var reqLeft = reqs.filter(function (x) { return !x.done; }).map(function (x) { return x.kind || "기타"; })
-          .filter(function (k, i, a) { return a.indexOf(k) === i; });
-        tiles.appendChild(tile("졸업 요건", reqDone + " / " + reqs.length, reqLeft.length ? "남은 요건 · " + reqLeft.join(" · ") : "모든 요건 충족", "thesis-home"));
         var active = plist0.filter(function (p) { return p.type === "학회지 논문" && !App.proj.isAccepted(p); }).sort(function (a, b) { return App.proj.stagePct(b) - App.proj.stagePct(a); })[0];
         tiles.appendChild(tile("진행 중 논문", active ? App.proj.stagePct(active) + "%" : "—", active ? active.title + " · " + App.proj.stagesFor(active)[App.proj.stageIndex(active)] : "모든 논문 게재 확정", "proj-overview"));
-        tiles.appendChild(tile("남은 할 일", String(openTodos.length), D.gtasks ? "Google 할 일 · 오늘까지 " + openTodos.filter(function (t) { return t.due && t.due <= today; }).length + "개" : "Google 할 일과 연결해 보세요", "personal-calendar"));
         tiles.appendChild(tile("오늘 집필", (tCount + wCount).toLocaleString("ko-KR") + "자", "논문 " + tCount.toLocaleString("ko-KR") + " · 작품 " + wCount.toLocaleString("ko-KR"), "thesis-writing"));
-        tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
         tiles.appendChild(tile("오늘 지출", B.won(todaySpend), "고정지출 " + B.won(money.fixed) + " 반영", "personal-budget"));
-        dash.appendChild(tiles);
+        tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
+        tilesHost.appendChild(tiles);
 
         var g = ui.grid(dash, true);
 
         /* 오늘 · 이번 주 */
-        var c1 = ui.card(g, { tab: "Today", tone: "t-2", title: "오늘 · 이번 주", link: "personal-calendar" });
+        var c1 = ui.card(todaySlot, { tab: "Today", tone: "t-2", title: "오늘 · 이번 주", link: "personal-calendar" });
         c1.body.appendChild(el("div", "mini-title", "할 일 (미완료)"));
         var l1 = mini(c1.body);
         if (!openTodos.length) { l1.appendChild(ui.empty("미완료 할 일이 없어요.")); }
@@ -179,7 +236,7 @@
       App.watchDoc(App.doc("personal/gtasks"), function (d) { D.gtasks = d; draw(); });
       if (App.gtasks.token()) { App.gtasks.sync().catch(function () {}); }
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
-      [["projects", "research/projects"], ["grad", "research/gradreqs"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
+      [["projects", "research/projects"], ["meetings", "research/meetings"], ["tlog", "research/log"], ["wlog", "writer/log"],
         ["works", "writer/works"], ["habits", "personal/habits"], ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["reco", "research/reco"], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }

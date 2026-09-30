@@ -98,11 +98,16 @@
 
     /* custom flows */
     await go("home");
-    ok("home tiles", $$("#view .tile").length === 6, $$("#view .tile").length);
+    ok("home tiles", $$("#view .tile").length === 4 && $$("#view .tile-label").map(function (n) { return n.textContent; }).join("|") === "진행 중 논문|오늘 집필|오늘 지출|이번 달 지출", $$("#view .tile-label").map(function (n) { return n.textContent; }).join("|"));
+    ok("home first row", $$("#view > .desk-grid")[0].children.length === 2 && /Today/.test($$("#view > .desk-grid")[0].children[0].textContent) && $$("#view > .desk-grid")[0].children[1].classList.contains("mood-card") && $$("#view .mood-btn").length === 8 && $$("#view .mood-day").length === 7);
+    $$("#view .mood-btn")[1].click(); await sleep(60);
+    var md0 = $("#view .mood-diary"); md0.value = "테스트 일기"; md0.dispatchEvent(new Event("input")); md0.dispatchEvent(new Event("blur")); await sleep(80);
+    var moodDay = ((window.__MOCK_STORE["personal/mood"] || {}).days || {})[App.h.todayStr()] || {};
+    ok("mood saves", moodDay.mood === "😊" && moodDay.note === "테스트 일기" && $("#view .mood-btn.on").textContent === "😊" && $("#view .mood-day.today .mood-day-emo").textContent === "😊", JSON.stringify(moodDay));
     ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
     ok("logo quote", !!$("#brandQuote .quote-text") && $("#brandQuote .quote-text").textContent.length > 4 && /— .+ · .+/.test($("#brandQuote .quote-author").textContent) && !$("#homeStrip .quote-box"), $("#brandQuote").textContent);
     ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
-    ok("home affiliation", /한국가이던스 대구점/.test($(".badges").textContent) && /범죄심리학과 석·박사 수료/.test($(".badges").textContent) && $$(".badge").length === 2);
+    ok("home affiliation", !/한국가이던스/.test($(".badges").textContent) && /범죄심리학과 석·박사 수료/.test($(".badges").textContent) && $$(".badge").length === 1);
     ok("home old profile removed", !$("#view [contenteditable]") && !$("#view .bio"));
     $("#sections .sec-btn[data-section='writer']").click(); await sleep(150);
     ok("section click -> writer", /#\/writer-/.test(location.hash) && !!$("#subnav .active"), location.hash);
@@ -378,7 +383,7 @@
     ok("fold opens + remembered", !$(".card-body", gC).hidden && App.h.safeGet("hds_fold_gcal") === "1");
     $(".fold-btn", gC).click(); await sleep(30);
     await go("home"); await sleep(120);
-    ok("home todo from Google", /예전 할 일/.test($("#view").textContent) && /남은 할 일/.test($("#view .tiles").textContent) && !$("#view .capture input[placeholder^='빠른 메모']"));
+    ok("home todo from Google", /예전 할 일/.test($("#view").textContent) && !/남은 할 일|졸업 요건/.test($("#view .tiles").textContent) && !$("#view .capture input[placeholder^='빠른 메모']"));
     window.fetch = realFetchT;
     await go("personal-calendar");
     var cell = $$("#view .cal-cell:not(.blank)")[14]; cell.click(); await sleep(60);
@@ -915,7 +920,7 @@
     ok("report row opens that month", location.hash === "#/personal-budget" && /지난달/.test($("#view .bud-list").textContent), $("#view .bud-month").textContent);
     App.h.safeSet("hds_bud_range", "12");    await go("home");
     await sleep(80);
-    ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 6);
+    ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 4);
 
     document.title = "SELFTEST DONE";
     out.textContent = JSON.stringify({ passed: results.ok.length, failed: results.fail, errors: results.errors }, null, 1);
