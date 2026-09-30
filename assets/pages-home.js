@@ -125,7 +125,7 @@
         var tiles = el("div", "tiles home-tiles");
         /* 진행 중 논문 stays as an empty slot: its source (기타 자료 › 논문 프로젝트) was removed */
         tiles.appendChild(tile("진행 중 논문", "—", "연결된 논문 없음", "ias-home"));
-        tiles.appendChild(tile("오늘 집필", wCount.toLocaleString("ko-KR") + "자", "작가 집필 기록", "writer-log"));
+        tiles.appendChild(tile("오늘 집필", wCount.toLocaleString("ko-KR") + "자", "작가 집필 기록", "writer-desk"));
         tiles.appendChild(tile("오늘 지출", B.won(todaySpend), "고정지출 " + B.won(money.fixed) + " 반영", "personal-budget"));
         tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
         tilesHost.appendChild(tiles);

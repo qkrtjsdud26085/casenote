@@ -100,10 +100,7 @@
       { pages: ["ai-tools", "ai-notes", "ai-log"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
-      { pages: ["writer-desk", "writer-submit", "writer-compose"] },
-      { label: "구상", pages: ["writer-canvas", "writer-ideas", "writer-quotes"] },
-      { label: "소설 · 에세이", pages: ["writer-plot", "writer-world", "writer-essay"] },
-      { label: "집필 · 퇴고", pages: ["writer-works", "writer-log", "writer-revise"] }
+      { pages: ["writer-desk", "writer-submit", "writer-compose", "writer-capture", "writer-canvas", "writer-quotes"] }
     ] },
     { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-weekly"] }
   ];
