@@ -36,7 +36,7 @@
 | `pages-budget.js` | 개인 › 가계부, 월별 리포트, 휴대폰 결제 알림 해석 |
 | `research-kit.js` | 연구 페이지 공용 도구(JSON 불러오기·내보내기, 단계 표시, 페이지 안 탭 `App.rkit.pageTabs`) |
 | `pages-ias.js` | 박사 › IAS 척도 타당화 (탭 4개) |
-| `pages-diss.js` | 박사 › 비선형 공격성 임계점 › 연구재단 선정 (탭 5개) |
+| `pages-diss.js` | 박사 › 비선형 공격성 임계점 › 연구재단 선정 (탭 5개). 개요 · 로드맵 = 과제 정보(단계 표시 없음) → 연구 설계 · 흐름 한눈에(수치 + 흐름) → 목표 · 요약 · 기대효과 → 추진 일정(차트만, 일정의 "구분" 값이 위쪽 실선 구간으로) → 연구계획서 내용 전체(예전 별도 메뉴) → 자료 불러오기 |
 | `pages-phd.js` | 박사 › 비선형 [현재 진행중], 자격증(탭 3개, 임상심리사는 "자격 정보 · D-day" 카드와 "기출문제 바로가기" 카드 두 개만), AI(탭 3개) |
 | `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex, 한 줄에 2편, 영어 요약은 translate.googleapis.com 공개 주소(막히면 MyMemory)로 한국어 번역해 오늘 추천(`research/reco` daily.items[].absKo)에 저장, 제목 · 저자는 원문 그대로) + 저장한 논문 목록(`research/papers`, 읽기 상태 · 메모 · 검색). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
 | `pages-writer.js`, `canvas.js` | 작가 탭 |

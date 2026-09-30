@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 38, ids.length);
+    ok("page count", ids.length === 37, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -149,7 +149,7 @@
     var dm = $(".sub-menu", dg).getBoundingClientRect(), gapEl = document.elementFromPoint(dm.left + 20, dm.top - 3);
     ok("dropdown gap keeps hover (bridge)", !!gapEl && dg.contains(gapEl), gapEl && gapEl.className);
     dg.classList.remove("open");
-    ok("diss menu rows", $$("#subnav .sub-row .sub-group.active .sub-item").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중|연구계획서 내용 전체" && $("#subnav .sub-row .sub-go").getAttribute("href") === "#/diss-overview" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row .sub-item").map(function (a) { return a.textContent; }).join("|"));
+    ok("diss menu rows", $$("#subnav .sub-row .sub-group.active .sub-item").map(function (a) { return a.textContent; }).join("|") === "연구재단 선정|현재 진행중" && $("#subnav .sub-row .sub-go").getAttribute("href") === "#/diss-overview" && !$("#subnav a[data-page='diss-design']") && !$("#subnav a[data-page='ias-items']"), $$("#subnav .sub-row .sub-item").map(function (a) { return a.textContent; }).join("|"));
     await go("diss-design"); ok("diss tabs under 연구재단 선정", $("#subnav a.active").getAttribute("data-page") === "diss-overview" && $$("#view .page-tab").length === 5);
     /* 연구 흐름도 (research-flow.js): template, accordion, editing, sub-steps */
     await go("diss-current");
@@ -296,8 +296,8 @@
     ok("draft record", dlog && dlog.days[App.h.todayStr()].secs[0].t === "연구 배경" && dtx.refs.length === 1 && dtx.file === "t.hwpx", JSON.stringify(dlog));
     ok("draft page", $$("#view .draft-table")[0].querySelectorAll("tr").length === 2 && $$("#view .draft-refs li").length === 1 && $$("#view .draft-view .draft-h").length === 1 && $("#subnav a.active").getAttribute("data-page") === "ias-home" && $$("#view .page-tab").length === 4);
     /* 연구계획서 내용 전체 */
-    await go("diss-plan");
-    ok("plan empty", !!$("#view .plan-doc .empty-state") && $("#subnav a.active").getAttribute("data-page") === "diss-plan");
+    await go("diss-overview");
+    ok("plan empty (inside 개요)", !!$("#view .plan-doc .empty-state") && !!cardBy("연구계획서 내용 전체") && $("#subnav a.active").getAttribute("data-page") === "diss-overview" && !App.pages["diss-plan"]);
     await App.diss.importData({ docs: { plan: { blocks: [{ type: "h2", text: "Ⅰ. 연구 요약" }, { type: "table", rows: [{ cells: [{ t: "연구\n과제명", h: true, rs: 2 }, { t: "국 문", h: true }, { t: "제목" }] }, { cells: [{ t: "영 문", h: true }, { t: "Title" }] }] }, { type: "p", lead: "연구대상", text: "일반인" }, { type: "footnote", text: "1) 각주" }, { type: "refs", items: ["A", "B"] }] } } });
     await sleep(150);
     ok("plan renders", $$("#view .plan-doc .plan-table th[rowspan='2']").length === 1 && /연구대상 : 일반인/.test($("#view .plan-doc").textContent) && $$("#view .plan-refs li").length === 2 && !!$("#view .plan-footnote"));
@@ -315,9 +315,9 @@
     ok("ias tabs", $$("#view .page-tab").length === 4 && $("#view .page-tab.active").textContent === "문항표" && $("#subnav a.active").getAttribute("data-page") === "ias-home" && !cardBy("번안 과정 기록"));
     await go("diss-overview");
     ok("diss empty notice", !!$("#view .ias-notice") && $$("#view .page-tab").length === 5);
-    await App.diss.importData({ docs: { meta: { stage: "선행연구 · 변수 선정", info: { title: "테스트 박사" } }, schedule: { items: [{ id: "s1", task: "선행연구", start: "2026-09-01", end: "2027-01-31" }, { id: "s2", task: "델파이", start: "2027-08-01", end: "2028-02-01" }] }, flow: { items: [{ id: "f1", label: "연구 1" }, { id: "f2", label: "연구 2" }] } } });
+    await App.diss.importData({ docs: { meta: { stage: "선행연구 · 변수 선정", info: { title: "테스트 박사" } }, schedule: { items: [{ id: "s1", task: "선행연구", year: "1차년도", start: "2026-09-01", end: "2027-01-31" }, { id: "s2", task: "델파이", year: "2차년도 상반기", start: "2027-08-01", end: "2028-02-01" }] }, flow: { items: [{ id: "f1", label: "연구 1" }, { id: "f2", label: "연구 2" }] } } });
     await sleep(150);
-    ok("diss import fills", !$("#view .ias-notice") && $("#view .flow-chip.active") && $("#view .flow-chip.active").textContent === "선행연구 · 변수 선정" && $$("#view .diss-gantt-row").length === 2 && $$("#view .diss-flow").length === 2);
+    ok("diss import fills", !$("#view .ias-notice") && !$("#view .flow-chip.active") && $$("#view .diss-phase").map(function (p) { return p.textContent; }).join("|") === "1차년도|2차년도 상반기" && $$("#view .diss-phase-line").length === 4 && !$(".items-panel", cardBy("추진 일정")) && !cardBy("지금 할 일") && !cardBy("결정 기록 · 지도 의견") && !cardBy("집필 기록 (박사학위논문)") && !cardBy("연구 흐름") && !!cardBy("연구 설계 · 흐름 한눈에") && /테스트 박사/.test($$("input", cardBy("과제 정보")).map(function (i) { return i.value; }).join(" ")) && $$("#view .diss-gantt-row:not(.diss-gantt-head)").length === 2 && $$("#view .diss-gantt-head").length === 1 && $$("#view .diss-flow").length === 2);
     var dExp = await App.diss.exportData();
     ok("diss export", dExp.docs.meta.info.title === "테스트 박사" && !dExp.docs.items);
     await go("home");

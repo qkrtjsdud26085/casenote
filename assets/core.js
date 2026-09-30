@@ -93,7 +93,7 @@
     { key: "thesis", short: "박사", label: "박사", groups: [
       { label: "논문", sections: [
         { label: "① IAS 척도 타당화", pages: ["ias-home", "ias-flow", "ias-items", "ias-writing"] },
-        { label: "② 비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-report1", "diss-plan", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
+        { label: "② 비선형 공격성 임계점", pages: ["diss-overview", "diss-current", "diss-report1", "diss-design", "diss-analysis", "diss-lit", "diss-nrf"] },
         { label: "논문 추천", pages: ["thesis-recommend"] }
       ] },
       { label: "자격증", go: true, pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },

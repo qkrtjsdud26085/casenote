@@ -757,7 +757,12 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .diss-gantt-bar { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); opacity: 0.55; }
 .diss-gantt-bar.now { opacity: 1; }
 .diss-gantt-bar.done { background: var(--accent-2); opacity: 1; }
-.diss-gantt-today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }/* light / dark switch (top bar) */
+.diss-gantt-today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); z-index: 1; }
+.diss-gantt-head { align-items: end; margin-bottom: 2px; }
+.diss-phase-band { position: relative; height: 26px; }
+.diss-phase { position: absolute; bottom: 0; height: 22px; box-sizing: border-box; padding: 0 6px; border-left: 2px solid var(--ink); border-bottom: 2px solid var(--ink); font-family: var(--font-mono); font-size: 0.66rem; font-weight: 600; line-height: 20px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.diss-phase-line { position: absolute; top: -8px; bottom: -8px; width: 0; border-left: 2px solid var(--ink); opacity: 0.55; }
+.diss-flow-title { margin-top: 16px; }/* light / dark switch (top bar) */
 .theme-btn { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; white-space: nowrap; }
 .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
 /* 자격증 switcher beside the title */

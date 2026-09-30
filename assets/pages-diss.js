@@ -13,9 +13,6 @@
   var D = K.D, byDate = RK.byDate;
   function head(view, id) { RK.pageTabs(view, TABS, id); K.emptyNotice(view); }
   App.diss = { importData: K.importData, exportData: K.exportData, importCard: K.importCard, D: D, DOCS: DOCS, STAGES: STAGES };
-  App.dissSummaryCard = function (parent) {
-    K.summaryCard(parent, { tab: "Dissertation", tone: "t-1", title: "박사학위논문 · 비선형 공격성 임계점 (SHAP · SMOTE)" });
-  };
 
   /* ---------- research flow chips (연구 흐름) ---------- */
   function flowChips(parent) {
@@ -45,21 +42,48 @@
     });
   }
 
-  /* ---------- schedule gantt (추진 일정) ---------- */
+  /* ---------- schedule gantt (추진 일정) ----------
+     the 구분 of each row (1차년도 · 2차년도 상반기 …) becomes a labelled band on top, with a solid line at each start */
   function gantt(parent) {
     var box = el("div", "diss-gantt"); parent.appendChild(box);
     App.watchDoc(D("schedule"), function (d) {
       H.clear(box);
       var items = (d && d.items ? d.items : []).filter(function (x) { return x.start && x.end; });
-      if (!items.length) { return; }
+      if (!items.length) { box.appendChild(ui.empty("추진 일정을 아직 불러오지 않았어요.")); return; }
       var t = function (s) { return H.parseKey(s).getTime(); };
       var min = Math.min.apply(null, items.map(function (x) { return t(x.start); }));
       var max = Math.max.apply(null, items.map(function (x) { return t(x.end); }));
       var span = Math.max(1, max - min), now = Date.now();
+      var pct = function (ms) { return ((ms - min) / span * 100) + "%"; };
+      var phases = [], byName = {};
+      items.forEach(function (x) {
+        var k = String(x.year || "").trim(); if (!k) { return; }
+        var p = byName[k] || (byName[k] = phases[phases.push({ name: k, s: t(x.start), e: t(x.end) }) - 1]);
+        p.s = Math.min(p.s, t(x.start)); p.e = Math.max(p.e, t(x.end));
+      });
+      phases.sort(function (a, b) { return a.s - b.s; });
+      function lines(track) {
+        phases.forEach(function (p) { var ln = el("span", "diss-phase-line"); ln.style.left = pct(p.s); track.appendChild(ln); });
+      }
+      if (phases.length) {
+        var head = el("div", "diss-gantt-row diss-gantt-head");
+        head.appendChild(el("span", "diss-gantt-label", ""));
+        var band = el("div", "diss-phase-band");
+        phases.forEach(function (p, i) {
+          var seg = el("span", "diss-phase", p.name);
+          var end = i < phases.length - 1 ? Math.min(p.e, phases[i + 1].s) : p.e;
+          seg.style.left = pct(p.s); seg.style.width = Math.max(4, (end - p.s) / span * 100) + "%";
+          seg.title = p.name + " · " + H.dateKey(new Date(p.s)) + " ~ " + H.dateKey(new Date(p.e));
+          band.appendChild(seg);
+        });
+        head.appendChild(band);
+        box.appendChild(head);
+      }
       items.slice().sort(byDate(false, "start")).forEach(function (x) {
         var row = el("div", "diss-gantt-row");
         row.appendChild(el("span", "diss-gantt-label", x.task || ""));
         var track = el("div", "diss-gantt-track");
+        lines(track);
         var bar = el("span", "diss-gantt-bar" + (x.done ? " done" : (t(x.start) <= now && now <= t(x.end) ? " now" : "")));
         bar.style.left = ((t(x.start) - min) / span * 100) + "%";
         bar.style.width = Math.max(1.5, (t(x.end) - t(x.start)) / span * 100) + "%";
@@ -77,13 +101,12 @@
      ========================================================= */
   App.page({
     id: "diss-overview", title: "박사학위논문 개요", navLabel: "연구재단 선정", tabLabel: "개요 · 로드맵",
-    desc: "일반인의 비선형적 공격성 임계점을 머신러닝(SHAP · SMOTE)과 델파이로 밝히는 박사학위논문의 목표, 흐름, 일정, 할 일을 한눈에 봅니다.",
+    desc: "일반인의 비선형적 공격성 임계점을 머신러닝(SHAP · SMOTE)과 델파이로 밝히는 박사학위논문의 정보, 설계 · 흐름, 일정, 연구계획서 전체를 한눈에 봅니다.",
     render: function (view) {
       head(view, "diss-overview");
       var g = ui.grid(view, true);
 
-      var o = ui.card(g, { tab: "Dissertation", tone: "t-1", title: "과제 정보 · 진행 단계", wide: true });
-      K.stageStepper(o.body);
+      var o = ui.card(g, { tab: "Dissertation", tone: "t-1", title: "과제 정보", wide: true });
       ui.fieldsPanel(o.body, {
         ref: D("meta"), docKey: "info",
         fields: [
@@ -96,11 +119,11 @@
         ]
       });
 
-      var k = ui.card(g, { tab: "Numbers", tone: "t-2", title: "연구 설계 한눈에", wide: true });
+      /* key numbers and the research flow in one card */
+      var k = ui.card(g, { tab: "Design", tone: "t-2", title: "연구 설계 · 흐름 한눈에", wide: true });
       K.statTiles(k.body);
-
-      var f = ui.card(g, { tab: "Flow", tone: "t-3", title: "연구 흐름", wide: true });
-      flowChips(f.body);
+      k.body.appendChild(el("div", "mini-title diss-flow-title", "연구 흐름"));
+      flowChips(k.body);
 
       var a = ui.card(g, { tab: "Abstract", tone: "t-1", title: "연구 목표 · 요약 · 기대효과", wide: true });
       ui.fieldsPanel(a.body, {
@@ -114,45 +137,8 @@
 
       var s = ui.card(g, { tab: "Schedule", tone: "t-2", title: "추진 일정", wide: true });
       gantt(s.body);
-      ui.itemsPanel(s.body, {
-        ref: D("schedule"), views: ["table", "cards"], checkKey: "done", addLabel: "+ 일정 추가", filters: ["year"],
-        sort: byDate(false, "start"), empty: "추진 일정을 추가하세요.",
-        hint: "연구재단 연구활동계획서의 4. 연구 추진 일정 기준이에요. 실제 진행에 맞게 기간을 고치세요.",
-        fields: [
-          { key: "task", label: "내용", type: "text", title: true, required: true, col: true, maxLength: 120 },
-          { key: "year", label: "구분", type: "text", meta: true, col: true, maxLength: 30 },
-          { key: "start", label: "시작", type: "date", col: true },
-          { key: "end", label: "종료", type: "date", col: true },
-          { key: "note", label: "메모", type: "text", maxLength: 160 }
-        ]
-      });
 
-      var n = ui.card(g, { tab: "Next", tone: "t-1", title: "지금 할 일" });
-      ui.itemsPanel(n.body, {
-        ref: D("next"), checkKey: "done", dueKey: "due", quickFields: ["text", "area", "due"], filters: ["area"],
-        empty: "다음에 할 일을 추가하세요.",
-        fields: [
-          { key: "text", label: "할 일", type: "text", title: true, required: true, maxLength: 160 },
-          { key: "area", label: "영역", type: "select", options: ["문헌 · 변수", "설문 · 자료", "분석", "델파이", "연구재단", "역량", "기타"], meta: true },
-          { key: "due", label: "목표일", type: "date" },
-          { key: "note", label: "메모 · 근거", type: "textarea" }
-        ]
-      });
-
-      var dc = ui.card(g, { tab: "Decisions", tone: "t-3", title: "결정 기록 · 지도 의견" });
-      ui.itemsPanel(dc.body, {
-        ref: D("decisions"), views: ["cards", "table"], statusKey: "state", search: true, addLabel: "+ 기록 추가",
-        statusTones: { "검토 중": 1, "확정": 3, "보류": 0 }, sort: byDate(true), empty: "설계에서 내린 결정과 근거를 남겨 두세요.",
-        fields: [
-          { key: "decision", label: "결정 · 의견", type: "text", title: true, required: true, maxLength: 160 },
-          { key: "date", label: "날짜", type: "date", today: true, meta: true, col: true },
-          { key: "rationale", label: "근거", type: "textarea", col: true },
-          { key: "state", label: "상태", type: "select", options: ["검토 중", "확정", "보류"], col: true }
-        ]
-      });
-
-      var w = ui.card(g, { tab: "Daily", tone: "t-2", title: "집필 기록 (박사학위논문)" });
-      ui.writingLog(w.body, { ref: D("log"), goal: 1000, unit: "자" });
+      planCard(g);
 
       K.importCard(g, "연구계획 · 변수 · 분석 설계 같은 미출판 연구 내용은 홈페이지 코드(공개)에 넣지 않고, 로그인해야 보이는 내 데이터베이스에만 저장해요. 연구재단 폴더의 '박사학위논문_홈페이지자료.json'을 불러오면 박사학위논문 페이지가 모두 채워집니다.");
     }
@@ -425,24 +411,21 @@
     }).join(NL + NL);
   }
 
-  App.page({
-    id: "diss-plan", title: "연구계획서 내용 전체", navLabel: "연구계획서 내용 전체",
-    render: function (view) {
-      var c = ui.card(view, { tab: "Proposal", tone: "t-1", title: "연구활동계획서", wide: true });
-      var tools = el("div", "items-tools");
-      var copy = el("button", "copy-btn", "전체 복사"); copy.type = "button";
-      tools.appendChild(copy);
-      var doc = el("div", "plan-doc");
-      c.body.appendChild(tools); c.body.appendChild(doc);
-      var cur = null;
-      App.watchDoc(D("plan"), function (d) {
-        cur = d; H.clear(doc);
-        tools.hidden = !(d && d.blocks && d.blocks.length);
-        if (tools.hidden) { doc.appendChild(ui.empty("아직 연구계획서를 불러오지 않았어요.")); return; }
-        d.blocks.forEach(function (b) { doc.appendChild(planBlock(b)); });
-      });
-      copy.addEventListener("click", function () { H.copyText(planText(cur), copy); });
-      K.importCard(view, "", "연구계획서 불러오기 · 백업");
-    }
-  });
+  /* the whole proposal, shown at the bottom of 개요 · 로드맵 (it used to be its own menu page) */
+  function planCard(parent) {
+    var c = ui.card(parent, { tab: "Proposal", tone: "t-1", title: "연구계획서 내용 전체", wide: true });
+    var tools = el("div", "items-tools");
+    var copy = el("button", "copy-btn", "전체 복사"); copy.type = "button";
+    tools.appendChild(copy);
+    var doc = el("div", "plan-doc");
+    c.body.appendChild(tools); c.body.appendChild(doc);
+    var cur = null;
+    App.watchDoc(D("plan"), function (d) {
+      cur = d; H.clear(doc);
+      tools.hidden = !(d && d.blocks && d.blocks.length);
+      if (tools.hidden) { doc.appendChild(ui.empty("아직 연구계획서를 불러오지 않았어요.")); return; }
+      d.blocks.forEach(function (b) { doc.appendChild(planBlock(b)); });
+    });
+    copy.addEventListener("click", function () { H.copyText(planText(cur), copy); });
+  }
 })(window.App);
