@@ -2,12 +2,14 @@
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el;
+  /* shared with 주간 리뷰 (pages-other.js), which shows the week and a calendar of past moods */
+  App.MOODS = [["😆", "최고"], ["😊", "좋음"], ["🙂", "괜찮음"], ["😐", "그저 그럼"], ["😔", "울적"], ["😢", "슬픔"], ["😡", "화남"], ["😴", "피곤"]];
 
   App.page({
     id: "home", title: "홈",
     render: function (view) {
       var B = App.budget, curMonth = B.monthKey(new Date());
-      var D = { todos: [], schedule: [], projects: null, tlog: null, wlog: null, budget: null, ledger: null, gcal: null };
+      var D = { todos: [], schedule: [], wlog: null, budget: null, ledger: null, gcal: null };
 
       /* ---------- affiliation badges, shown in the topbar itself (today's quote sits beside the logo) ---------- */
       var strip = document.getElementById("homeStrip");
@@ -40,7 +42,7 @@
       /* ---------- first row: Today (redrawn with data) · 오늘의 기분 (built once so typing is never interrupted) ---------- */
       var top = ui.grid(view, true);
       var todaySlot = el("div", "home-slot"); top.appendChild(todaySlot);
-      var MOODS = [["😆", "최고"], ["😊", "좋음"], ["🙂", "괜찮음"], ["😐", "그저 그럼"], ["😔", "울적"], ["😢", "슬픔"], ["😡", "화남"], ["😴", "피곤"]];
+      var MOODS = App.MOODS;
       var moodRef = App.doc("personal/mood"), moodDays = {}, moodDate = H.todayStr();
       var cm = ui.card(top, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
       cm.el.classList.add("mood-card");
@@ -59,8 +61,7 @@
       diary.placeholder = "오늘 하루를 한두 줄로 남겨 보세요. (자동 저장)"; diary.setAttribute("aria-label", "오늘의 일기");
       cm.body.appendChild(diary);
       var moodStatus = el("div", "fields-status"); cm.body.appendChild(moodStatus);
-      cm.body.appendChild(el("div", "mini-title", "최근 7일"));
-      var week = el("div", "mood-week"); cm.body.appendChild(week);
+      var weekLink = el("a", "more-link mood-more", "지난 기분 · 일기 모아 보기 (주간 리뷰) →"); weekLink.href = "#/personal-weekly"; cm.body.appendChild(weekLink);
       var diaryTimer = null;
       function saveMood(patch) {
         var day = {}; day[moodDate] = Object.assign({}, moodDays[moodDate] || {}, patch, { at: new Date().toISOString() });
@@ -83,15 +84,6 @@
         var cur = moodDays[moodDate] || {};
         moodBtns.forEach(function (b) { var on = b.getAttribute("data-mood") === cur.mood; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); });
         if (document.activeElement !== diary && !diaryTimer) { diary.value = cur.note || ""; }
-        H.clear(week);
-        for (var i = 6; i >= 0; i--) {
-          var k = H.dateKey(H.addDays(new Date(), -i)), d = moodDays[k] || {};
-          var cell = el("div", "mood-day" + (i === 0 ? " today" : ""));
-          cell.appendChild(el("span", "mood-day-emo", d.mood || "·"));
-          cell.appendChild(el("span", "mood-day-lab", i === 0 ? "오늘" : String(Number(k.slice(8)))));
-          if (d.note) { cell.title = d.note; }
-          week.appendChild(cell);
-        }
       }
       paintMood();
       App.watchDoc(moodRef, function (d) {
@@ -128,17 +120,15 @@
         var ledger = (D.ledger && D.ledger.items) || [];
         var money = B.totals(ledger), budget = Number(D.budget && D.budget.budget) || 0;
         var todaySpend = B.byDate(ledger, "지출")[today] || 0;
-        var tCount = todaySum(D.tlog), wCount = todaySum(D.wlog);
+        var wCount = todaySum(D.wlog);
 
         var tiles = el("div", "tiles home-tiles");
-        var plist0 = (D.projects && D.projects.items && D.projects.items.length) ? D.projects.items : App.proj.DEFAULTS;
-        var active = plist0.filter(function (p) { return p.type === "학회지 논문" && !App.proj.isAccepted(p); }).sort(function (a, b) { return App.proj.stagePct(b) - App.proj.stagePct(a); })[0];
-        tiles.appendChild(tile("진행 중 논문", active ? App.proj.stagePct(active) + "%" : "—", active ? active.title + " · " + App.proj.stagesFor(active)[App.proj.stageIndex(active)] : "모든 논문 게재 확정", "proj-overview"));
-        tiles.appendChild(tile("오늘 집필", (tCount + wCount).toLocaleString("ko-KR") + "자", "논문 " + tCount.toLocaleString("ko-KR") + " · 작품 " + wCount.toLocaleString("ko-KR"), "thesis-writing"));
+        /* 진행 중 논문 stays as an empty slot: its source (기타 자료 › 논문 프로젝트) was removed */
+        tiles.appendChild(tile("진행 중 논문", "—", "연결된 논문 없음", "ias-home"));
+        tiles.appendChild(tile("오늘 집필", wCount.toLocaleString("ko-KR") + "자", "작가 집필 기록", "writer-log"));
         tiles.appendChild(tile("오늘 지출", B.won(todaySpend), "고정지출 " + B.won(money.fixed) + " 반영", "personal-budget"));
         tiles.appendChild(tile("이번 달 지출", B.won(money.exp), budget ? "예산 " + B.won(budget) + " 중 " + Math.round(money.exp / budget * 100) + "%" : "수입 " + B.won(money.inc), "personal-budget"));
         tilesHost.appendChild(tiles);
-
 
         /* 오늘 · 이번 주 */
         var c1 = ui.card(todaySlot, { tab: "Today", tone: "t-2", title: "오늘 · 이번 주", link: "personal-calendar" });
@@ -176,7 +166,7 @@
       App.watchDoc(App.doc("personal/gtasks"), function (d) { D.gtasks = d; draw(); });
       if (App.gtasks.token()) { App.gtasks.sync().catch(function () {}); }
       App.watchQuery(App.col("schedule").orderBy("date", "asc"), function (i) { D.schedule = i; draw(); });
-      [["projects", "research/projects"], ["tlog", "research/log"], ["wlog", "writer/log"],
+      [["wlog", "writer/log"],
         ["budget", "personal/budget"], ["ledger", "personal/ledger-" + curMonth], ["gcal", "personal/gcal"]]
         .forEach(function (p) { App.watchDoc(App.doc(p[1]), function (d) { D[p[0]] = d; draw(); }); });
     }

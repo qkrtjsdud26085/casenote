@@ -97,10 +97,7 @@
         { label: "논문 추천", pages: ["thesis-recommend"] }
       ] },
       { label: "자격증", go: true, pages: ["cert-list", "cert-study", "cert-files", "cert-crime", "cert-crime-guide", "cert-crime-phrase", "cert-crime-prompt", "cert-crime-info", "cert-victim", "cert-clinical"] },
-      { pages: ["ai-tools", "ai-notes", "ai-log"] },
-      { label: "기타 자료", pages: ["thesis-overview", "thesis-questions", "thesis-methods", "thesis-ethics", "thesis-analysis", "thesis-writing",
-        "proj-overview", "proj-lit", "proj-design", "proj-translation", "proj-analysis", "proj-manuscript", "proj-submit",
-        "thesis-library", "thesis-notes", "thesis-concepts", "thesis-advisor", "thesis-publications", "thesis-refs"] }
+      { pages: ["ai-tools", "ai-notes", "ai-log"] }
     ] },
     { key: "writer", short: "작가", label: "작가", groups: [
       { pages: ["writer-desk", "writer-submit", "writer-compose"] },

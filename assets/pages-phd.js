@@ -254,10 +254,10 @@
   }
 
   /* D-day: the nearest upcoming exam in large type + the list of exam dates */
-  function ddayCard(parent, ref) {
-    var c = ui.card(parent, { tab: "D-day", tone: "t-2", title: "시험 D-day" });
-    var big = el("div", "dday-big"); c.body.appendChild(big);
-    ui.itemsPanel(c.body, {
+  function ddayBlock(body, ref) {
+    body.appendChild(el("div", "mini-title cert-dday-title", "시험 D-day"));
+    var big = el("div", "dday-big"); body.appendChild(big);
+    ui.itemsPanel(body, {
       ref: ref, views: ["table"], dueKey: "date", ddayInTable: true, quickFields: ["name", "date"],
       sort: function (a, b) { return String(a.date || "9999").localeCompare(String(b.date || "9999")); }, empty: "시험 날짜를 추가하세요.",
       onItems: function (items) {
@@ -276,8 +276,8 @@
     });
   }
   /* quick links to past-exam (기출문제) sites; defaults can be edited or restored */
-  function examLinks(parent, ref, defaults) {
-    var c = ui.card(parent, { tab: "Exams", tone: "t-3", title: "기출문제 바로가기", wide: true });
+  function examLinks(parent, ref, defaults, wide) {
+    var c = ui.card(parent, { tab: "Exams", tone: "t-3", title: "기출문제 바로가기", wide: wide });
     ui.itemsPanel(c.body, {
       ref: ref, grid: true, titleLink: "url", defaults: defaults, addLabel: "+ 사이트 추가", empty: "사이트를 추가하세요.",
       fields: [
@@ -299,7 +299,7 @@
         certHeadTabs(cfg.id);
         var g = ui.grid(view, true);
 
-        var o = ui.card(g, { tab: "Info", tone: "t-1", title: cfg.title + " 자격 정보 · 목표", wide: !cfg.dday });
+        var o = ui.card(g, { tab: cfg.dday ? "Info · D-day" : "Info", tone: "t-1", title: cfg.title + (cfg.dday ? " 자격 정보 · D-day" : " 자격 정보 · 목표"), wide: !cfg.dday });
         ui.fieldsPanel(o.body, {
           ref: R(cfg.key + "_info"), docKey: "info",
           fields: [
@@ -311,8 +311,10 @@
           ]
         });
 
-        if (cfg.dday) { ddayCard(g, R(cfg.key + "_dday")); }
-        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links); }
+        if (cfg.dday) { ddayBlock(o.body, R(cfg.key + "_dday")); }
+        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links, !cfg.dday); }
+        /* 임상심리사 keeps only 자격 정보 · D-day and 기출문제; the checklist · plan · file cards are for the other certificates */
+        if (cfg.compact) { return; }
 
         var r = ui.card(g, { tab: "Requirements", tone: "t-2", title: "취득 요건 · 수련 체크리스트", wide: true });
         ui.itemsPanel(r.body, {
@@ -380,6 +382,7 @@
     defaultLevel: "정신건강임상심리사 1급·2급 / 임상심리사 1급·2급",
     defaultOrg: "보건복지부 / 한국산업인력공단",
     dday: true,
+    compact: true,
     links: [
       { name: "최강 자격증 기출문제 CBT (comcbt)", kind: "필기 기출", url: "https://www.comcbt.com/xe/bk", memo: "임상심리사 2급 필기 · 해설 · 모의고사" },
       { name: "킨즈 (kinz)", kind: "필기 기출", url: "https://www.kinz.kr/subject/6291", memo: "임상심리사 2급 객관식 필기 · 연도별" },

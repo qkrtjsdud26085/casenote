@@ -401,10 +401,78 @@
   /* =========================================================
      개인 — 주간 리뷰
      ========================================================= */
+  /* 오늘의 기분 (written on 홈, personal/mood): the week Mon–Sun with ‹ › and a month calendar — tap a date to read that day */
+  function moodSection(view) {
+    var days = {}, weekStart = H.mondayKey(), month = H.todayStr().slice(0, 7), picked = H.todayStr();
+    var g = ui.grid(view, true);
+    g.classList.add("mood-review");
+    var wc = ui.card(g, { tab: "Mood", tone: "t-3", title: "이번 주 기분" });
+    var wNav = el("div", "mcal-nav"), wBody = el("div", "mood-weeklist");
+    wc.body.appendChild(wNav); wc.body.appendChild(wBody);
+    var cc = ui.card(g, { tab: "Calendar", tone: "t-2", title: "기분 달력" });
+    var cNav = el("div", "mcal-nav"), grid = el("div", "mcal"), detail = el("div", "mcal-detail");
+    cc.body.appendChild(cNav); cc.body.appendChild(grid); cc.body.appendChild(detail);
+
+    function navBtn(parent, label, aria, fn) {
+      var b = el("button", "tool-btn", label); b.type = "button"; b.setAttribute("aria-label", aria);
+      b.addEventListener("click", fn); parent.appendChild(b); return b;
+    }
+    function fmtDay(k) { var d = H.parseKey(k); return (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + H.DOW[d.getDay()] + ")"; }
+    function moodName(m) { var hit = (App.MOODS || []).filter(function (x) { return x[0] === m; })[0]; return hit ? hit[1] : ""; }
+
+    function paintWeek() {
+      H.clear(wNav); H.clear(wBody);
+      var start = H.parseKey(weekStart), end = H.addDays(start, 6);
+      navBtn(wNav, "‹", "지난주", function () { weekStart = H.dateKey(H.addDays(start, -7)); paintWeek(); });
+      wNav.appendChild(el("span", "mcal-label", (start.getMonth() + 1) + "." + start.getDate() + " – " + (end.getMonth() + 1) + "." + end.getDate()));
+      var nx = navBtn(wNav, "›", "다음 주", function () { weekStart = H.dateKey(H.addDays(start, 7)); paintWeek(); });
+      nx.disabled = weekStart >= H.mondayKey();
+      for (var i = 0; i < 7; i++) {
+        var k = H.dateKey(H.addDays(start, i)), d = days[k] || {};
+        var row = el("div", "mood-wrow" + (k === H.todayStr() ? " today" : "") + (k > H.todayStr() ? " future" : ""));
+        row.appendChild(el("span", "mood-wrow-emo", d.mood || "·"));
+        var txt = el("div", "mood-wrow-txt");
+        txt.appendChild(el("div", "mood-wrow-day", fmtDay(k) + (d.mood ? " · " + moodName(d.mood) : "")));
+        txt.appendChild(el("div", "mood-wrow-note" + (d.note ? "" : " empty"), d.note || (k > H.todayStr() ? "" : "기록 없음")));
+        row.appendChild(txt);
+        wBody.appendChild(row);
+      }
+    }
+    function paintCal() {
+      H.clear(cNav); H.clear(grid);
+      var first = H.parseKey(month + "-01");
+      navBtn(cNav, "‹", "지난달", function () { month = H.dateKey(new Date(first.getFullYear(), first.getMonth() - 1, 1)).slice(0, 7); paintCal(); });
+      cNav.appendChild(el("span", "mcal-label", first.getFullYear() + "년 " + (first.getMonth() + 1) + "월"));
+      var nx = navBtn(cNav, "›", "다음 달", function () { month = H.dateKey(new Date(first.getFullYear(), first.getMonth() + 1, 1)).slice(0, 7); paintCal(); });
+      nx.disabled = month >= H.todayStr().slice(0, 7);
+      H.DOW.forEach(function (w) { grid.appendChild(el("span", "mcal-dow", w)); });
+      for (var b = 0; b < first.getDay(); b++) { grid.appendChild(el("span", "mcal-blank")); }
+      var last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      for (var n = 1; n <= last; n++) {
+        var k = month + "-" + H.pad2(n), d = days[k] || {};
+        var cell = el("button", "mcal-day" + (k === picked ? " on" : "") + (k === H.todayStr() ? " today" : "") + (d.mood || d.note ? " has" : ""));
+        cell.type = "button"; cell.setAttribute("data-date", k);
+        cell.setAttribute("aria-label", fmtDay(k) + (d.mood ? " " + moodName(d.mood) : ""));
+        cell.appendChild(el("span", "mcal-num", String(n)));
+        cell.appendChild(el("span", "mcal-emo", d.mood || ""));
+        cell.disabled = k > H.todayStr();
+        cell.addEventListener("click", (function (key) { return function () { picked = key; paintCal(); }; })(k));
+        grid.appendChild(cell);
+      }
+      H.clear(detail);
+      var p = days[picked] || {};
+      detail.appendChild(el("div", "mood-wrow-day", fmtDay(picked) + (p.mood ? " · " + p.mood + " " + moodName(p.mood) : "")));
+      detail.appendChild(el("p", "mcal-note" + (p.note ? "" : " empty"), p.note || (p.mood ? "일기는 남기지 않았어요." : "이날은 기록이 없어요.")));
+    }
+    paintWeek(); paintCal();
+    App.watchDoc(App.doc("personal/mood"), function (d) { days = (d && d.days) || {}; paintWeek(); paintCal(); });
+  }
+
   App.page({
     id: "personal-weekly", title: "주간 리뷰",
     desc: "일주일에 한 번, 잘한 것 · 막힌 것 · 배운 것을 적고 다음 주 목표를 정해 보세요. 10분이면 충분해요.",
     render: function (view) {
+      moodSection(view);
       var c = ui.card(view, { tab: "Weekly", tone: "t-1", title: "주간 리뷰" });
       ui.itemsPanel(c.body, {
         ref: doc("personal/weekly"), views: ["cards", "table"], statusKey: "mood", addLabel: "+ 이번 주 리뷰 쓰기", empty: "아직 리뷰가 없습니다. 이번 주를 돌아보며 한 줄이라도 남겨 보세요.",

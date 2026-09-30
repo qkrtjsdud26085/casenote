@@ -31,15 +31,14 @@
 | `ui.js` | 공용 UI: `ui.card`, `ui.grid`, `ui.itemsPanel`(목록·표 편집기), `ui.fieldsPanel`, `ui.upcoming` 등 |
 | `gcal.js` | Google Calendar 읽기 동기화 → `personal/gcal`. 연결 한 번으로 캘린더와 할 일 권한을 같이 받아 |
 | `gtasks.js` | Google Tasks 목록·추가·완료·삭제 → `personal/gtasks`에 사본 저장. 홈 빠른 추가에 시간을 적으면 Google Calendar 일정으로 만들어 |
-| `pages-home.js` | 메인 홈: 빠른 할 일 입력, 요약 4칸(진행 중 논문 · 오늘 집필 · 오늘 지출 · 이번 달 지출), 왼쪽 Today 카드 + 오른쪽 오늘의 기분(이모티콘 · 한 줄 일기 · 최근 7일). 그 아래 카드는 없어 |
-| `pages-other.js` | 개인 › 일정 · 캘린더(할 일, 메모 포함), 주간 리뷰 |
+| `pages-home.js` | 메인 홈: 빠른 할 일 입력, 요약 4칸(진행 중 논문[빈 칸] · 오늘 집필[작가 집필 기록] · 오늘 지출 · 이번 달 지출), 왼쪽 Today 카드 + 오른쪽 오늘의 기분(이모티콘 · 한 줄 일기, 지난 기록은 주간 리뷰로 연결). 그 아래 카드는 없어 |
+| `pages-other.js` | 개인 › 일정 · 캘린더(할 일, 메모 포함), 주간 리뷰(이번 주 기분 · 기분 달력 포함) |
 | `pages-budget.js` | 개인 › 가계부, 월별 리포트, 휴대폰 결제 알림 해석 |
-| `pages-projects.js`, `projects.js` | 박사 › 홈(졸업 요건), 논문 프로젝트 페이지들 |
 | `research-kit.js` | 연구 페이지 공용 도구(JSON 불러오기·내보내기, 단계 표시, 페이지 안 탭 `App.rkit.pageTabs`) |
 | `pages-ias.js` | 박사 › IAS 척도 타당화 (탭 4개) |
 | `pages-diss.js` | 박사 › 비선형 공격성 임계점 › 연구재단 선정 (탭 5개) |
-| `pages-phd.js` | 박사 › 비선형 [현재 진행중](빈 페이지), 자격증(탭 3개), AI(탭 3개) |
-| `pages-thesis.js` | 박사 › 기타 자료에 모아 둔 예전 페이지들 |
+| `pages-phd.js` | 박사 › 비선형 [현재 진행중], 자격증(탭 3개, 임상심리사는 "자격 정보 · D-day" 카드와 "기출문제 바로가기" 카드 두 개만), AI(탭 3개) |
+| `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
 | `pages-writer.js`, `canvas.js` | 작가 탭 |
 | `pages-compose.js` | 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 저장 전 임시 글은 브라우저에 자동 보관 |
 | `quotes.js` | 오늘의 명언 |
@@ -50,7 +49,7 @@
 
 - **박사**: IAS 척도 타당화 / 비선형 공격성 임계점 ▾([연구재단 선정], [현재 진행중]) / 자격증 ▾([전체 현황], [범죄심리사], [피해상담사], [임상심리사]) / AI / 기타 자료 ▾
 - **작가**: 집필 책상 / 글쓰기 기록 / 집필 / 구상 ▾ / 소설 · 에세이 ▾ / 집필 · 퇴고 ▾
-- 박사 홈(`thesis-home`, 졸업 요건 등)은 메뉴에서 뺐어. 페이지와 데이터는 남아 있고 `#/thesis-home` 주소로는 열려.
+- 박사 홈(졸업 요건)과 기타 자료는 코드까지 지웠어(`pages-projects.js`, `projects.js` 삭제, `pages-thesis.js`에는 논문 추천만 남음).
 - **개인**: 일정 · 캘린더 / 가계부 / 주간 리뷰
   - 월별 리포트는 메뉴줄에 두지 않아. 가계부 제목 옆 [가계부 | 월별 리포트] 버튼으로 들어가.
 - 하위 페이지를 메뉴에서 숨기고 페이지 안 탭으로만 보여 줄 때는 페이지 정의에 `navHidden: true, navParent: "부모id"`를 쓰고, 메뉴 이름을 바꿀 때는 `navLabel`, 탭 이름을 바꿀 때는 `tabLabel`을 써.
@@ -80,12 +79,12 @@ App.page({ id: "my-page", title: "제목", render: function (view) {
   - `personal/gcal`: 캘린더 사본
   - `personal/gtasks`: 할 일 사본
   - `personal/quicknote`: 캘린더 옆 메모
-  - `personal/mood`: 홈 오늘의 기분(`days.YYYY-MM-DD` = { mood, note })
+  - `personal/mood`: 오늘의 기분(`days.YYYY-MM-DD` = { mood, note }). 홈에서 쓰고, 주간 리뷰에서 한 주 · 달력으로 봐
   - `personal/weekly`: 주간 리뷰
   - 컬렉션: `schedule`(사이트 일정), `budgetInbox`(휴대폰 결제 알림), `todos`(예전 할 일. Google Tasks로 옮기는 버튼이 있어)
 - **박사**
-  - `research/gradreqs`: 졸업 요건
-  - `research/projects`, `research/pj_*`: 논문 프로젝트
+  - `research/gradreqs`: 졸업 요건 (화면에서는 지웠고 데이터만 남아 있어)
+  - `research/projects`, `research/pj_*`: 예전 논문 프로젝트 (화면에서는 지웠고 데이터만 남아 있어)
   - IAS 연구 자료는 `ias_*`, 연구재단 선정 박사학위논문 자료는 `diss_*` 이름으로 저장돼(research-kit가 관리)
   - 자격증: `research/certs`, `research/certplan`, `research/certlog`, `research/certfiles`, 세부 자격증(`research/cert_crime_*`, `research/cert_victim_*`, `research/cert_clinical_*`)
   - AI: `research/aitools`, `research/aiprompts`, `research/ainotes`, `research/ailog`
@@ -109,7 +108,8 @@ App.page({ id: "my-page", title: "제목", render: function (view) {
   - 알림 원문을 Firestore REST로 `budgetInbox`에 보내고, 사이트가 해석해서 "휴대폰 결제 알림" 칸에 보여줘. 내가 확인하고 추가하는 방식이야.
   - 지원 형식: 신한카드, 현대카드(승인·취소), iM뱅크(대구은행), KB국민은행(입금·출금). 가맹점 이름으로 분류를 추측해.
   - 비밀 키는 Firebase 보안 규칙과 MacroDroid에만 있어. **코드와 이 문서에는 절대 적지 마.**
-- **박사 홈**(메뉴에서는 숨김): 졸업 요건 표(완료 체크, 메모, 목표일 D-day, 가까운 날짜 순 정렬, ▲▼로 순서 바꾸기), 논문 자료 폴더, 논문 일정
+- **박사 홈 · 졸업 요건 · 기타 자료(논문 프로젝트 등)**: 코드에서 모두 지웠어. 홈의 "진행 중 논문" 칸은 연결할 곳이 없어 빈 칸(—)으로 남겨 뒀어. 데이터(`research/gradreqs`, `research/projects` 등)는 Firestore에 남아 있어.
+- **주간 리뷰**: 위쪽에 이번 주 기분(월~일, ‹ ›로 주 이동)과 기분 달력(날짜를 누르면 그날 기분 · 일기). 아래는 주간 리뷰 카드
 - **박사 연구 자료**는 각 연구 페이지의 "자료 불러오기 · 백업" 카드에서 JSON 파일로 불러와(원본 파일은 연구 폴더에 있어).
   - 박사학위 관련 자료는 `G:\내 드라이브\3. 대학원\6. 석박통합 6학차\연구재단`에 있어(연구계획서, 참고문헌, `박사학위논문_홈페이지자료.json`).
 
