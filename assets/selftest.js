@@ -460,7 +460,8 @@
           { id: "https://openalex.org/W3", display_name: "Closed high impact paper", publication_year: 2023, open_access: { is_oa: false }, doi: "https://doi.org/10.1/x", primary_location: { landing_page_url: "https://doi.org/10.1/x", source: { id: "https://openalex.org/S1", display_name: "Journal A" } } }
         ] });
       }
-      if (url.indexOf("https://translate.googleapis.com/") === 0) { return j([[["공격성은 재범을 예측한다.", "Aggression predicts recidivism.", null, null]], null, "en"]); }
+      if (url.indexOf("https://translate.googleapis.com/") === 0) { return Promise.resolve({ ok: false, status: 429, json: function () { return Promise.reject(new Error("429")); } }); }
+      if (url.indexOf("https://api.mymemory.translated.net/get") === 0) { return j({ responseStatus: 200, responseData: { translatedText: "공격성은 재범을 예측한다." } }); }
       if (url.indexOf("https://api.openalex.org/sources") === 0) {
         return j({ results: [{ id: "https://openalex.org/S1", summary_stats: { "2yr_mean_citedness": 4.23 } }, { id: "https://openalex.org/S2", summary_stats: { "2yr_mean_citedness": 1.1 } }] });
       }

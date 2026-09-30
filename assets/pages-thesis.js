@@ -192,10 +192,19 @@
     /* ---------- abstract → Korean (Google 번역 공개 주소; titles · authors stay as published) ---------- */
     var transBusy = false, transFailed = {};
     function needsKo(it) { return !!it.abs && !it.absKo && !/[가-힣]/.test(it.abs); }
+    /* Google's public address first; when it refuses (429 etc.), MyMemory (free, ~5,000자/일) */
+    function getJson(url) { return fetch(url).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); }); }
     function toKorean(text) {
-      var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=" + encodeURIComponent(text);
-      return fetch(url).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); })
-        .then(function (j) { return ((j && j[0]) || []).map(function (s) { return (s && s[0]) || ""; }).join("").trim(); });
+      var q = encodeURIComponent(text);
+      return getJson("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=" + q)
+        .then(function (j) { var t = ((j && j[0]) || []).map(function (s) { return (s && s[0]) || ""; }).join("").trim(); if (!t) { throw new Error("empty"); } return t; })
+        .catch(function () {
+          return getJson("https://api.mymemory.translated.net/get?langpair=en|ko&q=" + q).then(function (j) {
+            var t = j && j.responseStatus === 200 && j.responseData ? String(j.responseData.translatedText || "").trim() : "";
+            if (!t || !/[가-힣]/.test(t)) { throw new Error("no translation"); }
+            return t;
+          });
+        });
     }
     function translateDaily() {
       var d = RECO.daily;

@@ -38,7 +38,7 @@
 | `pages-ias.js` | 박사 › IAS 척도 타당화 (탭 4개) |
 | `pages-diss.js` | 박사 › 비선형 공격성 임계점 › 연구재단 선정 (탭 5개) |
 | `pages-phd.js` | 박사 › 비선형 [현재 진행중], 자격증(탭 3개, 임상심리사는 "자격 정보 · D-day" 카드와 "기출문제 바로가기" 카드 두 개만), AI(탭 3개) |
-| `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex, 한 줄에 2편, 영어 요약은 translate.googleapis.com 공개 주소로 한국어 번역해 오늘 추천(`research/reco` daily.items[].absKo)에 저장, 제목 · 저자는 원문 그대로) + 저장한 논문 목록(`research/papers`, 읽기 상태 · 메모 · 검색). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
+| `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex, 한 줄에 2편, 영어 요약은 translate.googleapis.com 공개 주소(막히면 MyMemory)로 한국어 번역해 오늘 추천(`research/reco` daily.items[].absKo)에 저장, 제목 · 저자는 원문 그대로) + 저장한 논문 목록(`research/papers`, 읽기 상태 · 메모 · 검색). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
 | `pages-writer.js`, `canvas.js` | 작가 탭 |
 | `pages-compose.js` | 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 저장 전 임시 글은 브라우저에 자동 보관 |
 | `quotes.js` | 오늘의 명언 |
