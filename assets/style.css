@@ -299,7 +299,7 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .cal-right-in { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .cal-right-in > .card { display: flex; flex-direction: column; min-height: 0; }
 .cal-right-in > .card > .card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.cal-right-in > .todo-card { flex: 3 1 0; }
+.cal-right-in > .todo-card { flex: 1 1 0; }
 .cal-right-in > .memo-card { flex: 2 1 0; margin-top: 26px; }
 .todo-card .hint { margin-bottom: 6px; }
 .todo-card .items-tools { margin-bottom: 8px; }
@@ -339,7 +339,7 @@ details.group > summary { cursor: pointer; list-style: revert; }
   .cal-top { grid-template-columns: minmax(0, 1fr); }
   .cal-right { position: static; min-height: 0; }
   .cal-right-in { position: static; }
-  .cal-right-in > .card { flex: none; }
+  .cal-right-in > .card, .cal-right-in > .todo-card, .cal-right-in > .memo-card { flex: none; }
   .todo-scroll { max-height: 340px; }
   .quicknote { min-height: 160px; }
 }
@@ -438,7 +438,14 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .reco-settings summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.74rem; }
 .reco-settings label { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; color: var(--ink); }
 .reco-settings input[type="url"] { width: 100%; }
-.reco-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.reco-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.reco-list > .empty-state { grid-column: 1 / -1; }
+.reco-item { display: flex; flex-direction: column; min-width: 0; }
+.reco-item .reco-links { margin-top: auto; padding-top: 8px; }
+.reco-orig { margin-top: 4px; font-size: 0.74rem; color: var(--ink-soft); }
+.reco-orig summary { cursor: pointer; font-family: var(--font-mono); font-size: 0.68rem; }
+.reco-trans { font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-soft); margin-top: 4px; }
+@media (max-width: 760px) { .reco-list { grid-template-columns: minmax(0, 1fr); } }
 .reco-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .reco-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); margin-bottom: 4px; }
 .reco-badge { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); }
@@ -940,7 +947,6 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .todo-line2 { display: flex; gap: 8px; align-items: center; }
 .todo-line2 input:not(.w-date) { flex: 1 1 auto; min-width: 0; }
 .todo-line2 .w-date { flex: 0 0 auto; }
-.cal-right-in > .todo-card { flex: 1 1 0; }
 .gsync-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; padding: 10px 14px; border: 1px dashed var(--accent); border-radius: 8px; background: var(--surface); font-size: 0.86rem; }
 /* 공모 카드 */
 .contest-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border: 1px dashed var(--accent); border-radius: 8px; font-size: 0.84rem; }

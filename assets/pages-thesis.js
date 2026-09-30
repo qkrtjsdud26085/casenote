@@ -189,6 +189,29 @@
       if (RECO.interests.some(function (x) { return x.toLowerCase() === kw.toLowerCase(); })) { return; }
       save({ interests: RECO.interests.concat([kw]), daily: null });
     }
+    /* ---------- abstract → Korean (Google 번역 공개 주소; titles · authors stay as published) ---------- */
+    var transBusy = false, transFailed = {};
+    function needsKo(it) { return !!it.abs && !it.absKo && !/[가-힣]/.test(it.abs); }
+    function toKorean(text) {
+      var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=" + encodeURIComponent(text);
+      return fetch(url).then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); })
+        .then(function (j) { return ((j && j[0]) || []).map(function (s) { return (s && s[0]) || ""; }).join("").trim(); });
+    }
+    function translateDaily() {
+      var d = RECO.daily;
+      if (transBusy || !d || d.date !== H.todayStr()) { return; }
+      var todo = (d.items || []).filter(function (it) { return needsKo(it) && !transFailed[it.id]; });
+      if (!todo.length) { return; }
+      transBusy = true;
+      Promise.all(todo.map(function (it) {
+        return toKorean(it.abs).then(function (ko) { return [it.id, ko]; }, function () { transFailed[it.id] = true; return [it.id, ""]; });
+      })).then(function (pairs) {
+        transBusy = false;
+        var got = {}; pairs.forEach(function (p) { if (p[1]) { got[p[0]] = p[1]; } });
+        if (!Object.keys(got).length || !RECO.daily || RECO.daily.date !== d.date) { render(); return; }
+        save({ daily: Object.assign({}, RECO.daily, { items: (RECO.daily.items || []).map(function (x) { return got[x.id] ? Object.assign({}, x, { absKo: got[x.id] }) : x; }) }) });
+      });
+    }
     function link(a, href, text, title) { var n = el("a", "", text); n.href = href; n.target = "_blank"; n.rel = "noopener noreferrer"; if (title) { n.title = title; } a.appendChild(n); return n; }
     function render() {
       H.clear(chipsEl);
@@ -227,7 +250,17 @@
         li.appendChild(top);
         var title = el("a", "reco-title", it.title); title.href = it.url; title.target = "_blank"; title.rel = "noopener noreferrer"; li.appendChild(title);
         if (it.authors) { li.appendChild(el("div", "reco-authors", it.authors)); }
-        if (it.abs) { li.appendChild(el("div", "reco-abs", it.abs)); }
+        if (it.abs) {
+          /* abstract in Korean (translated once, kept with today's picks); the original stays one click away */
+          if (it.absKo) {
+            li.appendChild(el("div", "reco-abs", it.absKo));
+            var orig = el("details", "reco-orig"); orig.appendChild(el("summary", "", "요약 원문"));
+            orig.appendChild(el("div", "reco-abs", it.abs)); li.appendChild(orig);
+          } else {
+            li.appendChild(el("div", "reco-abs", it.abs));
+            if (needsKo(it)) { li.appendChild(el("div", "reco-trans", transFailed[it.id] ? "한국어 번역을 불러오지 못했어요" : "한국어로 번역 중…")); }
+          }
+        }
         var links = el("div", "reco-links");
         link(links, scholarUrl(it.title), "Google Scholar");
         var proxy = (RECO.proxy || "").trim() || YU_PROXY;
@@ -253,6 +286,7 @@
         links.appendChild(skip);
         li.appendChild(links); listEl.appendChild(li);
       });
+      translateDaily();
     }
     form.addEventListener("submit", function (e) { e.preventDefault(); addInterest(input.value); input.value = ""; });
     pw.addEventListener("change", function () { save({ includePaywalled: pw.checked, daily: null }); });

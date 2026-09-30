@@ -455,11 +455,12 @@
       function j(o) { return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve(o); } }); }
       if (url.indexOf("https://api.openalex.org/works") === 0) {
         return j({ results: [
-          { id: "https://openalex.org/W1", display_name: "High impact open paper", publication_year: 2024, open_access: { is_oa: true, oa_url: "https://example.org/w1" }, best_oa_location: { pdf_url: "https://example.org/w1.pdf" }, primary_location: { source: { id: "https://openalex.org/S1", display_name: "Journal A" } } },
+          { id: "https://openalex.org/W1", display_name: "High impact open paper", abstract_inverted_index: { "Aggression": [0], "predicts": [1], "recidivism.": [2] }, publication_year: 2024, open_access: { is_oa: true, oa_url: "https://example.org/w1" }, best_oa_location: { pdf_url: "https://example.org/w1.pdf" }, primary_location: { source: { id: "https://openalex.org/S1", display_name: "Journal A" } } },
           { id: "https://openalex.org/W2", display_name: "Low impact paper", publication_year: 2024, open_access: { is_oa: true, oa_url: "https://example.org/w2" }, primary_location: { source: { id: "https://openalex.org/S2", display_name: "Journal B" } } },
           { id: "https://openalex.org/W3", display_name: "Closed high impact paper", publication_year: 2023, open_access: { is_oa: false }, doi: "https://doi.org/10.1/x", primary_location: { landing_page_url: "https://doi.org/10.1/x", source: { id: "https://openalex.org/S1", display_name: "Journal A" } } }
         ] });
       }
+      if (url.indexOf("https://translate.googleapis.com/") === 0) { return j([[["공격성은 재범을 예측한다.", "Aggression predicts recidivism.", null, null]], null, "en"]); }
       if (url.indexOf("https://api.openalex.org/sources") === 0) {
         return j({ results: [{ id: "https://openalex.org/S1", summary_stats: { "2yr_mean_citedness": 4.23 } }, { id: "https://openalex.org/S2", summary_stats: { "2yr_mean_citedness": 1.1 } }] });
       }
@@ -472,6 +473,9 @@
     ok("interest add", $$("#view .interest-chip").length === 1, $$("#view .interest-chip").length);
     var recoTitles = $$("#view .reco-title").map(function (a) { return a.textContent; });
     ok("reco impact >= 3 only, open first", recoTitles.join("|") === "High impact open paper|Closed high impact paper" && /IF 4\.2/.test($("#view .reco-item").textContent), recoTitles.join("|"));
+    await sleep(200);
+    var koItem = $$("#view .reco-item").filter(function (x) { return /High impact open paper/.test(x.textContent); })[0];
+    ok("reco abstract in Korean, title in English", !!koItem && $(".reco-abs", koItem).textContent === "공격성은 재범을 예측한다." && /Aggression predicts recidivism/.test($(".reco-orig", koItem).textContent) && $(".reco-title", koItem).textContent === "High impact open paper" && getComputedStyle($("#view .reco-list")).gridTemplateColumns.split(" ").length === 2 && /공격성은/.test(JSON.stringify(window.__MOCK_STORE["research/reco"].daily)), koItem && koItem.textContent);
     var yuLink = $$("#view .reco-links a").filter(function (a) { return a.textContent === "영남대 로그인으로 열기"; })[0];
     ok("reco YU proxy link", !!yuLink && yuLink.href === "https://libproxy.yu.ac.kr/_Lib_Proxy_Url/https://doi.org/10.1/x", yuLink && yuLink.href);
     var svBtn = $$("#view .reco-links button").filter(function (b) { return b.textContent === "내 문헌함에 저장"; })[0]; svBtn.click(); await sleep(200);
