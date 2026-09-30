@@ -1026,3 +1026,4 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
   .cmp-paper { padding: 28px 22px; min-height: 420px; }
   .cmp-row-n { display: none; }
 }
+.card.reco-saved { margin-top: 30px; }

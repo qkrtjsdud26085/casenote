@@ -476,6 +476,9 @@
     ok("reco impact >= 3 only, open first", recoTitles.join("|") === "High impact open paper|Closed high impact paper" && /IF 4\.2/.test($("#view .reco-item").textContent), recoTitles.join("|"));
     var yuLink = $$("#view .reco-links a").filter(function (a) { return a.textContent === "영남대 로그인으로 열기"; })[0];
     ok("reco YU proxy link", !!yuLink && yuLink.href === "https://libproxy.yu.ac.kr/_Lib_Proxy_Url/https://doi.org/10.1/x", yuLink && yuLink.href);
+    var svBtn = $$("#view .reco-links button").filter(function (b) { return b.textContent === "내 문헌함에 저장"; })[0]; svBtn.click(); await sleep(200);
+    var savedCard = cardBy("저장한 논문");
+    ok("reco saved list", !!savedCard && $$(".item-card", savedCard).length === 1 && /High impact open paper/.test(savedCard.textContent) && /총 1편 · 읽음 0/.test(savedCard.textContent) && /저장됨/.test($("#view .reco-item").textContent), savedCard && savedCard.textContent.slice(0, 200));
     window.fetch = recoFetch;
     ok("interest scholar link", /scholar\.google\.com/.test($("#view .interest-chip a").href));
 

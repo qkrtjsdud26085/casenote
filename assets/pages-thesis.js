@@ -267,6 +267,28 @@
       ensureDaily(true);
     });
     render();
+    /* 저장한 논문: what [내 문헌함에 저장] collects (research/papers), with 읽기 상태 and notes */
+    var sc = ui.card(view, { tab: "Saved", tone: "t-3", title: "저장한 논문", wide: true });
+    sc.el.classList.add("reco-saved");
+    ui.itemsPanel(sc.body, {
+      ref: papersRef, search: true, views: ["cards", "table"], grid: true, filters: ["category", "status"],
+      statusKey: "status", titleLink: "link", addLabel: "+ 논문 직접 추가", empty: "위 추천에서 [내 문헌함에 저장]을 누르면 여기에 모여요.",
+      fields: [
+        { key: "title", label: "제목", type: "text", title: true, required: true, maxLength: 200 },
+        { key: "category", label: "분류", type: "text", meta: true, col: true, maxLength: 40, placeholder: "예: psychopathy" },
+        { key: "meta", label: "저자 · 연도", type: "text", meta: true, col: true, maxLength: 100 },
+        { key: "link", label: "링크 · DOI (선택)", type: "url", col: true, maxLength: 300 },
+        { key: "note", label: "요약 · 메모", type: "textarea", col: true, maxLength: 1000 },
+        { key: "tags", label: "태그 (쉼표로 구분)", type: "tags", meta: true },
+        { key: "status", label: "읽기 상태", type: "select", options: PSTAT, col: true }
+      ],
+      summary: function (items) {
+        var m = {};
+        items.forEach(function (it) { var v = it.status || PSTAT[0]; m[v] = (m[v] || 0) + 1; });
+        return items.length ? "총 " + items.length + "편 · 읽음 " + (m["읽음"] || 0) + " · 읽는 중 " + (m["읽는 중"] || 0) + " · 읽을 예정 " + (m["읽을 예정"] || 0) : "";
+      }
+    });
+
     App.watchDoc(papersRef, function (d) { PAPERS = d && d.items ? d.items : []; render(); });
     App.watchDoc(recoRef, function (d) {
       d = d || {};
