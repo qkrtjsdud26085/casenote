@@ -102,7 +102,7 @@
     { key: "writer", short: "작가", label: "작가", groups: [
       { pages: ["writer-desk", "writer-submit", "writer-compose", "writer-capture", "writer-canvas", "writer-quotes"] }
     ] },
-    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-weekly"] }
+    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-diary", "personal-weekly"] }
   ];
   App.MENU.forEach(function (g) {
     if (!g.groups) { g.groups = g.pages.map(function (p) { return { pages: [p] }; }); }

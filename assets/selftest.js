@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 37, ids.length);
+    ok("page count", ids.length === 38, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -98,9 +98,9 @@
     /* custom flows */
     await go("home");
     ok("home tiles", $$("#view .tile").length === 4 && $$("#view .tile-label").map(function (n) { return n.textContent; }).join("|") === "진행 중 논문|오늘 집필|오늘 지출|이번 달 지출", $$("#view .tile-label").map(function (n) { return n.textContent; }).join("|"));
-    ok("home first row", $$("#view > .desk-grid")[0].children.length === 2 && /Today/.test($$("#view > .desk-grid")[0].children[0].textContent) && $$("#view > .desk-grid")[0].children[1].classList.contains("mood-card") && $$("#view .mood-btn").length === 8 && !$("#view .mood-week") && $("#view .mood-more").getAttribute("href") === "#/personal-weekly");
+    ok("home first row", $$("#view > .desk-grid")[0].children.length === 2 && /Today/.test($$("#view > .desk-grid")[0].children[0].textContent) && $$("#view > .desk-grid")[0].children[1].classList.contains("mood-card") && $$("#view .mood-btn").length === 8 && !$("#view .mood-week") && $$("#view .mood-more").map(function (a) { return a.getAttribute("href"); }).join(",") === "#/personal-diary,#/personal-weekly" && !$("#view .mood-diary"));
     $$("#view .mood-btn")[1].click(); await sleep(60);
-    var md0 = $("#view .mood-diary"); md0.value = "테스트 일기"; md0.dispatchEvent(new Event("input")); md0.dispatchEvent(new Event("blur")); await sleep(80);
+    var md0 = $("#view .mood-memo"); md0.value = "테스트 일기"; md0.dispatchEvent(new Event("input")); md0.dispatchEvent(new Event("blur")); await sleep(80);
     var moodDay = ((window.__MOCK_STORE["personal/mood"] || {}).days || {})[App.h.todayStr()] || {};
     ok("mood saves", moodDay.mood === "😊" && moodDay.note === "테스트 일기" && $("#view .mood-btn.on").textContent === "😊", JSON.stringify(moodDay));
     await App.doc("personal/mood").set({ days: { "2026-01-05": { mood: "😢", note: "옛날 일기" } } }, { merge: true });
@@ -110,6 +110,26 @@
     for (var mi = 0; mi < 40 && $("#view .mcal-nav .mcal-label", cardBy("기분 달력")).textContent !== "2026년 1월"; mi++) { $("#view .mcal-nav .tool-btn", cardBy("기분 달력")).click(); await sleep(10); }
     $("#view .mcal-day[data-date='2026-01-05']").click(); await sleep(30);
     ok("mood calendar shows old day", /😢/.test($("#view .mcal-day[data-date='2026-01-05']").textContent) && /옛날 일기/.test($("#view .mcal-detail").textContent) && /1월 5일/.test($("#view .mcal-detail").textContent), $("#view .mcal-detail").textContent);
+    /* 일정 · 캘린더 기분 → 같은 기록 · 달력 칸 이모티콘 */
+    await go("personal-calendar"); await sleep(150);
+    var tK = App.h.todayStr();
+    $$(".mood-btn", cardBy("오늘의 기분"))[3].click(); await sleep(100);
+    ok("calendar mood -> shared record + day cell", ((window.__MOCK_STORE["personal/mood"].days || {})[tK] || {}).mood === "😐" && /😐/.test(($("#view .cal-cell.today .cal-mood") || {}).textContent) && /😐/.test($("#view .cal-right .mood-strip-day.on").textContent) && /오늘 일기 쓰기/.test($("#view .cal-right .mood-more").textContent));
+    /* 일기 */
+    App.h.safeSet("hds_diary_backup", "");
+    await go("personal-diary"); await sleep(200);
+    ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|일기|주간 리뷰" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
+    var dp = $("#view .diary-card .cmp-paper"); dp.innerHTML = "<p>오늘의 테스트 일기</p>"; dp.dispatchEvent(new Event("input"));
+    $("#view .diary-card .cmp-acts .btn").click(); await sleep(250);
+    ok("diary saves", /오늘의 테스트 일기/.test((window.__MOCK_STORE["personal/diary_" + tK] || {}).html) && window.__MOCK_STORE["personal/diary"].days[tK].chars > 0 && $$("#view .cmp-row").length === 1 && /마지막 저장/.test($("#view .cmp-stat").textContent), $("#view .cmp-stat").textContent);
+    dp = $("#view .diary-card .cmp-paper"); dp.innerHTML = "<p>나갈 때 저장 확인</p>"; dp.dispatchEvent(new Event("input")); await sleep(1100);
+    await go("personal-weekly"); await sleep(250);
+    ok("diary saves when leaving the page", /나갈 때 저장 확인/.test(window.__MOCK_STORE["personal/diary_" + tK].html));
+    await go("personal-diary"); await sleep(200);
+    $("#view .diary-head .tool-btn").click(); await sleep(200);
+    ok("diary previous day is empty", $("#view .diary-card .cmp-paper").textContent === "" && !/오늘/.test($("#view .diary-date").textContent) && !$("#view .diary-card .mood-btn.on"));
+    $("#view .cmp-open").click(); await sleep(200);
+    ok("diary list opens that day", /나갈 때 저장 확인/.test($("#view .diary-card .cmp-paper").textContent) && /오늘/.test($("#view .diary-date").textContent));
     await go("home");
     ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
     ok("logo quote", !!$("#brandQuote .quote-text") && $("#brandQuote .quote-text").textContent.length > 4 && /— .+ · .+/.test($("#brandQuote .quote-author").textContent) && !$("#homeStrip .quote-box"), $("#brandQuote").textContent);
@@ -341,18 +361,18 @@
     await go("personal-calendar"); await sleep(120);
     ok("menu: no 할 일/메모/습관", !$("#subnav a[data-page='personal-todos']") && !$("#subnav a[data-page='personal-memos']") && !$("#subnav a[data-page='personal-habits']") && !!$("#subnav a[data-page='personal-budget']"));
     ok("calendar: no desc", !$("#pageHead .page-desc"));
-    var todoC = cardBy("할 일 · Google Tasks");
+    var todoC = $("#view .todo-sec");
     ok("todo card in calendar", !!todoC && /연결 안 됨/.test(todoC.textContent) && /예전 할 일 1개/.test(todoC.textContent));
     var tf = $("form.quick-add", todoC);
     setVal($("textarea.todo-text", tf), "테스트 할 일"); $("input[type=date]", tf).value = "2026-10-01"; submit(tf); await sleep(250);
     ok("todo -> Google Tasks", gt.length === 1 && gt[0].title === "테스트 할 일" && gt[0].due === "2026-10-01T00:00:00.000Z", JSON.stringify(gt));
-    ok("todo cache + list", window.__MOCK_STORE["personal/gtasks"].items.length === 1 && $$(".todo-item", cardBy("할 일 · Google Tasks")).length === 1 && /Google 연결됨/.test(cardBy("할 일 · Google Tasks").textContent));
-    var tcb = $(".todo-item input[type=checkbox]", cardBy("할 일 · Google Tasks")); tcb.checked = true; change(tcb); await sleep(250);
-    ok("todo done in Google", gt[0].status === "completed" && $(".todo-done", cardBy("할 일 · Google Tasks")).hidden === false, JSON.stringify(gt));
+    ok("todo cache + list", window.__MOCK_STORE["personal/gtasks"].items.length === 1 && $$(".todo-item", $("#view .todo-sec")).length === 1 && /Google 연결됨/.test($("#view .todo-sec").textContent));
+    var tcb = $(".todo-item input[type=checkbox]", $("#view .todo-sec")); tcb.checked = true; change(tcb); await sleep(250);
+    ok("todo done in Google", gt[0].status === "completed" && $(".todo-done", $("#view .todo-sec")).hidden === false, JSON.stringify(gt));
     var realConfirmT = window.confirm; window.confirm = function () { return true; };
-    Array.prototype.filter.call(cardBy("할 일 · Google Tasks").querySelectorAll(".tool-btn"), function (b) { return /예전 할 일/.test(b.textContent); })[0].click(); await sleep(350);
+    Array.prototype.filter.call($("#view .todo-sec").querySelectorAll(".tool-btn"), function (b) { return /예전 할 일/.test(b.textContent); })[0].click(); await sleep(350);
     ok("legacy todos migrated", gt.some(function (q) { return q.title === "예전 할 일"; }) && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("todos/") === 0; }), JSON.stringify(gt));
-    $(".todo-done .icon-btn", cardBy("할 일 · Google Tasks")).click(); await sleep(250);
+    $(".todo-done .icon-btn", $("#view .todo-sec")).click(); await sleep(250);
     window.confirm = realConfirmT;
     ok("todo delete in Google", gt.length === 1 && gt[0].title === "예전 할 일", JSON.stringify(gt));
     /* the calendar shows dated Google Tasks and can create one from the day form */
@@ -374,12 +394,12 @@
     var dotCol = function (k) { return getComputedStyle($(".cal-dot[data-kind='" + k + "']", tc)).backgroundColor; };
     ok("dot colors differ", dotCol("event") !== dotCol("task") && dotCol("event") !== "rgba(0, 0, 0, 0)", dotCol("event") + " / " + dotCol("task"));
     ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
-    ok("no Day card; to-do beside calendar, no memo/upcoming", !cardBy("선택한 날") && $("#view .cal-right").contains(cardBy("할 일 · Google Tasks")) && !cardBy("메모") && !cardBy("다가오는 일정") && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
+    ok("calendar + to-do in one card, mood on the right", !cardBy("선택한 날") && cardBy("캘린더 · 할 일").contains($("#view .todo-sec")) && $("#view .cal-right").contains(cardBy("오늘의 기분")) && $$("#view .cal-right .mood-btn").length === 8 && $$("#view .cal-right .mood-strip-day").length === 7 && !cardBy("메모") && !cardBy("다가오는 일정") && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
     var tf = $("#view .todo-form");
     ok("todo: 2-line box, date · memo · add on one line", tf.querySelector("textarea.todo-text").rows === 2 && $$(".todo-line2 > *", tf).length === 3 && (function () { var r = $$(".todo-line2 > *", tf).map(function (n) { var b = n.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.abs(r[0] - r[1]) < 3 && Math.abs(r[1] - r[2]) < 3; })());
     ok("daily sync bar when not synced today", !$("#view .gsync-bar").hidden && /지금 동기화/.test($("#view .gsync-bar").textContent));
     var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
-    ok("right column not taller than calendar", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
+    ok("mood card no taller than the calendar card", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
 
 
     var gC = cardBy("Google 캘린더 연동");

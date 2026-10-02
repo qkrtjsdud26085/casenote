@@ -25,10 +25,18 @@
   /* =========================================================
      할 일 — stored in Google Tasks (default list); Firestore keeps a read-only copy
      ========================================================= */
-  function todoCard(parent) {
-    var G = App.gtasks;
-    var c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks" });
-    c.el.classList.add("todo-card");
+  /* into: build the to-do list inside an existing card body (일정 · 캘린더 puts it under the month grid) */
+  function todoCard(parent, into) {
+    var G = App.gtasks, c;
+    if (into) {
+      var sec = el("div", "todo-sec"), head = el("div", "mini-title todo-sec-title"), cnt = el("span", "count");
+      head.appendChild(el("span", "", "할 일 · Google Tasks")); head.appendChild(cnt);
+      into.appendChild(head); into.appendChild(sec);
+      c = { el: sec, body: sec, count: cnt };
+    } else {
+      c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks" });
+      c.el.classList.add("todo-card");
+    }
     var S = { cache: null, busy: false, legacy: [] };
     var status = el("p", "hint");
     var tools = el("div", "items-tools");
@@ -127,16 +135,23 @@
       var scheduleRef = App.col("schedule");
       var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
       state.month.setDate(1);
-      /* calendar on the left; to-do + memo on the right, never taller than the calendar */
-      var top = el("div", "cal-top"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
+      /* one card on the left (month grid → that day's events → Google 할 일); 기분 on the right */
+      var top = el("div", "cal-top cal-top-mood"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
       right.appendChild(rightIn); top.appendChild(left); top.appendChild(right);
       /* once a day: syncs by itself while the Google connection is alive; otherwise one button (Google needs a click to reconnect) */
       var dayBar = el("div", "gsync-bar"); dayBar.hidden = true;
       var dayBtn = el("button", "btn", "지금 동기화"); dayBtn.type = "button";
       dayBar.appendChild(el("span", "", "오늘 Google 캘린더 · 할 일을 아직 가져오지 않았어요.")); dayBar.appendChild(dayBtn);
       view.appendChild(dayBar); view.appendChild(top);
-      var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "월간 캘린더" });
-      todoCard(rightIn);
+      var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "캘린더 · 할 일" });
+      var moodCard = ui.card(rightIn, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
+      moodCard.el.classList.add("mood-card");
+      var moods = {};
+      var picker = App.moodPicker(moodCard.body, {
+        date: state.sel, memo: true, week: true, diaryLink: true,
+        onDays: function (d) { moods = d; drawCal(); },
+        onPickDay: function (k) { pickDay(k); }
+      });
       /* Google · Upcoming: small, side by side, folded until needed */
       var bottom = el("div", "cal-bottom"); view.appendChild(bottom);
       var gCard = ui.card(bottom, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동" });
@@ -172,6 +187,7 @@
       var dayBox = el("div", "cal-day");
       [dayTitle, form, dayList].forEach(function (n) { dayBox.appendChild(n); });
       calCard.body.appendChild(dayBox);
+      todoCard(null, calCard.body);
 
       function visible() {
         var y = state.month.getFullYear(), m = state.month.getMonth();
@@ -204,6 +220,7 @@
             var dow = new Date(y, m, day).getDay();
             var cell = el("button", "cal-cell" + (key === todayKey ? " today" : "") + (key === state.sel ? " sel" : "") + ((dow === 0 || dow === 6) ? " wknd" : "")); cell.type = "button";
             cell.appendChild(el("span", "", String(day)));
+            if (moods[key] && moods[key].mood) { var me = el("span", "cal-mood", moods[key].mood); me.title = "기분"; cell.appendChild(me); }
             var evs = byDate[key] || [];
             if (evs.length) {
               /* one dot per item: yellow = calendar event, blue = Google Task */
@@ -217,10 +234,17 @@
               var nT = evs.filter(function (s) { return s.source === "tasks"; }).length;
               cell.title = "일정 " + (evs.length - nT) + " · 할 일 " + nT + "\n" + evs.map(function (s) { return (s.source === "tasks" ? "☐ " : "• ") + s.title; }).join("\n");
             }
-            cell.addEventListener("click", function () { state.sel = key; dateEl.value = key; drawCal(); drawDay(); });
+            cell.addEventListener("click", function () { pickDay(key); });
             grid.appendChild(cell);
           })(d);
         }
+      }
+      /* choosing a day moves the calendar, the day list and the 기분 card together */
+      function pickDay(key) {
+        state.sel = key; dateEl.value = key;
+        var d = H.parseKey(key); state.month = new Date(d.getFullYear(), d.getMonth(), 1);
+        if (key <= H.todayStr()) { picker.setDate(key); }
+        drawCal(); drawDay();
       }
       function drawDay() {
         var p = H.parseKey(state.sel);
@@ -258,7 +282,7 @@
       }
       prev.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); drawCal(); });
       next.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); drawCal(); });
-      today.addEventListener("click", function () { state.month = new Date(); state.month.setDate(1); state.sel = H.todayStr(); dateEl.value = state.sel; drawCal(); drawDay(); });
+      today.addEventListener("click", function () { pickDay(H.todayStr()); });
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         var t = titleEl.value.trim();

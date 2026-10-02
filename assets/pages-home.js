@@ -2,9 +2,6 @@
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el;
-  /* shared with 주간 리뷰 (pages-other.js), which shows the week and a calendar of past moods */
-  App.MOODS = [["😆", "최고"], ["😊", "좋음"], ["🙂", "괜찮음"], ["😐", "그저 그럼"], ["😔", "울적"], ["😢", "슬픔"], ["😡", "화남"], ["😴", "피곤"]];
-
   App.page({
     id: "home", title: "홈",
     render: function (view) {
@@ -42,55 +39,11 @@
       /* ---------- first row: Today (redrawn with data) · 오늘의 기분 (built once so typing is never interrupted) ---------- */
       var top = ui.grid(view, true);
       var todaySlot = el("div", "home-slot"); top.appendChild(todaySlot);
-      var MOODS = App.MOODS;
-      var moodRef = App.doc("personal/mood"), moodDays = {}, moodDate = H.todayStr();
       var cm = ui.card(top, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
       cm.el.classList.add("mood-card");
-      var pick = el("div", "mood-pick"); pick.setAttribute("role", "radiogroup"); pick.setAttribute("aria-label", "오늘의 기분");
-      var moodBtns = MOODS.map(function (m) {
-        var b = el("button", "mood-btn", m[0]); b.type = "button"; b.title = m[1];
-        b.setAttribute("role", "radio"); b.setAttribute("aria-label", m[1]); b.setAttribute("data-mood", m[0]);
-        b.addEventListener("click", function () {
-          var cur = moodDays[moodDate] || {};
-          saveMood({ mood: cur.mood === m[0] ? "" : m[0] });
-        });
-        pick.appendChild(b); return b;
-      });
-      cm.body.appendChild(pick);
-      var diary = el("textarea", "mood-diary"); diary.rows = 5; diary.maxLength = 1000;
-      diary.placeholder = "오늘 하루를 한두 줄로 남겨 보세요. (자동 저장)"; diary.setAttribute("aria-label", "오늘의 일기");
-      cm.body.appendChild(diary);
-      var moodStatus = el("div", "fields-status"); cm.body.appendChild(moodStatus);
-      var weekLink = el("a", "more-link mood-more", "지난 기분 · 일기 모아 보기 (주간 리뷰) →"); weekLink.href = "#/personal-weekly"; cm.body.appendChild(weekLink);
-      var diaryTimer = null;
-      function saveMood(patch) {
-        var day = {}; day[moodDate] = Object.assign({}, moodDays[moodDate] || {}, patch, { at: new Date().toISOString() });
-        moodDays[moodDate] = day[moodDate]; paintMood();
-        moodRef.set({ days: day, updatedAt: new Date().toISOString() }, { merge: true }).then(function () {
-          var d = new Date(); moodStatus.textContent = "저장됨 · " + H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes());
-        }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-      }
-      function flushDiary() {
-        if (!diaryTimer) { return; }
-        clearTimeout(diaryTimer); diaryTimer = null;
-        saveMood({ note: diary.value });
-      }
-      diary.addEventListener("input", function () {
-        clearTimeout(diaryTimer);
-        diaryTimer = setTimeout(flushDiary, 800);
-      });
-      diary.addEventListener("blur", flushDiary);
-      function paintMood() {
-        var cur = moodDays[moodDate] || {};
-        moodBtns.forEach(function (b) { var on = b.getAttribute("data-mood") === cur.mood; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); });
-        if (document.activeElement !== diary && !diaryTimer) { diary.value = cur.note || ""; }
-      }
-      paintMood();
-      App.watchDoc(moodRef, function (d) {
-        moodDays = (d && d.days) || {};
-        paintMood();
-      });
-
+      /* shared picker (pages-diary.js): emoji + one-line memo; longer writing goes to 개인 › 일기 */
+      App.moodPicker(cm.body, { memo: true, diaryLink: true, showDate: false });
+      var weekLink = el("a", "more-link mood-more", "지난 기분 모아 보기 (주간 리뷰) →"); weekLink.href = "#/personal-weekly"; cm.body.appendChild(weekLink);
 
       /* ---------- summaries ---------- */
       function tile(label, value, sub, page) {

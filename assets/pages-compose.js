@@ -33,6 +33,103 @@
   function fmtN(n) { return Number(n || 0).toLocaleString("ko-KR"); }
   function readDraft() { try { return JSON.parse(H.safeGet(DRAFT_KEY) || "null"); } catch (e) { return null; } }
 
+  /* word-processor editor (한글 프로그램처럼): toolbar + white paper. Used by 작가 › 집필 and 개인 › 일기.
+     o.onChange() on every edit, o.onSave() on Ctrl+S, o.placeholder. Returns { paper, html(), set(html, lh), lh(), counts() } */
+  App.cleanHTML = clean;
+  App.richEditor = function (parent, o) {
+    o = o || {};
+    var lh = "160";
+    var bar = el("div", "cmp-bar"); bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "글자 모양");
+    var paper = el("div", "cmp-paper");
+    paper.contentEditable = "true"; paper.spellcheck = false;
+    paper.setAttribute("role", "textbox"); paper.setAttribute("aria-multiline", "true"); paper.setAttribute("aria-label", o.label || "본문");
+    paper.setAttribute("data-placeholder", o.placeholder || "여기에 바로 쓰세요.");
+    function changed() { if (o.onChange) { o.onChange(); } }
+    var savedRange = null;
+    function keepRange() {
+      var s = window.getSelection();
+      if (s.rangeCount && paper.contains(s.getRangeAt(0).commonAncestorContainer)) { savedRange = s.getRangeAt(0).cloneRange(); }
+    }
+    function restoreRange() {
+      paper.focus();
+      if (savedRange) { var s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+    }
+    document.addEventListener("selectionchange", keepRange);
+    App.unsubs.push(function () { document.removeEventListener("selectionchange", keepRange); });
+    function exec(cmd, val) {
+      restoreRange();
+      document.execCommand("styleWithCSS", false, true);
+      document.execCommand(cmd, false, val === undefined ? null : val);
+      keepRange(); changed();
+    }
+    function sep() { bar.appendChild(el("span", "cmp-sep")); }
+    function btn(label, title, cmd, cls) {
+      var b = el("button", "cmp-btn" + (cls ? " " + cls : ""), label); b.type = "button"; b.title = title; b.setAttribute("aria-label", title);
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", function () { if (typeof cmd === "function") { cmd(); } else { exec(cmd); } });
+      bar.appendChild(b); return b;
+    }
+    function pickSel(title, opts, onPick) {
+      var s = el("select", "cmp-sel"); s.title = title; s.setAttribute("aria-label", title);
+      opts.forEach(function (x) { var op = el("option", "", x[0]); op.value = x[1]; s.appendChild(op); });
+      s.addEventListener("change", function () { onPick(s.value); });
+      bar.appendChild(s); return s;
+    }
+    function colorBtn(label, title, cmd, init) {
+      var w = el("label", "cmp-btn cmp-color"); w.title = title;
+      w.appendChild(el("span", "cmp-color-mark", label));
+      var inp = el("input"); inp.type = "color"; inp.value = init; inp.setAttribute("aria-label", title);
+      var mark = w.firstChild; mark.style.borderBottomColor = init;
+      inp.addEventListener("input", function () { mark.style.borderBottomColor = inp.value; exec(cmd, inp.value); });
+      w.appendChild(inp); bar.appendChild(w);
+    }
+    btn("↶", "실행 취소 (Ctrl+Z)", "undo"); btn("↷", "다시 실행 (Ctrl+Y)", "redo"); sep();
+    pickSel("글꼴", FONTS, function (v) { exec("fontName", v); });
+    var sizeSel = pickSel("글자 크기", SIZES.map(function (n) { return [n + "pt", String(n)]; }), function (v) {
+      restoreRange();
+      document.execCommand("styleWithCSS", false, false);
+      document.execCommand("fontSize", false, "7");
+      Array.prototype.forEach.call(paper.querySelectorAll("font[size='7']"), function (f) {
+        var sp = el("span"); sp.style.fontSize = v + "pt";
+        while (f.firstChild) { sp.appendChild(f.firstChild); }
+        f.parentNode.replaceChild(sp, f);
+      });
+      keepRange(); changed();
+    });
+    sizeSel.value = "11"; sep();
+    btn("가", "굵게 (Ctrl+B)", "bold", "b-bold"); btn("가", "기울임 (Ctrl+I)", "italic", "b-italic");
+    btn("가", "밑줄 (Ctrl+U)", "underline", "b-under"); btn("가", "취소선", "strikeThrough", "b-strike");
+    colorBtn("A", "글자색", "foreColor", "#b3261e"); colorBtn("형", "형광펜", "hiliteColor", "#fff176"); sep();
+    btn("⇤", "왼쪽 정렬", "justifyLeft"); btn("≡", "가운데 정렬", "justifyCenter"); btn("⇥", "오른쪽 정렬", "justifyRight"); btn("☰", "양쪽 정렬", "justifyFull"); sep();
+    var lhSel = pickSel("줄간격", LINE.map(function (n) { return ["줄간격 " + n + "%", n]; }), function (v) { setLh(v); changed(); paper.focus(); });
+    btn("•", "글머리 기호", "insertUnorderedList"); btn("1.", "번호 매기기", "insertOrderedList");
+    btn("→", "들여쓰기", "indent"); btn("←", "내어쓰기", "outdent");
+    parent.appendChild(bar);
+    var desk = el("div", "cmp-desk"); desk.appendChild(paper); parent.appendChild(desk);
+    function setLh(v) { lh = v || "160"; paper.style.lineHeight = (Number(lh) / 100).toFixed(2); lhSel.value = lh; }
+    setLh(lh);
+
+    paper.addEventListener("input", changed);
+    paper.addEventListener("paste", function (e) {
+      var cd = e.clipboardData; if (!cd) { return; }
+      var html = cd.getData("text/html");
+      e.preventDefault();
+      if (html) { document.execCommand("insertHTML", false, clean(html)); }
+      else { document.execCommand("insertText", false, cd.getData("text/plain")); }
+    });
+    paper.addEventListener("keydown", function (e) {
+      if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); if (o.onSave) { o.onSave(); } }
+    });
+    return {
+      paper: paper,
+      html: function () { return paper.innerHTML; },
+      set: function (html, v) { paper.innerHTML = clean(html || ""); setLh(v); savedRange = null; },
+      lh: function () { return lh; },
+      counts: function () { return counts(paper); }
+    };
+  };
+
   App.page({
     id: "writer-compose", title: "집필",
     render: function (view) {
@@ -66,85 +163,9 @@
         });
       }
 
-      /* ---------- toolbar ---------- */
-      var bar = el("div", "cmp-bar"); bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "글자 모양");
-      var paper = el("div", "cmp-paper");
-      paper.contentEditable = "true"; paper.spellcheck = false;
-      paper.setAttribute("role", "textbox"); paper.setAttribute("aria-multiline", "true"); paper.setAttribute("aria-label", "본문");
-      paper.setAttribute("data-placeholder", "여기에 바로 쓰세요.");
-      var savedRange = null;
-      function keepRange() {
-        var s = window.getSelection();
-        if (s.rangeCount && paper.contains(s.getRangeAt(0).commonAncestorContainer)) { savedRange = s.getRangeAt(0).cloneRange(); }
-      }
-      function restoreRange() {
-        paper.focus();
-        if (savedRange) { var s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
-      }
-      document.addEventListener("selectionchange", keepRange);
-      function exec(cmd, val) {
-        restoreRange();
-        document.execCommand("styleWithCSS", false, true);
-        document.execCommand(cmd, false, val === undefined ? null : val);
-        keepRange(); changed();
-      }
-      function sep() { bar.appendChild(el("span", "cmp-sep")); }
-      function btn(label, title, cmd, cls) {
-        var b = el("button", "cmp-btn" + (cls ? " " + cls : ""), label); b.type = "button"; b.title = title; b.setAttribute("aria-label", title);
-        b.addEventListener("mousedown", function (e) { e.preventDefault(); });
-        b.addEventListener("click", function () { if (typeof cmd === "function") { cmd(); } else { exec(cmd); } });
-        bar.appendChild(b); return b;
-      }
-      function pickSel(title, opts, onPick) {
-        var s = el("select", "cmp-sel"); s.title = title; s.setAttribute("aria-label", title);
-        opts.forEach(function (o) { var op = el("option", "", o[0]); op.value = o[1]; s.appendChild(op); });
-        s.addEventListener("change", function () { onPick(s.value); });
-        bar.appendChild(s); return s;
-      }
-      function colorBtn(label, title, cmd, init) {
-        var w = el("label", "cmp-btn cmp-color"); w.title = title;
-        w.appendChild(el("span", "cmp-color-mark", label));
-        var inp = el("input"); inp.type = "color"; inp.value = init; inp.setAttribute("aria-label", title);
-        var mark = w.firstChild; mark.style.borderBottomColor = init;
-        inp.addEventListener("input", function () { mark.style.borderBottomColor = inp.value; exec(cmd, inp.value); });
-        w.appendChild(inp); bar.appendChild(w);
-      }
-      btn("↶", "실행 취소 (Ctrl+Z)", "undo"); btn("↷", "다시 실행 (Ctrl+Y)", "redo"); sep();
-      pickSel("글꼴", FONTS, function (v) { exec("fontName", v); });
-      var sizeSel = pickSel("글자 크기", SIZES.map(function (n) { return [n + "pt", String(n)]; }), function (v) {
-        restoreRange();
-        document.execCommand("styleWithCSS", false, false);
-        document.execCommand("fontSize", false, "7");
-        Array.prototype.forEach.call(paper.querySelectorAll("font[size='7']"), function (f) {
-          var sp = el("span"); sp.style.fontSize = v + "pt";
-          while (f.firstChild) { sp.appendChild(f.firstChild); }
-          f.parentNode.replaceChild(sp, f);
-        });
-        keepRange(); changed();
-      });
-      sizeSel.value = "11"; sep();
-      btn("가", "굵게 (Ctrl+B)", "bold", "b-bold"); btn("가", "기울임 (Ctrl+I)", "italic", "b-italic");
-      btn("가", "밑줄 (Ctrl+U)", "underline", "b-under"); btn("가", "취소선", "strikeThrough", "b-strike");
-      colorBtn("A", "글자색", "foreColor", "#b3261e"); colorBtn("형", "형광펜", "hiliteColor", "#fff176"); sep();
-      btn("⇤", "왼쪽 정렬", "justifyLeft"); btn("≡", "가운데 정렬", "justifyCenter"); btn("⇥", "오른쪽 정렬", "justifyRight"); btn("☰", "양쪽 정렬", "justifyFull"); sep();
-      var lhSel = pickSel("줄간격", LINE.map(function (n) { return ["줄간격 " + n + "%", n]; }), function (v) { cur.lh = v; paper.style.lineHeight = (Number(v) / 100).toFixed(2); changed(); paper.focus(); });
-      btn("•", "글머리 기호", "insertUnorderedList"); btn("1.", "번호 매기기", "insertOrderedList");
-      btn("→", "들여쓰기", "indent"); btn("←", "내어쓰기", "outdent");
-      c.body.appendChild(bar);
-      var desk = el("div", "cmp-desk"); desk.appendChild(paper); c.body.appendChild(desk);
-
-      paper.addEventListener("input", changed);
-      paper.addEventListener("paste", function (e) {
-        var cd = e.clipboardData; if (!cd) { return; }
-        var html = cd.getData("text/html");
-        e.preventDefault();
-        if (html) { document.execCommand("insertHTML", false, clean(html)); }
-        else { document.execCommand("insertText", false, cd.getData("text/plain")); }
-      });
-      paper.addEventListener("keydown", function (e) {
-        if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
-        if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) { e.preventDefault(); save(); }
-      });
+      /* ---------- toolbar + paper (shared with 개인 › 일기) ---------- */
+      var ed = App.richEditor(c.body, { onChange: function () { changed(); }, onSave: function () { save(); } });
+      var paper = ed.paper;
       [fTitle, fDate, fCat].forEach(function (i) { i.addEventListener("input", changed); });
       fDone.addEventListener("change", changed);
 
@@ -167,7 +188,7 @@
       lc.el.classList.add("cmp-list-card");
       var listBox = el("div", "cmp-list"); lc.body.appendChild(listBox);
 
-      function state() { return { id: cur.id, title: fTitle.value, date: fDate.value, cat: fCat.value, done: fDone.checked, html: paper.innerHTML, lh: cur.lh, dirty: dirty }; }
+      function state() { return { id: cur.id, title: fTitle.value, date: fDate.value, cat: fCat.value, done: fDone.checked, html: paper.innerHTML, lh: ed.lh(), dirty: dirty }; }
       function changed() {
         dirty = true; note = "임시 저장 중…"; paintStat();
         clearTimeout(draftTimer);
@@ -177,11 +198,10 @@
         }, 600);
       }
       function fill(s) {
-        cur = { id: s.id || "", lh: s.lh || "160" };
+        cur = { id: s.id || "" };
         fTitle.value = s.title || ""; fDate.value = s.date || H.todayStr(); fCat.value = s.cat || ""; fDone.checked = !!s.done;
-        paper.innerHTML = clean(s.html || "");
-        paper.style.lineHeight = (Number(cur.lh) / 100).toFixed(2); lhSel.value = cur.lh;
-        savedRange = null; paintStat(); paintList();
+        ed.set(s.html, s.lh);
+        paintStat(); paintList();
       }
       function reset() {
         clearTimeout(draftTimer); dirty = false; note = "";
@@ -259,7 +279,7 @@
       if (dr) { fill(dr); dirty = !!dr.dirty; note = dirty ? "저장 안 된 임시 글을 불러왔어요" : ""; paintStat(); } else { reset(); }
 
       App.watchDoc(App.doc(INDEX), function (d) { list = (d && d.items) || []; fillCats(); paintList(); });
-      App.unsubs.push(function () { document.removeEventListener("selectionchange", keepRange); clearTimeout(draftTimer); if (dirty) { H.safeSet(DRAFT_KEY, JSON.stringify(state())); } });
+      App.unsubs.push(function () { clearTimeout(draftTimer); if (dirty) { H.safeSet(DRAFT_KEY, JSON.stringify(state())); } });
     }
   });
 })(window.App);

@@ -31,8 +31,9 @@
 | `ui.js` | 공용 UI: `ui.card`, `ui.grid`, `ui.itemsPanel`(목록·표 편집기), `ui.fieldsPanel`, `ui.upcoming` 등 |
 | `gcal.js` | Google Calendar 읽기 동기화 → `personal/gcal`. 연결 한 번으로 캘린더와 할 일 권한을 같이 받아 |
 | `gtasks.js` | Google Tasks 목록·추가·완료·삭제 → `personal/gtasks`에 사본 저장. 홈 빠른 추가에 시간을 적으면 Google Calendar 일정으로 만들어 |
-| `pages-home.js` | 메인 홈: 빠른 할 일 입력, 요약 4칸(진행 중 논문[빈 칸] · 오늘 집필[작가 집필 기록] · 오늘 지출 · 이번 달 지출), 왼쪽 Today 카드 + 오른쪽 오늘의 기분(이모티콘 · 한 줄 일기, 지난 기록은 주간 리뷰로 연결). 그 아래 카드는 없어 |
-| `pages-other.js` | 개인 › 일정 · 캘린더(할 일, 메모 포함), 주간 리뷰(이번 주 기분 · 기분 달력 포함) |
+| `pages-home.js` | 메인 홈: 빠른 할 일 입력, 요약 4칸(진행 중 논문[빈 칸] · 오늘 집필[작가 집필 기록] · 오늘 지출 · 이번 달 지출), 왼쪽 Today 카드 + 오른쪽 오늘의 기분(이모티콘 · 한 줄 메모, 일기 · 주간 리뷰로 가는 링크). 그 아래 카드는 없어 |
+| `pages-other.js` | 개인 › 일정 · 캘린더(왼쪽 "캘린더 · 할 일" 한 카드: 달력[칸마다 그날 기분 이모티콘] → 고른 날 일정 → Google 할 일 / 오른쪽 기분 카드: 고른 날 기분 · 한 줄 메모 · 이번 주 줄 · 일기 쓰기 링크), 주간 리뷰(이번 주 기분 · 기분 달력 포함) |
+| `pages-diary.js` | 개인 › 일기(하루 한 편, 집필과 같은 편집기, 3분마다 자동 저장 + 다른 날 · 다른 메뉴로 갈 때 · 창을 숨길 때 저장, 저장 전 글은 브라우저에 임시 보관, 지난 일기 목록) + `App.MOODS` · `App.moodPicker`(기분 고르기 공용: 홈 · 일정 · 캘린더 · 일기) |
 | `pages-budget.js` | 개인 › 가계부, 월별 리포트, 카드 분석(내 카드 혜택 · 전월실적, `personal/cards`), 휴대폰 결제 알림 해석 |
 | `research-kit.js` | 연구 페이지 공용 도구(JSON 불러오기·내보내기, 단계 표시, 페이지 안 탭 `App.rkit.pageTabs`) |
 | `pages-ias.js` | 박사 › IAS 척도 타당화 (탭 4개) |
@@ -40,7 +41,7 @@
 | `pages-phd.js` | 박사 › 비선형 [현재 진행중], 자격증(탭 3개, 임상심리사는 "자격 정보 · D-day" 카드와 "기출문제 바로가기" 카드 두 개만), AI(탭 3개) |
 | `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex, 한 줄에 2편, 영어 요약은 translate.googleapis.com 공개 주소(막히면 MyMemory)로 한국어 번역해 오늘 추천(`research/reco` daily.items[].absKo)에 저장, 제목 · 저자는 원문 그대로) + 저장한 논문 목록(`research/papers`, 읽기 상태 · 메모 · 검색). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
 | `pages-writer.js`, `canvas.js` | 작가 탭 |
-| `pages-compose.js` | 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 저장 전 임시 글은 브라우저에 자동 보관 |
+| `pages-compose.js` | `App.richEditor`(한글 프로그램 같은 편집기 공용: 집필 · 일기) + 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 저장 전 임시 글은 브라우저에 자동 보관 |
 | `quotes.js` | 오늘의 명언 |
 | `style.css` | 전체 스타일. 색은 `:root` 변수로 정의하고, 다크 모드는 `prefers-color-scheme`와 `[data-theme]`을 둘 다 처리해 |
 | `mock.js`, `selftest.js` | 로컬 테스트 전용(메모리 속 가짜 Firebase + 자동 테스트) |
@@ -53,7 +54,7 @@
   - Capture(`writer-capture`): 글감 빨리 적기에 쓴 모든 글감(`writer/ideas`)을 최신순으로 보고 검색 · 수정 · 삭제
   - 예전 구상 / 소설 · 에세이 / 집필 · 퇴고 메뉴(글감 수집함, 줄거리, 인물 · 세계관, 에세이 서랍, 작품 관리, 집필 기록, 퇴고)와 오늘의 글쓰기 질문은 코드에서 지웠어. 데이터는 Firestore에 남아 있어.
 - 박사 홈(졸업 요건)과 기타 자료는 코드까지 지웠어(`pages-projects.js`, `projects.js` 삭제, `pages-thesis.js`에는 논문 추천만 남음).
-- **개인**: 일정 · 캘린더 / 가계부 / 주간 리뷰
+- **개인**: 일정 · 캘린더 / 가계부 / 일기 / 주간 리뷰
   - 월별 리포트 · 카드 분석은 메뉴줄에 두지 않아. 가계부 제목 옆 [가계부 | 월별 리포트 | 카드 분석] 버튼으로 들어가.
 - 하위 페이지를 메뉴에서 숨기고 페이지 안 탭으로만 보여 줄 때는 페이지 정의에 `navHidden: true, navParent: "부모id"`를 쓰고, 메뉴 이름을 바꿀 때는 `navLabel`, 탭 이름을 바꿀 때는 `tabLabel`을 써.
 
@@ -83,7 +84,8 @@ App.page({ id: "my-page", title: "제목", render: function (view) {
   - `personal/gcal`: 캘린더 사본
   - `personal/gtasks`: 할 일 사본
   - `personal/quicknote`: 캘린더 옆 메모
-  - `personal/mood`: 오늘의 기분(`days.YYYY-MM-DD` = { mood, note }). 홈에서 쓰고, 주간 리뷰에서 한 주 · 달력으로 봐
+  - `personal/mood`: 오늘의 기분(`days.YYYY-MM-DD` = { mood, note[한 줄 메모] }). 홈 · 일정 · 캘린더 · 일기에서 쓰고, 주간 리뷰와 일정 달력에서 이모티콘으로 봐
+  - `personal/diary`: 일기 목록(`days.YYYY-MM-DD` = { chars, preview }), `personal/diary_YYYY-MM-DD`: 일기 본문(HTML, 줄간격)
   - `personal/weekly`: 주간 리뷰
   - 컬렉션: `schedule`(사이트 일정), `budgetInbox`(휴대폰 결제 알림), `todos`(예전 할 일. Google Tasks로 옮기는 버튼이 있어)
 - **박사**
