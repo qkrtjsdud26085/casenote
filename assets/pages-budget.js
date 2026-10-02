@@ -169,6 +169,13 @@
       r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
       r.ok = !!r.amount;
       return r;
+    } else if ((pay = s.match(/₩\s*([\d,]+)\s*(결제\s*완료|결제\s*취소|취소\s*완료|승인\s*취소|승인)\s*(.*)$/))) {
+      /* 간편결제 앱 알림 (금액이 앞에): "₩18,000 결제 완료 동성로떡볶이" */
+      r.amount = num(pay[1]); r.type = "지출"; r.method = "간편결제"; r.cancel = /취소/.test(pay[2]); r.source = "";
+      r.merchant = pay[3].replace(/\s+/g, " ").trim().slice(0, 60);
+      r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
+      r.ok = !!r.amount;
+      return r;
     } else { return r; }
     r.merchant = leftover(s);
     if (!r.amount) { return r; }

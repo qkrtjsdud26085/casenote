@@ -776,6 +776,9 @@
     ok("notice: pay-app sentence", payN.ok && payN.amount === 2400 && payN.type === "지출" && payN.merchant === "해외결제 가맹점" && !payN.cancel, JSON.stringify(payN));
     var payC = PN("스타벅스 강남점에서 4,500원 결제가 취소되었어요", sep);
     ok("notice: pay-app cancel", payC.ok && payC.amount === 4500 && payC.cancel && payC.merchant === "스타벅스 강남점", JSON.stringify(payC));
+    var won1 = PN("₩18,000 결제 완료 동성로떡볶이", sep), won2 = PN("₩5,000 결제 완료 반월당백화점약국", sep), won3 = PN("₩3,110 결제 취소 우정사업본부(우체국)", sep);
+    ok("notice: ₩ amount first", won1.ok && won1.amount === 18000 && won1.merchant === "동성로떡볶이" && !won1.cancel && won1.method === "간편결제" && App.budget.guessMerchantCat(won1.merchant, "지출", []) === "식비" && App.budget.guessMerchantCat(won2.merchant, "지출", []) === "의료 · 건강" && won3.cancel && won3.amount === 3110 && won3.merchant === "우정사업본부(우체국)", JSON.stringify([won1, won3]));
+    ok("notice: service announcement not a payment", !PN("케이뱅크 [케이뱅크] 서비스 일시 중단 안내 고객님 안녕하세요 10월 18일 일요일 00시에서 10시까지", sep).ok);
     var n1 = PN("iM뱅크 09/27 13:52\n50813*03093\n입금 1,000,000\n잔액 1,189,248\n토스박선영", sep);
     ok("notice iM deposit", n1.ok && n1.type === "수입" && n1.amount === 1000000 && n1.date === "2026-09-27" && n1.time === "13:52" && n1.merchant === "토스박선영" && n1.source === "iM뱅크" && n1.method === "계좌이체", JSON.stringify(n1));
     var n2 = PN("[Web발신]\n신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원", sep);
