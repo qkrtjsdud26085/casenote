@@ -104,8 +104,32 @@
     var lhSel = pickSel("줄간격", LINE.map(function (n) { return ["줄간격 " + n + "%", n]; }), function (v) { setLh(v); changed(); paper.focus(); });
     btn("•", "글머리 기호", "insertUnorderedList"); btn("1.", "번호 매기기", "insertOrderedList");
     btn("→", "들여쓰기", "indent"); btn("←", "내어쓰기", "outdent");
-    parent.appendChild(bar);
-    var desk = el("div", "cmp-desk"); desk.appendChild(paper); parent.appendChild(desk);
+    /* 전체 화면: toolbar + paper fill the screen (the browser's real full screen when allowed); Esc or the button returns */
+    var info = el("span", "cmp-full-info");
+    var fullBtn = el("button", "cmp-btn cmp-full-btn", "⛶ 전체 화면"); fullBtn.type = "button";
+    fullBtn.title = "화면 꽉 채워 쓰기 (Esc로 돌아오기)"; fullBtn.setAttribute("aria-pressed", "false");
+    fullBtn.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    bar.appendChild(info); bar.appendChild(fullBtn);
+    var box = el("div", "cmp-editor"); box.appendChild(bar);
+    var desk = el("div", "cmp-desk"); desk.appendChild(paper); box.appendChild(desk);
+    parent.appendChild(box);
+    var full = false;
+    function setFull(on) {
+      if (full === on) { return; }
+      full = on;
+      box.classList.toggle("cmp-full", on); document.body.classList.toggle("cmp-full-open", on);
+      fullBtn.textContent = on ? "✕ 전체 화면 닫기" : "⛶ 전체 화면"; fullBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) {
+        if (box.requestFullscreen && !document.fullscreenElement) { box.requestFullscreen().catch(function () { /* stays as a full-window editor */ }); }
+        restoreRange();
+      } else if (document.fullscreenElement === box && document.exitFullscreen) { document.exitFullscreen().catch(function () {}); }
+    }
+    fullBtn.addEventListener("click", function () { setFull(!full); });
+    function onFs() { if (full && document.fullscreenElement !== box) { setFull(false); } }
+    function onKey(e) { if (full && e.key === "Escape" && !document.fullscreenElement) { setFull(false); } }
+    document.addEventListener("fullscreenchange", onFs);
+    document.addEventListener("keydown", onKey);
+    App.unsubs.push(function () { document.removeEventListener("fullscreenchange", onFs); document.removeEventListener("keydown", onKey); setFull(false); });
     function setLh(v) { lh = v || "160"; paper.style.lineHeight = (Number(lh) / 100).toFixed(2); lhSel.value = lh; }
     setLh(lh);
 
@@ -126,7 +150,10 @@
       html: function () { return paper.innerHTML; },
       set: function (html, v) { paper.innerHTML = clean(html || ""); setLh(v); savedRange = null; },
       lh: function () { return lh; },
-      counts: function () { return counts(paper); }
+      counts: function () { return counts(paper); },
+      /* the page's status line (글자 수 · 저장 상태), repeated in the toolbar while in full screen */
+      note: function (t) { info.textContent = t; },
+      full: function (on) { if (on === undefined) { return full; } setFull(!!on); }
     };
   };
 
@@ -181,6 +208,7 @@
       function paintStat() {
         var n = counts(paper);
         stat.textContent = "글자 수 " + fmtN(n.all) + "자 (공백 제외 " + fmtN(n.noSpace) + "자) · 원고지 약 " + fmtN(n.sheets) + "매 · 3분마다 자동 저장" + (note ? " · " + note : "");
+        ed.note(stat.textContent);
       }
 
       /* ---------- 저장한 글 ---------- */

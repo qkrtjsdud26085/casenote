@@ -1069,3 +1069,15 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .review-sum { margin: 14px 0 6px; font-family: var(--font-display); font-size: 0.98rem; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .review-sum.empty { font-family: var(--font-body); font-size: 0.84rem; color: var(--ink-soft); }
 .review-chars { margin-bottom: 10px; }
+
+/* ---------- 편집기 전체 화면 (집필 · 일기) ---------- */
+.cmp-full-btn { margin-left: auto; font-size: 0.8rem; white-space: nowrap; }
+.cmp-full-info { display: none; margin-left: auto; font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
+.cmp-editor.cmp-full { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: var(--bg); }
+.cmp-editor.cmp-full .cmp-bar { position: static; border-radius: 0; border-left: none; border-right: none; border-top: none; padding: 8px 14px; }
+.cmp-editor.cmp-full .cmp-full-info { display: inline; }
+.cmp-editor.cmp-full .cmp-full-btn { margin-left: 8px; border-color: var(--line); }
+.cmp-editor.cmp-full .cmp-desk { flex: 1; overflow-y: auto; border: none; border-radius: 0; padding: 36px 16px 80px; }
+.cmp-editor.cmp-full .cmp-paper { min-height: calc(100% - 4px); }
+body.cmp-full-open { overflow: hidden; }
+@media (max-width: 720px) { .cmp-editor.cmp-full .cmp-full-info { display: none; } }

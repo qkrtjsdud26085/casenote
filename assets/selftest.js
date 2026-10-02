@@ -118,6 +118,12 @@
     App.h.safeSet("hds_diary_backup", "");
     await go("personal-diary"); await sleep(200);
     ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|일기|주간 리뷰" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
+    $("#view .cmp-full-btn").click(); await sleep(80);
+    var fullEd = $("#view .cmp-editor.cmp-full"), fr = fullEd && fullEd.getBoundingClientRect();
+    ok("editor full screen fills the window", !!fullEd && Math.round(fr.width) === window.innerWidth && Math.round(fr.height) === window.innerHeight && /글자 수/.test($("#view .cmp-full-info").textContent) && document.body.classList.contains("cmp-full-open") && /닫기/.test($("#view .cmp-full-btn").textContent), fr && (fr.width + "x" + fr.height));
+    if (document.fullscreenElement) { $("#view .cmp-full-btn").click(); } else { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
+    await sleep(80);
+    ok("editor full screen closes (Esc / button)", !$("#view .cmp-editor.cmp-full") && !document.body.classList.contains("cmp-full-open"));
     var dp = $("#view .diary-card .cmp-paper"); dp.innerHTML = "<p>오늘의 테스트 일기</p>"; dp.dispatchEvent(new Event("input"));
     $("#view .diary-card .cmp-acts .btn").click(); await sleep(250);
     ok("diary saves", /오늘의 테스트 일기/.test((window.__MOCK_STORE["personal/diary_" + tK] || {}).html) && window.__MOCK_STORE["personal/diary"].days[tK].chars > 0 && $$("#view .cmp-row").length === 1 && /마지막 저장/.test($("#view .cmp-stat").textContent), $("#view .cmp-stat").textContent);
@@ -656,6 +662,12 @@
     await go("writer-compose"); await sleep(120);
     var cpaper = $("#view .cmp-paper"), cm = $$("#view .cmp-meta input");
     ok("compose layout", !!cpaper && cpaper.isContentEditable && cm.length === 4 && cm[1].value === App.h.todayStr() && $$("#view .cmp-bar .cmp-btn").length >= 15 && $$("#view .cmp-bar select").length === 3 && /아직 저장한 글이 없어요/.test($("#view .cmp-list").textContent) && $("#subnav a.active").getAttribute("data-page") === "writer-compose");
+    $("#view .cmp-full-btn").click(); await sleep(80);
+    var fullEd = $("#view .cmp-editor.cmp-full"), fr = fullEd && fullEd.getBoundingClientRect();
+    ok("editor full screen fills the window", !!fullEd && Math.round(fr.width) === window.innerWidth && Math.round(fr.height) === window.innerHeight && /글자 수/.test($("#view .cmp-full-info").textContent) && document.body.classList.contains("cmp-full-open") && /닫기/.test($("#view .cmp-full-btn").textContent), fr && (fr.width + "x" + fr.height));
+    if (document.fullscreenElement) { $("#view .cmp-full-btn").click(); } else { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
+    await sleep(80);
+    ok("editor full screen closes (Esc / button)", !$("#view .cmp-editor.cmp-full") && !document.body.classList.contains("cmp-full-open"));
     cm[0].value = "시험 글"; cm[0].dispatchEvent(new Event("input"));
     cm[2].value = "에세이"; cm[2].dispatchEvent(new Event("input"));
     cm[3].checked = true; change(cm[3]);

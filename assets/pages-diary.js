@@ -152,6 +152,7 @@
       function paintStat() {
         var n = ed.counts();
         stat.textContent = "글자 수 " + n.all.toLocaleString("ko-KR") + "자 · 3분마다 자동 저장" + (note ? " · " + note : "");
+        ed.note(stat.textContent);
       }
 
       var lc = ui.card(view, { tab: "Past", tone: "t-3", title: "지난 일기", wide: true });
