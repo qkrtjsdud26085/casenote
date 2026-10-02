@@ -180,7 +180,7 @@
       var note = "";
       function paintStat() {
         var n = counts(paper);
-        stat.textContent = "글자 수 " + fmtN(n.all) + "자 (공백 제외 " + fmtN(n.noSpace) + "자) · 원고지 약 " + fmtN(n.sheets) + "매" + (note ? " · " + note : "");
+        stat.textContent = "글자 수 " + fmtN(n.all) + "자 (공백 제외 " + fmtN(n.noSpace) + "자) · 원고지 약 " + fmtN(n.sheets) + "매 · 3분마다 자동 저장" + (note ? " · " + note : "");
       }
 
       /* ---------- 저장한 글 ---------- */
@@ -189,8 +189,9 @@
       var listBox = el("div", "cmp-list"); lc.body.appendChild(listBox);
 
       function state() { return { id: cur.id, title: fTitle.value, date: fDate.value, cat: fCat.value, done: fDone.checked, html: paper.innerHTML, lh: ed.lh(), dirty: dirty }; }
+      var edits = 0;  /* bumps on every change, so a save only clears `dirty` if nothing was typed meanwhile */
       function changed() {
-        dirty = true; note = "임시 저장 중…"; paintStat();
+        dirty = true; edits++; note = "임시 저장 중…"; paintStat();
         clearTimeout(draftTimer);
         draftTimer = setTimeout(function () {
           H.safeSet(DRAFT_KEY, JSON.stringify(state()));
@@ -211,11 +212,16 @@
       function askDiscard() { return !dirty || window.confirm("저장하지 않은 내용이 있어요. 그래도 넘어갈까요?"); }
       bNew.addEventListener("click", function () { if (askDiscard()) { reset(); fTitle.focus(); } });
 
-      function save() {
+      /* auto: the 3-minute autosave — quiet (no pop-up), skips an empty new piece, never rewrites the title box */
+      var saving = false;
+      function save(auto) {
+        auto = auto === true;
+        if (saving || (auto && !dirty)) { return; }
         var s = state();
-        var id = s.id || H.uid(), now = new Date().toISOString();
+        if (auto && !s.id && !s.title.trim() && !(paper.innerText || "").trim()) { return; }
+        var id = s.id || H.uid(), now = new Date().toISOString(), at = edits;
         var entry = { id: id, title: s.title.trim() || "제목 없음", date: s.date || H.todayStr(), cat: s.cat.trim(), done: !!s.done, chars: counts(paper).all, updatedAt: now };
-        bSave.disabled = true; note = "저장 중…"; paintStat();
+        saving = true; bSave.disabled = true; note = auto ? "자동 저장 중…" : "저장 중…"; paintStat();
         bodyRef(id).set({ html: clean(s.html), lh: s.lh, updatedAt: now }).then(function () {
           return App.doc(INDEX).get();
         }).then(function (snap) {
@@ -224,14 +230,22 @@
           if (i === -1) { entry.createdAt = now; items.unshift(entry); } else { entry.createdAt = items[i].createdAt || now; items[i] = entry; }
           return App.doc(INDEX).set({ items: items, updatedAt: now }, { merge: true });
         }).then(function () {
-          cur.id = id; fTitle.value = entry.title; dirty = false; clearTimeout(draftTimer);
+          cur.id = id;
+          if (!auto) { fTitle.value = entry.title; }
+          if (edits === at) { dirty = false; clearTimeout(draftTimer); }
           H.safeSet(DRAFT_KEY, JSON.stringify(state()));
-          var d = new Date(); note = "저장됨 · " + H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes());
+          var d = new Date(); note = (auto ? "자동 저장됨 · " : "저장됨 · ") + H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes());
           paintStat(); paintList();
-        }).catch(function (err) { note = "저장 실패"; paintStat(); window.alert("저장 실패: " + err.message); })
-          .then(function () { bSave.disabled = false; });
+        }).catch(function (err) {
+          note = auto ? "자동 저장 실패 · 3분 뒤 다시 시도" : "저장 실패"; paintStat();
+          if (!auto) { window.alert("저장 실패: " + err.message); } else { console.warn(err); }
+        }).then(function () { saving = false; bSave.disabled = false; });
       }
-      bSave.addEventListener("click", save);
+      bSave.addEventListener("click", function () { save(false); });
+      /* every 3 minutes, and when the window is hidden or the page is left */
+      var autoTimer = setInterval(function () { save(true); }, 3 * 60 * 1000);
+      function onHide() { if (document.visibilityState === "hidden") { save(true); } }
+      document.addEventListener("visibilitychange", onHide);
 
       function open(w) {
         if (w.id === cur.id && !dirty) { paper.focus(); return; }
@@ -279,7 +293,10 @@
       if (dr) { fill(dr); dirty = !!dr.dirty; note = dirty ? "저장 안 된 임시 글을 불러왔어요" : ""; paintStat(); } else { reset(); }
 
       App.watchDoc(App.doc(INDEX), function (d) { list = (d && d.items) || []; fillCats(); paintList(); });
-      App.unsubs.push(function () { clearTimeout(draftTimer); if (dirty) { H.safeSet(DRAFT_KEY, JSON.stringify(state())); } });
+      App.unsubs.push(function () {
+        clearInterval(autoTimer); document.removeEventListener("visibilitychange", onHide); clearTimeout(draftTimer);
+        if (dirty) { H.safeSet(DRAFT_KEY, JSON.stringify(state())); save(true); }
+      });
     }
   });
 })(window.App);

@@ -41,7 +41,7 @@
 | `pages-phd.js` | 박사 › 비선형 [현재 진행중], 자격증(탭 3개, 임상심리사는 "자격 정보 · D-day" 카드와 "기출문제 바로가기" 카드 두 개만), AI(탭 3개) |
 | `pages-thesis.js` | 박사 › 논문 › 논문 추천(OpenAlex, 한 줄에 2편, 영어 요약은 translate.googleapis.com 공개 주소(막히면 MyMemory)로 한국어 번역해 오늘 추천(`research/reco` daily.items[].absKo)에 저장, 제목 · 저자는 원문 그대로) + 저장한 논문 목록(`research/papers`, 읽기 상태 · 메모 · 검색). `App.tpl.CHECK_FIELDS`도 여기서 정의해(pages-diss.js가 씀) |
 | `pages-writer.js`, `canvas.js` | 작가 탭 |
-| `pages-compose.js` | `App.richEditor`(한글 프로그램 같은 편집기 공용: 집필 · 일기) + 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 저장 전 임시 글은 브라우저에 자동 보관 |
+| `pages-compose.js` | `App.richEditor`(한글 프로그램 같은 편집기 공용: 집필 · 일기) + 작가 › 집필: 한글 프로그램 같은 편집기(제목 · 작성 날짜 · 카테고리 · 완료, 서식 도구 막대, 글자 수 · 원고지 매수), 저장한 글 목록(누르면 불러와 수정, 삭제), 3분마다 자동 저장(창을 숨기거나 다른 메뉴로 갈 때도, 빈 새 글은 저장 안 함, 제목이 없으면 "제목 없음"), 저장 전 임시 글은 브라우저에도 보관 |
 | `quotes.js` | 오늘의 명언 |
 | `style.css` | 전체 스타일. 색은 `:root` 변수로 정의하고, 다크 모드는 `prefers-color-scheme`와 `[data-theme]`을 둘 다 처리해 |
 | `mock.js`, `selftest.js` | 로컬 테스트 전용(메모리 속 가짜 Firebase + 자동 테스트) |
