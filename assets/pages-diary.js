@@ -10,6 +10,30 @@
   function fmtDay(k) { var d = H.parseKey(k); return (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + H.DOW[d.getDay()] + ")"; }
   function stamp() { var d = new Date(); return H.pad2(d.getHours()) + ":" + H.pad2(d.getMinutes()); }
 
+  /* short automatic summary of a day's diary (no outside service): keep the 1–3 sentences whose words repeat most
+     across the entry, in their original order, within about `max` (100) characters */
+  var JOSA = /(으로|에서|에게|까지|부터|처럼|하고|이다|였다|했다|한다|은|는|이|가|을|를|에|의|도|와|과|로|만)$/;
+  App.summarizeDiary = function (text, max) {
+    max = max || 100;
+    var t = String(text || "").replace(/\s+/g, " ").trim();
+    if (t.length <= max) { return t; }
+    var sents = (t.match(/[^.!?。…]+[.!?。…]*/g) || [t]).map(function (s) { return s.trim(); }).filter(Boolean);
+    if (sents.length < 3) { return t.slice(0, max - 1) + "…"; }
+    function words(s) {
+      return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []).map(function (w) { return w.replace(JOSA, ""); }).filter(function (w) { return w.length >= 2; });
+    }
+    var freq = {};
+    sents.forEach(function (s) { words(s).forEach(function (w) { freq[w] = (freq[w] || 0) + 1; }); });
+    var scored = sents.map(function (s, i) {
+      var ws = words(s), sc = ws.reduce(function (a, w) { return a + (freq[w] > 1 ? freq[w] : 0.3); }, 0) / Math.sqrt(ws.length || 1);
+      return { s: s, i: i, sc: sc + (i === 0 ? 0.6 : 0) + (i === sents.length - 1 ? 0.3 : 0) };
+    }).sort(function (a, b) { return b.sc - a.sc; });
+    var pick = [], len = 0;
+    scored.forEach(function (x) { if (pick.length < 3 && (len === 0 || len + x.s.length + 1 <= max)) { pick.push(x); len += x.s.length + 1; } });
+    var out = pick.sort(function (a, b) { return a.i - b.i; }).map(function (x) { return x.s; }).join(" ");
+    return out.length > max ? out.slice(0, max - 1) + "…" : out;
+  };
+
   /* ---------- 기분 고르기 ----------
      o: { date, memo: true (한 줄 메모), week: true (그 주 월~일), diaryLink: true, onDays(days) }
      returns { setDate(k), days() } */
@@ -146,7 +170,7 @@
         var k = date, html = App.cleanHTML(ed.html()), lh = ed.lh(), n = ed.counts(), now = new Date().toISOString();
         var text = (ed.paper.innerText || "").replace(/\s+/g, " ").trim();
         if (!text && !index[k]) { dirty = false; note = ""; paintStat(); return Promise.resolve(); }
-        var entry = {}; entry[k] = { chars: n.all, preview: text.slice(0, 80), updatedAt: now };
+        var entry = {}; entry[k] = { chars: n.all, preview: text.slice(0, 80), summary: App.summarizeDiary(text), updatedAt: now };
         note = "저장 중…"; paintStat();
         saving = bodyRef(k).set({ html: html, lh: lh, updatedAt: now })
           .then(function () { return App.doc(INDEX).set({ days: entry, updatedAt: now }, { merge: true }); })

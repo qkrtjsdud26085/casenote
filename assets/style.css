@@ -242,16 +242,6 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .mood-review { margin-bottom: 26px; }
 .mcal-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .mcal-label { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; min-width: 7.5em; text-align: center; }
-.mood-weeklist { display: flex; flex-direction: column; }
-.mood-wrow { display: flex; gap: 12px; align-items: flex-start; padding: 9px 4px; border-top: 1px solid var(--line); }
-.mood-wrow:first-child { border-top: none; }
-.mood-wrow.today { background: var(--surface-2); border-radius: 4px; }
-.mood-wrow.future { opacity: 0.5; }
-.mood-wrow-emo { font-size: 1.5rem; line-height: 1.2; width: 1.6em; text-align: center; flex-shrink: 0; color: var(--ink-soft); }
-.mood-wrow-txt { min-width: 0; }
-.mood-wrow-day { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
-.mood-wrow-note { font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.mood-wrow-note.empty, .mcal-note.empty { color: var(--ink-soft); font-size: 0.8rem; }
 .mcal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .mcal-dow { font-family: var(--font-mono); font-size: 0.64rem; color: var(--ink-soft); text-align: center; padding-bottom: 2px; }
 .mcal-day { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; min-height: 50px; padding: 4px 0; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
@@ -263,8 +253,6 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .mcal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mcal-num { font-family: var(--font-mono); font-size: 0.72rem; }
 .mcal-emo { font-size: 1.1rem; line-height: 1.2; min-height: 1.2em; }
-.mcal-detail { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
-.mcal-note { margin: 4px 0 0; font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cert-dday-title { margin-top: 20px; }
 @media (prefers-reduced-motion: reduce) { .mood-btn { transition: none; } }
 .mini-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
@@ -1067,3 +1055,17 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .diary-row-date { font-weight: 600; white-space: nowrap; }
 .diary-row-mood { width: 1.4em; text-align: center; }
 .diary-row-prev { flex: 1; min-width: 0; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.86rem; }
+
+/* 일정 · 캘린더: 고른 날 마감인 할 일 강조 (할 일은 아래 목록 한 곳에만) */
+.todo-item.due-sel { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); }
+.cal-task-note { margin: 0 0 6px; }
+
+/* 주간 리뷰: 왼쪽 달력 · 오른쪽 그날 일기 요약 */
+.mcal-day.diary .mcal-num { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.mcal-legend { margin: 10px 0 0; }
+.review-mood { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--ink-soft); }
+.review-mood-emo { font-size: 1.8rem; line-height: 1; }
+.review-memo { margin: 10px 0 0; font-size: 0.86rem; color: var(--ink-soft); }
+.review-sum { margin: 14px 0 6px; font-family: var(--font-display); font-size: 0.98rem; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-sum.empty { font-family: var(--font-body); font-size: 0.84rem; color: var(--ink-soft); }
+.review-chars { margin-bottom: 10px; }
