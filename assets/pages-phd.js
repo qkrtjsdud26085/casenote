@@ -276,8 +276,9 @@
     });
   }
   /* quick links to past-exam (기출문제) sites; defaults can be edited or restored */
-  function examLinks(parent, ref, defaults, wide) {
+  function examLinks(parent, ref, defaults, wide, rounds) {
     var c = ui.card(parent, { tab: "Exams", tone: "t-3", title: "기출문제 바로가기", wide: wide });
+    if (rounds) { examRounds(c.body, rounds); }
     ui.itemsPanel(c.body, {
       ref: ref, grid: true, titleLink: "url", defaults: defaults, addLabel: "+ 사이트 추가", empty: "사이트를 추가하세요.",
       fields: [
@@ -287,6 +288,26 @@
         { key: "memo", label: "메모", type: "text", maxLength: 120 }
       ]
     });
+  }
+
+  /* 회차별 바로가기: rounds.list = [[연도, 회차, 문항 수, 해설 번호], ...], 연도마다 한 줄 */
+  function examRounds(body, rounds) {
+    var box = el("div", "exam-rounds");
+    box.appendChild(el("div", "mini-title", rounds.title));
+    var rows = {}, order = [];
+    rounds.list.forEach(function (r) {
+      if (!rows[r[0]]) {
+        var row = el("div", "exam-round-row");
+        row.appendChild(el("span", "exam-round-year", r[0]));
+        rows[r[0]] = row; order.push(r[0]);
+      }
+      var a = el("a", "exam-round", r[1] + "회");
+      a.href = rounds.base + r[3]; a.target = "_blank"; a.rel = "noopener";
+      a.title = r[0] + "년 " + r[1] + "회차 · " + r[2] + "문항";
+      rows[r[0]].appendChild(a);
+    });
+    order.forEach(function (y) { box.appendChild(rows[y]); });
+    body.appendChild(box);
   }
 
   function certDetailPage(cfg) {
@@ -312,7 +333,7 @@
         });
 
         if (cfg.dday) { ddayBlock(o.body, R(cfg.key + "_dday")); }
-        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links, !cfg.dday); }
+        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links, !cfg.dday, cfg.rounds); }
         /* 임상심리사 keeps only 자격 정보 · D-day and 기출문제; the checklist · plan · file cards are for the other certificates */
         if (cfg.compact) { return; }
 
@@ -389,7 +410,24 @@
       { name: "CBT문제은행", kind: "필기 기출", url: "https://cbtbank.kr/category/%EC%9E%84%EC%83%81%EC%8B%AC%EB%A6%AC%EC%82%AC-2%EA%B8%89", memo: "필기 기출 · 자동 채점" },
       { name: "모두CBT", kind: "실기 기출", url: "https://www.moducbt.com/category/%EC%9E%84%EC%83%81%EC%8B%AC%EB%A6%AC%EC%82%AC2%EA%B8%89-%EC%8B%A4%EA%B8%B0-%EA%B8%B0%EC%B6%9C-%EA%B3%BC%EB%85%84%EB%8F%84-%EC%95%94%EA%B8%B0%EC%9E%A5", memo: "실기 기출 · 모범답안" },
       { name: "Q-Net 임상심리사2급 시험 정보", kind: "시험 정보", url: "https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=9540", memo: "시험 일정 · 응시 자격 · 출제 기준" }
-    ]
+    ],
+    rounds: {
+      title: "실기 기출 회차별 (모두CBT 해설)",
+      base: "https://www.moducbt.com/exam/solution/",
+      list: [
+        [2026, 1, 20, 17312],
+        [2025, 3, 20, 17311], [2025, 2, 20, 17310], [2025, 1, 20, 17309],
+        [2024, 3, 20, 9418], [2024, 2, 18, 5593], [2024, 1, 18, 7499],
+        [2023, 3, 20, 7293], [2023, 2, 20, 7292], [2023, 1, 20, 5838],
+        [2022, 3, 20, 5837], [2022, 1, 20, 5836],
+        [2021, 3, 21, 5834], [2021, 1, 20, 5825],
+        [2020, 3, 20, 5824], [2020, 2, 20, 5823], [2020, 1, 20, 5821],
+        [2019, 3, 19, 5820], [2019, 1, 19, 5819],
+        [2018, 3, 18, 5727], [2018, 1, 18, 5726],
+        [2017, 3, 18, 5725], [2017, 1, 19, 5692],
+        [2016, 3, 20, 5691], [2016, 1, 20, 5690]
+      ]
+    }
   });
 
   /* =========================================================
