@@ -69,17 +69,16 @@
       var scheduleRef = App.col("schedule");
       var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
       state.month.setDate(1);
-      /* quick add on top (same as 홈) → month grid on the left (a day opens its list) · 기분 + 지나간 할 일 on the right */
-      var top = el("div", "cal-top cal-top-mood"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
-      right.appendChild(rightIn); top.appendChild(left); top.appendChild(right);
+      /* quick add on top (same as 홈) → a Google Calendar-like month grid, full width (a day opens its list) → 기분 · 지나간 할 일 side by side below */
+      var left = el("div", "cal-left cal-wide"), under = el("div", "cal-under");
       /* once a day: syncs by itself while the Google connection is alive; otherwise one button (Google needs a click to reconnect) */
       var dayBar = el("div", "gsync-bar"); dayBar.hidden = true;
       var dayBtn = el("button", "btn", "지금 동기화"); dayBtn.type = "button";
       dayBar.appendChild(el("span", "", "오늘 Google 캘린더 · 할 일을 아직 가져오지 않았어요.")); dayBar.appendChild(dayBtn);
       App.quickCapture(view).classList.add("cal-capture");
-      view.appendChild(dayBar); view.appendChild(top);
+      view.appendChild(dayBar); view.appendChild(left); view.appendChild(under);
       var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "캘린더" });
-      var moodCard = ui.card(rightIn, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
+      var moodCard = ui.card(under, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
       moodCard.el.classList.add("mood-card");
       var moods = {};
       var picker = App.moodPicker(moodCard.body, {
@@ -87,7 +86,7 @@
         onDays: function (d) { moods = d; drawCal(); },
         onPickDay: function (k) { pickDay(k); }
       });
-      overdueCard(rightIn);
+      overdueCard(under);
       /* Google · Upcoming: small, side by side, folded until needed */
       var bottom = el("div", "cal-bottom"); view.appendChild(bottom);
       var gCard = ui.card(bottom, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동" });
@@ -105,7 +104,7 @@
       head.appendChild(title); head.appendChild(nav);
       var grid = el("div", "cal-grid");
       var legend = el("div", "cal-legend");
-      legend.innerHTML = '<span><i class="event"></i>일정</span><span><i class="task"></i>Google 할 일</span>';
+      legend.innerHTML = '<span>막대 · 점은 일정(구글 캘린더 색), ○는 Google 할 일이에요. 날짜를 누르면 그날 목록이 떠요.</span>';
       [filters, head, grid, legend].forEach(function (n) { calCard.body.appendChild(n); });
 
       /* clicking a day opens a small list of that day's events and tasks under the clicked cell */
@@ -148,37 +147,72 @@
         var y = state.month.getFullYear(), m = state.month.getMonth();
         title.textContent = y + "년 " + (m + 1) + "월";
         H.clear(grid);
-        H.DOW.forEach(function (d) { grid.appendChild(el("div", "cal-dow", d)); });
-        var startDow = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
-        for (var i = 0; i < startDow; i++) { grid.appendChild(el("div", "cal-cell blank")); }
+        H.DOW.forEach(function (d, i) { grid.appendChild(el("div", "cal-dow" + (i === 0 || i === 6 ? " wknd" : ""), d)); });
         var byDate = {};
         visible().forEach(function (s) { (byDate[s.date] = byDate[s.date] || []).push(s); });
         var todayKey = H.todayStr();
-        for (var d = 1; d <= days; d++) {
-          (function (day) {
-            var key = y + "-" + H.pad2(m + 1) + "-" + H.pad2(day);
-            var dow = new Date(y, m, day).getDay();
-            var cell = el("button", "cal-cell" + (key === todayKey ? " today" : "") + (key === state.sel ? " sel" : "") + ((dow === 0 || dow === 6) ? " wknd" : "")); cell.type = "button";
-            cell.appendChild(el("span", "", String(day)));
-            if (moods[key] && moods[key].mood) { var me = el("span", "cal-mood", moods[key].mood); me.title = "기분"; cell.appendChild(me); }
-            var evs = byDate[key] || [];
-            if (evs.length) {
-              /* one dot per item: yellow = calendar event, blue = Google Task */
-              var dots = el("span", "cal-dots"), MAX = 6;
-              evs.slice().sort(function (a, b) { return (a.source === "tasks") - (b.source === "tasks"); }).slice(0, MAX).forEach(function (s) {
-                var dot = el("span", "cal-dot"); dot.setAttribute("data-kind", s.source === "tasks" ? "task" : "event");
-                dots.appendChild(dot);
-              });
-              if (evs.length > MAX) { dots.appendChild(el("span", "cal-more", "+" + (evs.length - MAX))); }
-              cell.appendChild(dots);
-              var nT = evs.filter(function (s) { return s.source === "tasks"; }).length;
-              cell.title = "일정 " + (evs.length - nT) + " · 할 일 " + nT + "\n" + evs.map(function (s) { return (s.source === "tasks" ? "☐ " : "• ") + s.title; }).join("\n");
-            }
-            cell.setAttribute("data-date", key); cell.setAttribute("aria-expanded", popFor === key ? "true" : "false");
-            cell.addEventListener("click", function () { if (popFor === key) { closePop(); } else { pickDay(key, true); } });
-            grid.appendChild(cell);
-          })(d);
+        /* whole weeks like Google Calendar: the last days of the previous month and the first of the next are shown dimmed */
+        var first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+        var start = H.addDays(first, -first.getDay()), cells = Math.ceil((first.getDay() + last.getDate()) / 7) * 7;
+        for (var i = 0; i < cells; i++) { grid.appendChild(dayCell(H.addDays(start, i), m, todayKey, byDate)); }
+      }
+      /* "오후 1시", "오전 9:30" */
+      function fmtTime(t) {
+        var p = String(t || "").split(":"), h = Number(p[0]), mi = Number(p[1] || 0);
+        if (isNaN(h)) { return t || ""; }
+        return (h < 12 ? "오전 " : "오후 ") + (h % 12 || 12) + "시" + (mi ? " " + mi + "분" : "");
+      }
+      function sortDay(list) {
+        function rank(s) { return s.source === "tasks" ? 2 : (s.time && !s.allDay ? 1 : 0); }
+        return list.slice().sort(function (a, b) { return (rank(a) - rank(b)) || ((a.time || "") < (b.time || "") ? -1 : ((a.time || "") > (b.time || "") ? 1 : 0)); });
+      }
+      /* one line per item: all-day = filled bar in the calendar's color, timed = dot + time, Google Task = ○ pill */
+      function itemLine(s) {
+        var line;
+        if (s.source === "tasks") {
+          line = el("span", "cal-item task" + (s.done ? " done" : ""));
+          line.appendChild(el("span", "cal-item-ic", s.done ? "✓" : "○"));
+          line.appendChild(el("span", "cal-item-t", s.title));
+        } else if (s.time && !s.allDay) {
+          line = el("span", "cal-item timed");
+          var dot = el("span", "cal-item-dot"); if (s.color) { dot.style.background = s.color; } else { dot.setAttribute("data-cat", s.cat || "개인"); }
+          line.appendChild(dot);
+          line.appendChild(el("span", "cal-item-time", fmtTime(s.time)));
+          line.appendChild(el("span", "cal-item-t", s.title));
+        } else {
+          line = el("span", "cal-item bar");
+          if (s.color) { line.style.background = s.color; line.style.color = inkOn(s.color); } else { line.setAttribute("data-cat", s.cat || "개인"); }
+          line.appendChild(el("span", "cal-item-t", s.title));
         }
+        return line;
+      }
+      /* dark or white text, whichever reads better on a Google calendar color */
+      function inkOn(hex) {
+        var c = String(hex).replace("#", ""); if (c.length === 3) { c = c.replace(/./g, "$&$&"); }
+        var v = [0, 2, 4].map(function (i) { var x = parseInt(c.substr(i, 2), 16) / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+        var L = 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+        return L > 0.4 ? "#1f1f1f" : "#ffffff";
+      }
+      function dayCell(date, m, todayKey, byDate) {
+        var key = H.dateKey(date), dow = date.getDay(), out = date.getMonth() !== m;
+        var cell = el("button", "cal-cell" + (out ? " out" : "") + (key === todayKey ? " today" : "") + ((dow === 0 || dow === 6) ? " wknd" : "")); cell.type = "button";
+        var top = el("span", "cal-cell-head");
+        top.appendChild(el("span", "cal-num", date.getDate() === 1 ? (date.getMonth() + 1) + "월 1일" : String(date.getDate())));
+        if (moods[key] && moods[key].mood) { var me = el("span", "cal-mood", moods[key].mood); me.title = "기분"; top.appendChild(me); }
+        cell.appendChild(top);
+        var evs = sortDay(byDate[key] || []), MAX = 4;
+        if (evs.length) {
+          var box = el("span", "cal-items");
+          var shown = evs.length > MAX ? MAX - 1 : evs.length;
+          evs.slice(0, shown).forEach(function (s) { box.appendChild(itemLine(s)); });
+          if (evs.length > shown) { box.appendChild(el("span", "cal-item more", (evs.length - shown) + "개 더보기")); }
+          cell.appendChild(box);
+          var nT = evs.filter(function (s) { return s.source === "tasks"; }).length;
+          cell.title = "일정 " + (evs.length - nT) + " · 할 일 " + nT + "\n" + evs.map(function (s) { return (s.source === "tasks" ? "☐ " : "• ") + (s.time && !s.allDay ? fmtTime(s.time) + " " : "") + s.title; }).join("\n");
+        }
+        cell.setAttribute("data-date", key); cell.setAttribute("aria-expanded", popFor === key ? "true" : "false");
+        cell.addEventListener("click", function () { if (popFor === key) { closePop(); } else { pickDay(key, true); } });
+        return cell;
       }
       /* choosing a day moves the calendar and the 기분 card together and opens that day's list */
       function pickDay(key, open) {
@@ -214,9 +248,9 @@
             var t = el("span", "u-title");
             if (s.link) { var a = el("a", "", s.title); a.href = s.link; a.target = "_blank"; a.rel = "noopener noreferrer"; t.appendChild(a); } else { t.textContent = s.title; }
             row.appendChild(t);
-            if (s.source === "google") { row.appendChild(el("span", "u-date", s.allDay ? "종일" : s.time)); }
+            if (s.source === "google") { row.appendChild(el("span", "u-date", s.allDay || !s.time ? "종일" : fmtTime(s.time))); }
             else {
-              if (s.time) { row.appendChild(el("span", "u-date", s.time)); }
+              if (s.time) { row.appendChild(el("span", "u-date", fmtTime(s.time))); }
               var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제"; del.setAttribute("aria-label", s.title + " 삭제");
               del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function (e) { window.alert("삭제 실패: " + e.message); }); });
               row.appendChild(del);

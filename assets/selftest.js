@@ -113,7 +113,7 @@
     await go("personal-calendar"); await sleep(150);
     var tK = App.h.todayStr();
     $$(".mood-btn", cardBy("오늘의 기분"))[3].click(); await sleep(100);
-    ok("calendar mood -> shared record + day cell", ((window.__MOCK_STORE["personal/mood"].days || {})[tK] || {}).mood === "😐" && /😐/.test(($("#view .cal-cell.today .cal-mood") || {}).textContent) && /😐/.test($("#view .cal-right .mood-strip-day.on").textContent) && /오늘 일기 쓰기/.test($("#view .cal-right .mood-more").textContent));
+    ok("calendar mood -> shared record + day cell", ((window.__MOCK_STORE["personal/mood"].days || {})[tK] || {}).mood === "😐" && /😐/.test(($("#view .cal-cell.today .cal-mood") || {}).textContent) && /😐/.test($("#view .cal-under .mood-strip-day.on").textContent) && /오늘 일기 쓰기/.test($("#view .cal-under .mood-more").textContent));
     /* 일기 */
     App.h.safeSet("hds_diary_backup", "");
     await go("personal-diary"); await sleep(200);
@@ -380,7 +380,7 @@
     ok("calendar quick add -> Google Tasks", gt.filter(function (q) { return q.title === "달력에서 만든 할 일" && q.due === todayK + "T00:00:00.000Z"; }).length === 1 && gt.some(function (q) { return q.title === "밀린 할 일"; }), JSON.stringify(gt));
     /* 오른쪽: 기분 밑에 지나간 할 일 (오늘 할 일은 빠짐) */
     var odC = cardBy("지나간 할 일");
-    ok("overdue card under mood", !!odC && $("#view .cal-right").contains(odC) && odC.previousElementSibling === cardBy("오늘의 기분") && $$(".todo-item", odC).length === 1 && /밀린 할 일/.test(odC.textContent) && /D\+3/.test(odC.textContent), odC && odC.textContent);
+    ok("overdue card next to mood, below the calendar", !!odC && $("#view .cal-under").contains(odC) && odC.previousElementSibling === cardBy("오늘의 기분") && $$(".todo-item", odC).length === 1 && /밀린 할 일/.test(odC.textContent) && /D\+3/.test(odC.textContent), odC && odC.textContent);
     var ocb = $(".todo-item input[type=checkbox]", odC); ocb.checked = true; change(ocb); await sleep(300);
     ok("overdue checked -> done in Google, leaves the list", gt.filter(function (q) { return q.title === "밀린 할 일"; })[0].status === "completed" && !$(".todo-item", cardBy("지나간 할 일")) && /밀린 할 일이 없어요/.test(cardBy("지나간 할 일").textContent));
     /* 날짜를 누르면 그날 일정 · 할 일이 작은 창으로 */
@@ -401,11 +401,11 @@
     $("#view .cal-cell.today").click(); await sleep(40); $("#view .cal-cell.today").click(); await sleep(40);
     ok("clicking the same day again closes it", $("#view .cal-pop").hidden);
     var tc = $("#view .cal-cell.today");
-    ok("dot per item, yellow events + blue tasks", $$(".cal-dot[data-kind='event']", tc).length === 2 && $$(".cal-dot[data-kind='task']", tc).length === 1 && /일정 2 · 할 일 1/.test(tc.title) && !!$("#view .cal-legend"), $$(".cal-dot", tc).length + " / " + tc.title.split("\n")[0]);
-    var dotCol = function (k) { return getComputedStyle($(".cal-dot[data-kind='" + k + "']", tc)).backgroundColor; };
-    ok("dot colors differ", dotCol("event") !== dotCol("task") && dotCol("event") !== "rgba(0, 0, 0, 0)", dotCol("event") + " / " + dotCol("task"));
+    ok("items shown in the day like Google Calendar", $$(".cal-item", tc).length === 3 && $$(".cal-item.bar", tc).length === 2 && $$(".cal-item.task", tc).length === 1 && /점 테스트 1/.test(tc.textContent) && /일정 2 · 할 일 1/.test(tc.title) && !$(".cal-dot", tc), tc.textContent);
+    var tc2 = $("#view .cal-cell.today");
+    ok("today number circled, whole weeks shown", getComputedStyle($(".cal-num", tc2)).backgroundColor !== "rgba(0, 0, 0, 0)" && ($$("#view .cal-grid > .cal-cell").length % 7) === 0 && !$("#view .cal-cell.blank"));
     ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);
-    ok("calendar left, mood + overdue on the right", $("#view .cal-right").contains(cardBy("오늘의 기분")) && $$("#view .cal-right .mood-btn").length === 8 && $$("#view .cal-right .mood-strip-day").length === 7 && !cardBy("메모") && !cardBy("다가오는 일정") && !$("#view .cal-left form.quick-add"));
+    ok("calendar full width, mood + overdue below", $("#view .cal-under").contains(cardBy("오늘의 기분")) && $("#view .cal-wide").compareDocumentPosition($("#view .cal-under")) === 4 && $$("#view .cal-under .mood-btn").length === 8 && $$("#view .cal-under .mood-strip-day").length === 7 && !cardBy("메모") && !cardBy("다가오는 일정") && !$("#view .cal-left form.quick-add"));
     ok("daily sync bar when not synced today", !$("#view .gsync-bar").hidden && /지금 동기화/.test($("#view .gsync-bar").textContent));
 
 
@@ -422,9 +422,14 @@
     var cell = $$("#view .cal-cell:not(.blank)")[14], cellK = cell.getAttribute("data-date");
     await App.col("schedule").add({ date: cellK, title: "테스트 일정", cat: "개인" }); await sleep(120);
     $("#view .cal-cell[data-date='" + cellK + "']").click(); await sleep(60);
-    ok("calendar event", $$("#view .cal-dot").length >= 1 && /테스트 일정/.test($("#view .cal-pop").textContent), "dots=" + $$("#view .cal-dot").length);
+    ok("calendar event", /테스트 일정/.test($("#view .cal-cell[data-date='" + cellK + "']").textContent) && /테스트 일정/.test($("#view .cal-pop").textContent));
     $$("#view .cal-head .tool-btn")[2].click(); await sleep(60);
     ok("month change closes the day list", $("#view .cal-pop").hidden);
+    $$("#view .cal-head .tool-btn")[1].click(); await sleep(40);
+    for (var mi = 0; mi < 4; mi++) { await App.col("schedule").add({ date: cellK, title: "많은 일정 " + mi, cat: "논문", time: "1" + mi + ":30" }); }
+    await sleep(150);
+    var many = $("#view .cal-cell[data-date='" + cellK + "']");
+    ok("timed items + N개 더보기", $$(".cal-item", many).length === 4 && /\d개 더보기/.test(many.textContent) && /오전 10시 30분/.test(many.textContent), many.textContent);
     ok("calendar next-month", /\d+년 \d+월/.test($("#view .cal-title").textContent));
 
     await go("writer-desk");

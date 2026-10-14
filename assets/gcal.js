@@ -94,7 +94,7 @@
     (cur.calendars || []).forEach(function (c) { known[c.id] = c; });
     var calendars = (list.items || []).map(function (c) {
       var k = known[c.id];
-      return { id: c.id, name: c.summaryOverride || c.summary || c.id, cat: k ? (k.cat || "개인") : "개인", on: k ? !!k.on : !!c.primary, primary: !!c.primary };
+      return { id: c.id, name: c.summaryOverride || c.summary || c.id, cat: k ? (k.cat || "개인") : "개인", on: k ? !!k.on : !!c.primary, primary: !!c.primary, color: c.backgroundColor || "" };
     });
     var from = H.addDays(new Date(), -31); from.setHours(0, 0, 0, 0);
     var to = H.addDays(new Date(), 120); to.setHours(23, 59, 59, 0);
@@ -141,7 +141,7 @@
       var cat = (c && c.cat) || "개인", name = c ? c.name : "";
       var d = ev.date, last = ev.end || ev.date, guard = 0;
       while (d <= last && guard < 60) {
-        if (d >= fromKey && d <= toKey) { out.push({ id: ev.id + "@" + d, date: d, title: ev.title, cat: cat, time: ev.time || "", allDay: !!ev.allDay, link: ev.link || "", source: "google", calName: name }); }
+        if (d >= fromKey && d <= toKey) { out.push({ id: ev.id + "@" + d, date: d, title: ev.title, cat: cat, time: ev.time || "", allDay: !!ev.allDay, link: ev.link || "", source: "google", calName: name, color: (c && c.color) || "" }); }
         d = H.dateKey(H.addDays(H.parseKey(d), 1)); guard++;
       }
     });
