@@ -160,7 +160,7 @@ function submitResponse(payload) {
   if (!payload.consent) throw new Error("연구 참여 동의가 필요해요.");
   if (!String(b.name || "").trim()) throw new Error("이름을 적어 주세요.");
   var age = Number(b.age);
-  if (!(age >= 14 && age <= 100)) throw new Error("나이를 확인해 주세요.");
+  if (!(age >= 19 && age <= 100)) throw new Error("만 19세 이상만 참여할 수 있어요.");
 
   // 보여 준 척도의 문항은 모두 답해야 하고, 범위를 벗어난 값은 받지 않는다.
   var clean = {};

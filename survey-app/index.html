@@ -15,11 +15,11 @@
   // 기본 정보 보기. 숫자는 원데이터 코드와 같게 맞춘다(분석 파일과 합칠 수 있게).
   var BASIC = {
     sex: [[1, "남성"], [2, "여성"]],
-    edu: [[1, "고등학교 졸업 이하"], [2, "전문대 재학·졸업"], [3, "대학교 재학·졸업"], [4, "대학원 재학 이상"]],
-    marriage: [[1, "미혼"], [2, "기혼"], [3, "기타(이혼·사별 등)"]],
-    relation: [[1, "현재 교제(결혼) 중"], [2, "과거에 있었으나 현재 없음"], [3, "경험 없음"]],
+    edu: [[1, "고졸 이하"], [2, "대학교 재학(휴학 포함)"], [3, "대졸"], [4, "대학원 재학 이상"]],
+    marriage: [[1, "미혼"], [2, "기혼"], [3, "기타(이혼, 사별, 별거 등)"]],
+    relation: [[1, "현재 친밀한 관계를 유지하고 있다"], [2, "과거에 경험은 있으나 현재는 없다"], [3, "경험한 적이 없다"]],
     breakup: [[1, "있음"], [2, "없음"]],
-    work: [[1, "현재 근무 중"], [2, "과거에 근무"], [3, "경험 없음"]]
+    work: [[1, "현재 재직 중이다"], [2, "과거에 경험이 있으나 현재는 아니다"], [3, "직장 경험이 전혀 없다"]]
   };
   var DRAFT_KEY = "survey-draft-v1";
 
@@ -86,7 +86,7 @@
       '<div class="eyebrow">1단계</div><h1>기본 정보</h1><p class="muted">응답자 정보는 응답과 따로 보관됩니다.</p>' +
       '<div class="card">' +
       '<label class="field" for="name">이름</label><input type="text" id="name" autocomplete="off" value="' + esc(b.name || "") + '">' +
-      '<label class="field" for="age">나이 (만)</label><input type="number" id="age" inputmode="numeric" min="14" max="100" value="' + esc(b.age || "") + '">' +
+      '<label class="field" for="age">나이 (만)</label><input type="number" id="age" inputmode="numeric" min="19" max="100" value="' + esc(b.age || "") + '">' +
       '<label class="field">성별</label>' + choiceGroup("sex") +
       '<label class="field">최종 학력</label>' + choiceGroup("edu") +
       '<label class="field">혼인 상태</label>' + choiceGroup("marriage") +
@@ -157,7 +157,7 @@
     if (page === "intro") return S.consent ? "" : "참여에 동의해야 시작할 수 있어요.";
     if (page === "basic") {
       if (!String(b.name || "").trim()) return "이름을 적어 주세요.";
-      if (!(Number(b.age) >= 14 && Number(b.age) <= 100)) return "나이를 숫자로 적어 주세요.";
+      if (!(Number(b.age) >= 19 && Number(b.age) <= 100)) return "만 19세 이상만 참여할 수 있어요. 나이를 숫자로 적어 주세요.";
       var keys = ["sex", "edu", "marriage", "relation", "work"].concat(b.relation == 1 ? ["breakup"] : []);
       for (var i = 0; i < keys.length; i++) if (!b[keys[i]]) return "모든 항목을 골라 주세요.";
       return "";
