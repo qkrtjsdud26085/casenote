@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11151b">
+  <?!= include('style'); ?>
+</head>
+<body>
+<div class="wrap wide" id="app"><div class="loading">불러오는 중…</div></div>
+<div class="drawer" id="drawer"><div class="panel" id="panel"></div></div>
+
+<script>
+  var LABEL = {
+    sex: { 1: "남성", 2: "여성" },
+    edu: { 1: "고졸 이하", 2: "전문대", 3: "대학교", 4: "대학원 이상" },
+    relation_now: { 1: "현재 교제", 2: "과거 경험", 3: "경험 없음" },
+    work: { 1: "현재 근무", 2: "과거 근무", 3: "경험 없음" }
+  };
+  var TOKEN_KEY = "survey-admin-token";
+  var A = { data: null, tab: "summary", scale: null, q: "" };
+  var $app = document.getElementById("app"), $drawer = document.getElementById("drawer"), $panel = document.getElementById("panel");
+
+  function run(fn) {
+    var args = [].slice.call(arguments, 1);
+    return new Promise(function (ok, fail) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { fail(e && e.message ? e : new Error(String(e))); });
+      r[fn].apply(r, args);
+    });
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function token() { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return A.token; } }
+  function setToken(t) { A.token = t; try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function num(v) { return v === "" || v === null || v === undefined || isNaN(Number(v)) ? null : Number(v); }
+  function fmt(v, d) { return v === null || v === undefined || isNaN(v) ? "—" : Number(v).toFixed(d === undefined ? 2 : d); }
+
+  /* ---------- 통계 ---------- */
+  function desc(vals) {
+    vals = vals.filter(function (v) { return v !== null; });
+    var n = vals.length; if (!n) return { n: 0 };
+    var m = vals.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sd = n > 1 ? Math.sqrt(vals.reduce(function (a, b) { return a + (b - m) * (b - m); }, 0) / (n - 1)) : null;
+    return { n: n, mean: m, sd: sd, min: Math.min.apply(null, vals), max: Math.max.apply(null, vals) };
+  }
+  function pvar(v) { var m = v.reduce(function (a, b) { return a + b; }, 0) / v.length; return v.reduce(function (a, b) { return a + (b - m) * (b - m); }, 0) / v.length; }
+  // Cronbach α (역채점 반영, 빈칸 있는 응답자는 제외)
+  function alpha(scale, codes) {
+    var rev = {}; scale.items.forEach(function (i) { rev[i.code] = i.reverse; });
+    var mat = A.data.rows.map(function (r) {
+      return codes.map(function (c) { var v = num(r[c]); return v === null ? null : (rev[c] ? scale.min + scale.max - v : v); });
+    }).filter(function (row) { return row.every(function (v) { return v !== null; }); });
+    var k = codes.length; if (k < 2 || mat.length < 3) return null;
+    var iv = 0; for (var j = 0; j < k; j++) iv += pvar(mat.map(function (r) { return r[j]; }));
+    var tv = pvar(mat.map(function (r) { return r.reduce(function (a, b) { return a + b; }, 0); }));
+    return tv ? k / (k - 1) * (1 - iv / tv) : null;
+  }
+
+  /* ---------- 로그인 ---------- */
+  function renderLogin(msg) {
+    $app.innerHTML = '<div style="max-width:380px;margin:12vh auto 0"><div class="eyebrow">관리자</div><h1>응답 관리</h1>' +
+      '<div class="card"><label class="field" for="pw">비밀번호</label><input type="password" id="pw" autocomplete="current-password">' +
+      '<div class="err" id="err">' + esc(msg || "") + '</div><button class="btn" id="go" style="width:100%;margin-top:8px">들어가기</button></div></div>';
+    var go = function () {
+      var b = document.getElementById("go"); b.disabled = true;
+      run("adminLogin", document.getElementById("pw").value)
+        .then(function (t) { setToken(t); load(); })
+        .catch(function (e) { b.disabled = false; document.getElementById("err").textContent = e.message; });
+    };
+    document.getElementById("go").onclick = go;
+    document.getElementById("pw").onkeydown = function (e) { if (e.key === "Enter") go(); };
+    document.getElementById("pw").focus();
+  }
+
+  function load() {
+    $app.innerHTML = '<div class="loading">불러오는 중…</div>';
+    run("getAdminData", token()).then(function (d) {
+      A.data = d;
+      if (!A.scale && d.scales.length) A.scale = d.scales[0].code;
+      render();
+    }).catch(function (e) { setToken(null); renderLogin(e.message); });
+  }
+
+  /* ---------- 화면 ---------- */
+  function render() {
+    var d = A.data;
+    $app.innerHTML =
+      '<div class="top"><div><div class="eyebrow">관리자</div><h1>' + esc(d.title) + '</h1></div>' +
+      '<div class="actions"><button class="btn ghost small" id="reload">새로고침</button><button class="btn ghost small" id="csv">CSV 내려받기 (이름 제외)</button><button class="btn ghost small" id="out">로그아웃</button></div></div>' +
+      '<div class="tabs">' + [["summary", "한눈에 보기"], ["scores", "척도 점수 · 신뢰도"], ["people", "참여자별 결과"]].map(function (t) {
+        return '<button data-t="' + t[0] + '" class="' + (A.tab === t[0] ? "on" : "") + '">' + t[1] + '</button>';
+      }).join("") + '</div><div id="body"></div>';
+    document.getElementById("reload").onclick = load;
+    document.getElementById("csv").onclick = downloadCsv;
+    document.getElementById("out").onclick = function () { setToken(null); renderLogin(); };
+    [].forEach.call($app.querySelectorAll(".tabs button"), function (b) { b.onclick = function () { A.tab = b.dataset.t; render(); }; });
+    ({ summary: renderSummary, scores: renderScores, people: renderPeople })[A.tab](document.getElementById("body"));
+  }
+
+  function bars(rows, key, labels) {
+    var count = {}, n = 0;
+    rows.forEach(function (r) { var v = r[key]; if (v === "" || v == null) return; count[v] = (count[v] || 0) + 1; n++; });
+    var keys = labels ? Object.keys(labels) : Object.keys(count).sort();
+    if (!n) return '<p class="muted">아직 응답이 없어요.</p>';
+    return keys.map(function (k) {
+      var c = count[k] || 0;
+      return '<div class="hbar"><span>' + esc(labels ? labels[k] : k) + '</span><span class="t"><i style="width:' + (c / n * 100) + '%"></i></span><span class="n">' + c + '</span></div>';
+    }).join("");
+  }
+
+  function renderSummary(el) {
+    var rows = A.data.rows, today = new Date().toDateString();
+    var nToday = rows.filter(function (r) { return r["제출시각"] && new Date(r["제출시각"]).toDateString() === today; }).length;
+    var mins = desc(rows.map(function (r) { return num(r["소요분"]); }));
+    var age = desc(rows.map(function (r) { return num(r.age); }));
+    var ageGroups = {}; rows.forEach(function (r) { var a = num(r.age); if (a === null) return; var g = a < 30 ? "19–29세" : a < 40 ? "30대" : a < 50 ? "40대" : a < 60 ? "50대" : "60세 이상"; r._ageGroup = g; });
+    ["19–29세", "30대", "40대", "50대", "60세 이상"].forEach(function (g) { ageGroups[g] = g; });
+    el.innerHTML =
+      '<div class="stats" style="margin-top:14px">' +
+      stat(rows.length, "전체 응답") + stat(nToday, "오늘 응답") + stat(fmt(age.mean, 1), "평균 나이") + stat(fmt(mins.mean, 1) + "분", "평균 응답 시간") +
+      '</div><div class="grid2" style="margin-top:14px">' +
+      '<div class="card"><h3>성별</h3>' + bars(rows, "sex", LABEL.sex) + '</div>' +
+      '<div class="card"><h3>연령대</h3>' + bars(rows, "_ageGroup", ageGroups) + '</div>' +
+      '<div class="card"><h3>최종 학력</h3>' + bars(rows, "edu", LABEL.edu) + '</div>' +
+      '<div class="card"><h3>친밀한 관계 경험</h3>' + bars(rows, "relation_now", LABEL.relation_now) + '</div>' +
+      '</div><div class="card"><h3>척도별 응답 수</h3>' + A.data.scales.map(function (s) {
+        var first = s.items[0] && s.items[0].code, n = rows.filter(function (r) { return num(r[first]) !== null; }).length;
+        return '<div class="hbar" style="grid-template-columns:minmax(120px,240px) 1fr 44px"><span>' + esc(s.name) + '</span><span class="t"><i style="width:' + (rows.length ? n / rows.length * 100 : 0) + '%"></i></span><span class="n">' + n + '</span></div>';
+      }).join("") + '</div>';
+  }
+  function stat(v, k) { return '<div class="stat"><div class="v">' + esc(v) + '</div><div class="k">' + esc(k) + '</div></div>'; }
+
+  function renderScores(el) {
+    var rows = A.data.rows, html = '<p class="muted" style="margin-top:12px">점수는 합계예요. 신뢰도(Cronbach α)가 .70보다 낮으면 빨간색으로 표시돼요.</p>';
+    A.data.scales.forEach(function (s) {
+      html += '<div class="card"><h3>' + esc(s.name) + ' <span class="tag">' + esc(s.code) + ' · ' + s.min + '~' + s.max + '점</span></h3><div class="tbl-wrap"><table><thead><tr>' +
+        '<th>점수</th><th>변수명</th><th class="num">문항</th><th class="num">N</th><th class="num">평균</th><th class="num">표준편차</th><th class="num">최소</th><th class="num">최대</th><th class="num">α</th></tr></thead><tbody>';
+      s.scores.forEach(function (sc) {
+        var d = desc(rows.map(function (r) { return num(r[sc.var]); })), a = alpha(s, sc.items);
+        html += '<tr><td>' + esc(sc.name) + '</td><td class="muted">' + esc(sc.var) + '</td><td class="num">' + sc.items.length + '</td><td class="num">' + d.n + '</td><td class="num">' + fmt(d.mean) +
+          '</td><td class="num">' + fmt(d.sd) + '</td><td class="num">' + fmt(d.min, 0) + '</td><td class="num">' + fmt(d.max, 0) + '</td><td class="num ' + (a !== null && a < 0.7 ? "alpha-low" : "") + '">' + fmt(a, 3) + '</td></tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
+    el.innerHTML = html;
+  }
+
+  function renderPeople(el) {
+    var s = A.data.scales.filter(function (x) { return x.code === A.scale; })[0] || A.data.scales[0];
+    var q = A.q.trim();
+    var rows = A.data.rows.filter(function (r) { return !q || String(r["이름"]).indexOf(q) >= 0 || String(r["응답ID"]).indexOf(q) >= 0; }).slice().reverse();
+    el.innerHTML = '<div class="toolbar"><input type="search" id="q" placeholder="이름 · 응답ID 검색" value="' + esc(A.q) + '">' +
+      '<select id="sc">' + A.data.scales.map(function (x) { return '<option value="' + esc(x.code) + '"' + (x === s ? " selected" : "") + '>' + esc(x.name) + '</option>'; }).join("") + '</select></div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>응답ID</th><th>이름</th><th class="num">나이</th><th>성별</th><th>제출</th><th class="num">소요(분)</th>' +
+      s.scores.map(function (sc) { return '<th class="num" title="' + esc(sc.var) + '">' + esc(sc.name) + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      (rows.length ? rows.map(function (r) {
+        return '<tr class="click" data-id="' + esc(r["응답ID"]) + '"><td class="muted">' + esc(r["응답ID"]) + '</td><td>' + esc(r["이름"]) + '</td><td class="num">' + esc(r.age) + '</td><td>' + esc(LABEL.sex[r.sex] || "") +
+          '</td><td>' + esc(r["제출시각"] ? new Date(r["제출시각"]).toLocaleDateString("ko-KR") : "") + '</td><td class="num">' + esc(r["소요분"]) + '</td>' +
+          s.scores.map(function (sc) { return '<td class="num">' + esc(r[sc.var] === "" ? "—" : r[sc.var]) + '</td>'; }).join("") + '</tr>';
+      }).join("") : '<tr><td colspan="99" class="muted">응답이 없어요.</td></tr>') + '</tbody></table></div>';
+    var qi = document.getElementById("q");
+    qi.oninput = function () { A.q = this.value; var pos = this.selectionStart; renderPeople(el); var n = document.getElementById("q"); n.focus(); n.setSelectionRange(pos, pos); };
+    document.getElementById("sc").onchange = function () { A.scale = this.value; renderPeople(el); };
+    [].forEach.call(el.querySelectorAll("tr.click"), function (tr) { tr.onclick = function () { openPerson(tr.dataset.id); }; });
+  }
+
+  function openPerson(id) {
+    var r = A.data.rows.filter(function (x) { return x["응답ID"] === id; })[0]; if (!r) return;
+    var html = '<div class="top"><div><div class="eyebrow">' + esc(id) + '</div><h2>' + esc(r["이름"]) + '</h2></div><button class="btn ghost small" id="close">닫기</button></div>' +
+      '<p class="muted">' + [r.age && r.age + "세", LABEL.sex[r.sex], LABEL.edu[r.edu], LABEL.relation_now[r.relation_now] && "관계: " + LABEL.relation_now[r.relation_now], LABEL.work[r.work] && "직장: " + LABEL.work[r.work]].filter(Boolean).join(" · ") + '</p>';
+    A.data.scales.forEach(function (s) {
+      if (num(r[s.items[0] && s.items[0].code]) === null) return;
+      html += '<div class="card"><h3>' + esc(s.name) + '</h3><table><tbody>' + s.scores.map(function (sc) {
+        var d = desc(A.data.rows.map(function (x) { return num(x[sc.var]); })), v = num(r[sc.var]);
+        var z = v !== null && d.sd ? (v - d.mean) / d.sd : null;
+        return '<tr><td>' + esc(sc.name) + '</td><td class="num"><b>' + (v === null ? "—" : v) + '</b></td><td class="num muted">전체 평균 ' + fmt(d.mean, 1) + '</td><td class="num muted">z ' + fmt(z) + '</td></tr>';
+      }).join("") + '</tbody></table>' +
+        '<details style="margin-top:8px"><summary class="muted">문항별 응답 보기</summary><table><tbody>' + s.items.map(function (it) {
+          return '<tr><td class="muted">' + esc(it.code) + (it.reverse ? ' <span class="tag">역</span>' : '') + '</td><td style="white-space:normal">' + esc(it.text) + '</td><td class="num">' + esc(r[it.code]) + '</td></tr>';
+        }).join("") + '</tbody></table></details></div>';
+    });
+    $panel.innerHTML = html;
+    $drawer.classList.add("open");
+    document.getElementById("close").onclick = closePerson;
+  }
+  function closePerson() { $drawer.classList.remove("open"); }
+  $drawer.onclick = function (e) { if (e.target === $drawer) closePerson(); };
+
+  function downloadCsv() {
+    var rows = A.data.rows; if (!rows.length) return;
+    var head = Object.keys(rows[0]).filter(function (k) { return k !== "이름" && k.charAt(0) !== "_"; });
+    var csv = [head].concat(rows.map(function (r) { return head.map(function (h) { return r[h]; }); }))
+      .map(function (line) { return line.map(function (v) { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(","); }).join("\r\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = "응답_" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  token() ? load() : renderLogin();
+</script>
+</body>
+</html>

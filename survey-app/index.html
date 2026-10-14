@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11151b">
+  <?!= include('style'); ?>
+</head>
+<body>
+<div class="wrap" id="app"><div class="loading">불러오는 중…</div></div>
+<div class="footer" id="footer" hidden><div class="in"><button class="btn ghost" id="prev">이전</button><button class="btn" id="next">다음</button></div></div>
+
+<script>
+  // 기본 정보 보기. 숫자는 원데이터 코드와 같게 맞춘다(분석 파일과 합칠 수 있게).
+  var BASIC = {
+    sex: [[1, "남성"], [2, "여성"]],
+    edu: [[1, "고등학교 졸업 이하"], [2, "전문대 재학·졸업"], [3, "대학교 재학·졸업"], [4, "대학원 재학 이상"]],
+    marriage: [[1, "미혼"], [2, "기혼"], [3, "기타(이혼·사별 등)"]],
+    relation: [[1, "현재 교제(결혼) 중"], [2, "과거에 있었으나 현재 없음"], [3, "경험 없음"]],
+    breakup: [[1, "있음"], [2, "없음"]],
+    work: [[1, "현재 근무 중"], [2, "과거에 근무"], [3, "경험 없음"]]
+  };
+  var DRAFT_KEY = "survey-draft-v1";
+
+  var S = { survey: null, step: 0, consent: false, basic: {}, answers: {}, startedAt: null };
+  var $app = document.getElementById("app"), $footer = document.getElementById("footer");
+  var $prev = document.getElementById("prev"), $next = document.getElementById("next");
+
+  function run(fn) {
+    var args = [].slice.call(arguments, 1);
+    return new Promise(function (ok, fail) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function (e) { fail(e && e.message ? e : new Error(String(e))); });
+      r[fn].apply(r, args);
+    });
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: S.step, consent: S.consent, basic: S.basic, answers: S.answers, startedAt: S.startedAt })); } catch (e) {} }
+  function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+
+  // 이 참여자에게 보여 줄 척도 (Code.gs의 shown_과 같은 규칙)
+  function shown(cond) {
+    var b = S.basic;
+    if (cond === "relation") return b.relation == 1 || b.relation == 2;
+    if (cond === "breakup") return b.relation == 2 || b.breakup == 1;
+    if (cond === "work") return b.work == 1 || b.work == 2;
+    return true;
+  }
+  function pages() {
+    var p = ["intro", "basic"];
+    S.survey.scales.forEach(function (s) { if (shown(s.cond)) p.push(s); });
+    return p.concat(["done"]);
+  }
+
+  function render() {
+    var list = pages(), page = list[S.step];
+    window.scrollTo(0, 0);
+    if (page === "intro") return renderIntro();
+    if (page === "basic") return renderBasic();
+    if (page === "done") return renderDone();
+    renderScale(page, list);
+  }
+
+  function renderIntro() {
+    var sv = S.survey;
+    $app.innerHTML =
+      '<div class="eyebrow">연구 참여 안내</div><h1>' + esc(sv.title) + '</h1>' +
+      (sv.intro ? '<div class="card pre">' + esc(sv.intro) + '</div>' : '') +
+      '<div class="card"><h3>참여 동의</h3><div class="pre muted">' + esc(sv.consent || "응답 내용은 연구 목적으로만 사용되며, 언제든지 참여를 그만둘 수 있습니다.") + '</div>' +
+      '<label class="check"><input type="checkbox" id="agree"' + (S.consent ? " checked" : "") + '><span>위 내용을 읽고 연구 참여에 동의합니다.</span></label></div>' +
+      (sv.contact ? '<p class="muted pre">문의: ' + esc(sv.contact) + '</p>' : '') +
+      '<div class="err" id="err"></div>';
+    document.getElementById("agree").onchange = function () { S.consent = this.checked; saveDraft(); };
+    footer(false, "시작하기");
+  }
+
+  function choiceGroup(key) {
+    return '<div class="choices" data-key="' + key + '">' + BASIC[key].map(function (o) {
+      return '<button type="button" data-v="' + o[0] + '" class="' + (S.basic[key] == o[0] ? "on" : "") + '">' + esc(o[1]) + '</button>';
+    }).join("") + '</div>';
+  }
+
+  function renderBasic() {
+    var b = S.basic;
+    $app.innerHTML =
+      '<div class="eyebrow">1단계</div><h1>기본 정보</h1><p class="muted">응답자 정보는 응답과 따로 보관됩니다.</p>' +
+      '<div class="card">' +
+      '<label class="field" for="name">이름</label><input type="text" id="name" autocomplete="off" value="' + esc(b.name || "") + '">' +
+      '<label class="field" for="age">나이 (만)</label><input type="number" id="age" inputmode="numeric" min="14" max="100" value="' + esc(b.age || "") + '">' +
+      '<label class="field">성별</label>' + choiceGroup("sex") +
+      '<label class="field">최종 학력</label>' + choiceGroup("edu") +
+      '<label class="field">혼인 상태</label>' + choiceGroup("marriage") +
+      '</div><div class="card">' +
+      '<label class="field">친밀한 관계(연인 · 배우자) 경험</label>' + choiceGroup("relation") +
+      (b.relation == 1 ? '<label class="field">이별 경험 (잠시 헤어짐 · 사별 포함)</label>' + choiceGroup("breakup") : '') +
+      '<label class="field">직장 경험</label>' + choiceGroup("work") +
+      '</div><div class="err" id="err"></div>';
+    document.getElementById("name").oninput = function () { b.name = this.value; saveDraft(); };
+    document.getElementById("age").oninput = function () { b.age = this.value; saveDraft(); };
+    [].forEach.call($app.querySelectorAll(".choices"), function (g) {
+      g.onclick = function (e) {
+        var t = e.target.closest("button"); if (!t) return;
+        b[g.dataset.key] = Number(t.dataset.v);
+        if (g.dataset.key === "relation" && b.relation != 1) delete b.breakup;
+        saveDraft();
+        if (g.dataset.key === "relation") { var y = window.scrollY; renderBasic(); window.scrollTo(0, y); return; }
+        [].forEach.call(g.children, function (c) { c.classList.toggle("on", c === t); });
+      };
+    });
+    footer(true, "다음");
+  }
+
+  function renderScale(s, list) {
+    var idx = list.indexOf(s), total = list.length - 3, n = idx - 1;
+    var cols = s.max - s.min + 1, labels = s.labels.length === cols ? s.labels : [];
+    var html =
+      '<div class="progress"><div class="row"><span>' + n + ' / ' + total + '</span><span>' + esc(s.name) + '</span></div><div class="bar"><i style="width:' + Math.round(n / total * 100) + '%"></i></div></div>' +
+      (s.guide ? '<div class="card pre muted">' + esc(s.guide) + '</div>' : '');
+    s.items.forEach(function (it, k) {
+      html += '<div class="item" id="it-' + esc(it.code) + '"><div class="q"><b>' + (k + 1) + '.</b>' + esc(it.text) + '</div>' +
+        '<div class="scale" data-code="' + esc(it.code) + '" style="grid-template-columns:repeat(' + cols + ',1fr)">';
+      for (var v = s.min; v <= s.max; v++) {
+        var lab = labels[v - s.min] || "";
+        html += '<button type="button" data-v="' + v + '" class="' + (S.answers[it.code] === v ? "on" : "") + '" aria-label="' + esc(v + " " + lab) + '">' + v + (cols <= 5 && lab ? '<small>' + esc(lab) + '</small>' : '') + '</button>';
+      }
+      html += '</div>' + (cols > 5 && labels.length ? '<div class="ends"><span>' + esc(labels[0]) + '</span><span>' + esc(labels[labels.length - 1]) + '</span></div>' : '') + '</div>';
+    });
+    $app.innerHTML = html + '<div class="err" id="err"></div>';
+    [].forEach.call($app.querySelectorAll(".scale"), function (g) {
+      g.onclick = function (e) {
+        var t = e.target.closest("button"); if (!t) return;
+        S.answers[g.dataset.code] = Number(t.dataset.v);
+        [].forEach.call(g.children, function (c) { c.classList.toggle("on", c === t); });
+        g.parentNode.classList.remove("missing");
+        saveDraft();
+      };
+    });
+    footer(true, idx === list.length - 2 ? "제출하기" : "다음");
+  }
+
+  function renderDone() {
+    $footer.hidden = true;
+    $app.innerHTML = '<div class="card center" style="margin-top:60px"><h1>응답이 제출되었습니다</h1><p class="muted">참여해 주셔서 감사합니다.</p>' +
+      (S.survey.outro ? '<p class="pre muted" style="text-align:left">' + esc(S.survey.outro) + '</p>' : '') + '</div>';
+  }
+
+  function footer(showPrev, label) {
+    $footer.hidden = false;
+    $prev.style.display = showPrev ? "" : "none";
+    $next.textContent = label;
+    $next.disabled = false;
+  }
+  function err(msg) { var e = document.getElementById("err"); if (e) e.textContent = msg || ""; }
+
+  function validate() {
+    var page = pages()[S.step], b = S.basic;
+    if (page === "intro") return S.consent ? "" : "참여에 동의해야 시작할 수 있어요.";
+    if (page === "basic") {
+      if (!String(b.name || "").trim()) return "이름을 적어 주세요.";
+      if (!(Number(b.age) >= 14 && Number(b.age) <= 100)) return "나이를 숫자로 적어 주세요.";
+      var keys = ["sex", "edu", "marriage", "relation", "work"].concat(b.relation == 1 ? ["breakup"] : []);
+      for (var i = 0; i < keys.length; i++) if (!b[keys[i]]) return "모든 항목을 골라 주세요.";
+      return "";
+    }
+    var miss = page.items.filter(function (it) { return S.answers[it.code] === undefined; });
+    miss.forEach(function (it) { document.getElementById("it-" + it.code).classList.add("missing"); });
+    if (miss.length) {
+      document.getElementById("it-" + miss[0].code).scrollIntoView({ behavior: "smooth", block: "center" });
+      return "답하지 않은 문항이 " + miss.length + "개 있어요.";
+    }
+    return "";
+  }
+
+  $prev.onclick = function () { if (S.step > 0) { S.step--; saveDraft(); render(); } };
+  $next.onclick = function () {
+    var msg = validate(); err(msg); if (msg) return;
+    var list = pages();
+    if (list[S.step] === "intro" && !S.startedAt) S.startedAt = new Date().toISOString();
+    if (S.step === list.length - 2) return submit();
+    S.step++; saveDraft(); render();
+  };
+
+  function submit() {
+    $next.disabled = true; $next.textContent = "제출하는 중…";
+    // 보여 준 척도의 응답만 보낸다(관계 · 직장 경험을 바꿨을 때 남은 응답 정리)
+    var answers = {};
+    pages().forEach(function (p) { if (p.items) p.items.forEach(function (it) { answers[it.code] = S.answers[it.code]; }); });
+    run("submitResponse", { consent: S.consent, basic: S.basic, answers: answers, startedAt: S.startedAt })
+      .then(function () { clearDraft(); S.step = pages().length - 1; render(); })
+      .catch(function (e) { $next.disabled = false; $next.textContent = "제출하기"; err("제출하지 못했어요: " + e.message); });
+  }
+
+  run("getSurvey").then(function (sv) {
+    S.survey = sv;
+    try {
+      var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      if (d) { S.step = d.step || 0; S.consent = !!d.consent; S.basic = d.basic || {}; S.answers = d.answers || {}; S.startedAt = d.startedAt || null; }
+    } catch (e) {}
+    if (S.step >= pages().length - 1) S.step = 0;
+    render();
+  }).catch(function (e) { $app.innerHTML = '<div class="card">설문을 불러오지 못했어요.<br><span class="muted">' + esc(e.message) + '</span></div>'; });
+</script>
+</body>
+</html>
