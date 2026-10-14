@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 38, ids.length);
+    ok("page count", ids.length === 39, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -117,7 +117,7 @@
     /* 일기 */
     App.h.safeSet("hds_diary_backup", "");
     await go("personal-diary"); await sleep(200);
-    ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|일기|주간 리뷰" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
+    ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|일기|주간 리뷰|베이킹" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
     $("#view .cmp-full-btn").click(); await sleep(80);
     var fullEd = $("#view .cmp-editor.cmp-full"), fr = fullEd && fullEd.getBoundingClientRect();
     ok("editor full screen fills the window", !!fullEd && Math.round(fr.width) === window.innerWidth && Math.round(fr.height) === window.innerHeight && /글자 수/.test($("#view .cmp-full-info").textContent) && document.body.classList.contains("cmp-full-open") && /닫기/.test($("#view .cmp-full-btn").textContent), fr && (fr.width + "x" + fr.height));
@@ -908,7 +908,14 @@
     ok("report tooltip", !$("#view .bud-tip").hidden && /지출/.test($("#view .bud-tip").textContent));
     $$("#view .bud-rep-table tbody a")[1].click(); await sleep(250);
     ok("report row opens that month", location.hash === "#/personal-budget" && /지난달/.test($("#view .bud-list").textContent), $("#view .bud-month").textContent);
-    App.h.safeSet("hds_bud_range", "12");    await go("home");
+    App.h.safeSet("hds_bud_range", "12");
+    /* 베이킹: 레시피 카드 3개, 준비물 먼저 · 체크 토글, 만드는 법은 접혀 있음 */
+    await go("personal-baking"); await sleep(80);
+    var bakes = $$("#view .bake-card");
+    ok("baking cards", bakes.length === 3 && bakes.map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "financier|pound|cookie" && bakes.every(function (c) { return $(".bake-ing", c) && $$(".bake-ing-item", c).length >= 7 && $("details.bake-how", c) && !$("details.bake-how", c).open; }), bakes.length);
+    var ing0 = $(".bake-ing-item", bakes[0]); ing0.click(); await sleep(20);
+    ok("baking ingredient check", ing0.classList.contains("got") && ing0.getAttribute("aria-pressed") === "true" && /챙김 1 \/ 7/.test($(".bake-ing-count", bakes[0]).textContent), $(".bake-ing-count", bakes[0]).textContent);
+    await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 4);
 
