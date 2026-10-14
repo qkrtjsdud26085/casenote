@@ -272,7 +272,6 @@ details.group > summary { cursor: pointer; list-style: revert; }
 .capture { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
 .capture input { flex: 1 1 200px; }
 .capture input.cap-date, .capture input.cap-time { flex: 0 1 132px; color: var(--ink-soft); }
-.capture-hint { margin: 6px 2px 0; font-size: 0.74rem; color: var(--ink-soft); }
 
 /* ---------- todos / memos / schedule / habits ---------- */
 .todo-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 8px; border-radius: 4px; }
@@ -1087,3 +1086,14 @@ details.ias-edit > summary { cursor: pointer; font-family: var(--font-mono); fon
 .cmp-editor.cmp-full .cmp-paper { min-height: calc(100% - 4px); }
 body.cmp-full-open { overflow: hidden; }
 @media (max-width: 720px) { .cmp-editor.cmp-full .cmp-full-info { display: none; } }
+
+/* 일정 · 캘린더: 위쪽 빠른 할 일, 날짜를 누르면 뜨는 그날 목록, 오른쪽 지나간 할 일 */
+.cal-capture { margin: 0 0 18px; }
+.cal-left .card-body { position: relative; }
+.cal-pop { position: absolute; z-index: 30; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 10px 12px; max-height: 320px; overflow-y: auto; }
+.cal-pop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 0.86rem; }
+.cal-pop .upcoming-item input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; }
+.cal-pop .upcoming-item.done .u-title { text-decoration: line-through; color: var(--ink-soft); }
+.cal-cell[aria-expanded="true"] { outline: 2px solid var(--accent); outline-offset: -1px; }
+.overdue-card { margin-top: 26px; }
+.overdue-list { max-height: 300px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }

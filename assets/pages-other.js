@@ -23,108 +23,41 @@
   }
 
   /* =========================================================
-     할 일 — stored in Google Tasks (default list); Firestore keeps a read-only copy
+     지나간 할 일 — Google Tasks whose due date has passed but are not done yet
      ========================================================= */
-  /* into: build the to-do list inside an existing card body (일정 · 캘린더 puts it under the month grid) */
-  function todoCard(parent, into) {
-    var G = App.gtasks, c;
-    if (into) {
-      var sec = el("div", "todo-sec"), head = el("div", "mini-title todo-sec-title"), cnt = el("span", "count");
-      head.appendChild(el("span", "", "할 일 · Google Tasks")); head.appendChild(cnt);
-      into.appendChild(head); into.appendChild(sec);
-      c = { el: sec, body: sec, count: cnt };
-    } else {
-      c = ui.card(parent, { tab: "To-do", tone: "t-2", title: "할 일 · Google Tasks" });
-      c.el.classList.add("todo-card");
-    }
-    var S = { cache: null, busy: false, legacy: [], sel: "" };
-    var status = el("p", "hint");
-    var tools = el("div", "items-tools");
-    var sync = el("button", "tool-btn", "Google 할 일 연결 · 동기화"); sync.type = "button";
-    var migrate = el("button", "tool-btn", ""); migrate.type = "button"; migrate.hidden = true;
-    tools.appendChild(sync); tools.appendChild(migrate);
-    var form = el("form", "quick-add todo-form");
-    /* two-line box for the task; date · memo · 추가 share the next line (Enter adds, Shift+Enter breaks the line) */
-    var tIn = el("textarea", "todo-text"); tIn.rows = 2; tIn.placeholder = "할 일 입력 후 Enter → Google Tasks에 바로 저장"; tIn.maxLength = 200; tIn.required = true; tIn.setAttribute("aria-label", "할 일");
-    tIn.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true })); } });
-    var dIn = el("input", "w-date"); dIn.type = "date"; dIn.setAttribute("aria-label", "기한 (선택)"); dIn.title = "기한 (선택)";
-    var nIn = el("input"); nIn.placeholder = "메모 (선택)"; nIn.maxLength = 300; nIn.setAttribute("aria-label", "메모");
-    var add = el("button", "btn", "추가"); add.type = "submit";
-    var line2 = el("div", "todo-line2");
-    [dIn, nIn, add].forEach(function (n) { line2.appendChild(n); });
-    form.appendChild(tIn); form.appendChild(line2);
-    var msg = el("p", "hint todo-msg");
-    var list = el("div", "plain-list");
-    var doneBox = el("details", "reco-settings todo-done"); var doneSum = el("summary"); var doneList = el("div", "plain-list");
-    doneBox.appendChild(doneSum); doneBox.appendChild(doneList);
-    var scroll = el("div", "todo-scroll");  /* the list scrolls so the card keeps the calendar's height */
-    scroll.appendChild(list); scroll.appendChild(doneBox);
-    [status, tools, form, msg, scroll].forEach(function (n) { c.body.appendChild(n); });
-
-    function fail(err) { S.busy = false; msg.textContent = G.explain(err); draw(); }
-    function run(label, job) {
-      S.busy = true; msg.textContent = label; draw();
-      return job.then(function () { S.busy = false; msg.textContent = ""; draw(); }, fail);
-    }
-    function row(t) {
-      var done = t.status === "completed";
-      var r = el("div", "todo-item" + (done ? " done" : "") + (!done && t.due && S.sel && String(t.due).slice(0, 10) === S.sel ? " due-sel" : ""));
-      var cb = el("input"); cb.type = "checkbox"; cb.checked = done; cb.disabled = S.busy; cb.setAttribute("aria-label", t.title + (done ? " 완료 취소" : " 완료"));
-      cb.addEventListener("change", function () { run(cb.checked ? "완료 처리 중…" : "되돌리는 중…", G.setDone(t.id, cb.checked)); });
-      r.appendChild(cb);
-      var main = el("span", "todo-text");
-      main.appendChild(document.createTextNode(t.title));
-      if (t.notes) { main.appendChild(el("span", "mini-sub todo-notes", t.notes)); }
-      r.appendChild(main);
-      if (t.due && !done) { r.appendChild(H.ddayEl(t.due)); }
-      var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "Google에서 삭제"; del.disabled = S.busy; del.setAttribute("aria-label", t.title + " 삭제");
-      del.addEventListener("click", function () { if (window.confirm("'" + t.title + "'을(를) Google 할 일에서 삭제할까요?")) { run("삭제하는 중…", G.remove(t.id)); } });
-      r.appendChild(del);
-      return r;
-    }
+  function overdueCard(parent) {
+    var G = App.gtasks, S = { cache: null, busy: false };
+    var c = ui.card(parent, { tab: "Overdue", tone: "t-2", title: "지나간 할 일" });
+    c.el.classList.add("overdue-card");
+    var msg = el("p", "hint todo-msg"), list = el("div", "plain-list overdue-list");
+    c.body.appendChild(msg); c.body.appendChild(list);
     function draw() {
-      var items = (S.cache && S.cache.items) || [];
-      var open = items.filter(function (t) { return t.status !== "completed"; })
-        .sort(function (a, b) { return (a.due || "9999") < (b.due || "9999") ? -1 : ((a.due || "9999") > (b.due || "9999") ? 1 : (a.position < b.position ? -1 : 1)); });
-      var done = items.filter(function (t) { return t.status === "completed"; })
-        .sort(function (a, b) { return a.completed < b.completed ? 1 : -1; }).slice(0, 30);
-      var tok = G.token();
-      status.textContent = (tok ? "Google 연결됨" : "Google 연결 안 됨 · 아래 버튼을 한 번 누르면 캘린더와 할 일이 함께 연결돼요") + " · " +
-        (S.cache && S.cache.syncedAt ? "마지막 동기화 " + H.fmtDateTime(S.cache.syncedAt) : "아직 동기화한 적 없음");
-      c.count.textContent = items.length ? open.length + "개 남음" : "";
-      sync.disabled = add.disabled = S.busy;
-      migrate.hidden = !S.legacy.length; migrate.disabled = S.busy;
-      migrate.textContent = "예전 할 일 " + S.legacy.length + "개 Google로 옮기기";
+      var t = H.todayStr();
+      var items = ((S.cache && S.cache.items) || []).filter(function (x) { return x.status !== "completed" && x.due && String(x.due).slice(0, 10) < t; })
+        .sort(function (a, b) { return a.due < b.due ? -1 : 1; });
+      c.count.textContent = items.length ? items.length + "개" : "";
       H.clear(list);
-      if (!open.length) { list.appendChild(ui.empty(S.cache ? "남은 할 일이 없어요." : "Google 할 일과 연결하면 목록이 여기에 보여요.")); }
-      open.forEach(function (t) { list.appendChild(row(t)); });
-      doneBox.hidden = !done.length; doneSum.textContent = "완료한 할 일 " + done.length + "개";
-      H.clear(doneList); done.forEach(function (t) { doneList.appendChild(row(t)); });
-    }
-    sync.addEventListener("click", function () { run("Google 할 일을 불러오는 중…", G.sync()); });
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var title = tIn.value.trim();
-      if (!title || S.busy) { return; }
-      var job = G.add(title, dIn.value, nIn.value.trim());
-      tIn.value = ""; dIn.value = ""; nIn.value = "";
-      run("Google 할 일에 저장하는 중…", job);
-    });
-    migrate.addEventListener("click", function () {
-      var todo = S.legacy.slice();
-      if (!window.confirm("이 사이트에만 있던 할 일 " + todo.length + "개를 Google 할 일로 옮길까요? 옮긴 뒤 여기 사본은 지워져요.")) { return; }
-      var chain = Promise.resolve();
-      todo.forEach(function (t) {
-        chain = chain.then(function () { return G.createTask(t.text, t.due || "", ""); }).then(function () { return App.col("todos").doc(t.id).delete(); });
+      if (!items.length) { list.appendChild(ui.empty(S.cache ? "밀린 할 일이 없어요." : "Google 할 일과 연결하면 여기에 보여요.")); return; }
+      items.forEach(function (x) {
+        var r = el("div", "todo-item");
+        var cb = el("input"); cb.type = "checkbox"; cb.disabled = S.busy; cb.setAttribute("aria-label", x.title + " 완료");
+        cb.addEventListener("change", function () {
+          S.busy = true; msg.textContent = "완료 처리 중…"; draw();
+          G.setDone(x.id, true).then(function () { S.busy = false; msg.textContent = ""; draw(); }, function (err) { S.busy = false; msg.textContent = G.explain(err); draw(); });
+        });
+        r.appendChild(cb);
+        var main = el("span", "todo-text");
+        main.appendChild(document.createTextNode(x.title));
+        if (x.notes) { main.appendChild(el("span", "mini-sub todo-notes", x.notes)); }
+        r.appendChild(main);
+        r.appendChild(H.ddayEl(String(x.due).slice(0, 10)));
+        list.appendChild(r);
       });
-      run("옮기는 중…", chain.then(G.sync));
-    });
+    }
     draw();
     App.watchDoc(App.doc("personal/gtasks"), function (d) { S.cache = d; draw(); });
-    App.watchQuery(App.col("todos").orderBy("createdAt", "asc"), function (items) { S.legacy = items.filter(function (t) { return !t.done; }); draw(); });
     /* refresh quietly when a token is still valid */
-    if (G.token()) { G.sync().then(draw, function () {}); }
-    return { setSel: function (k) { if (S.sel !== k) { S.sel = k; draw(); } } };
+    if (G.token()) { G.sync().catch(function () {}); }
   }
 
   /* =========================================================
@@ -136,15 +69,16 @@
       var scheduleRef = App.col("schedule");
       var state = { month: new Date(), sel: H.todayStr(), items: [], cat: "전체", gdoc: null };
       state.month.setDate(1);
-      /* one card on the left (month grid → that day's events → Google 할 일); 기분 on the right */
+      /* quick add on top (same as 홈) → month grid on the left (a day opens its list) · 기분 + 지나간 할 일 on the right */
       var top = el("div", "cal-top cal-top-mood"), left = el("div", "cal-left"), right = el("div", "cal-right"), rightIn = el("div", "cal-right-in");
       right.appendChild(rightIn); top.appendChild(left); top.appendChild(right);
       /* once a day: syncs by itself while the Google connection is alive; otherwise one button (Google needs a click to reconnect) */
       var dayBar = el("div", "gsync-bar"); dayBar.hidden = true;
       var dayBtn = el("button", "btn", "지금 동기화"); dayBtn.type = "button";
       dayBar.appendChild(el("span", "", "오늘 Google 캘린더 · 할 일을 아직 가져오지 않았어요.")); dayBar.appendChild(dayBtn);
+      App.quickCapture(view).classList.add("cal-capture");
       view.appendChild(dayBar); view.appendChild(top);
-      var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "캘린더 · 할 일" });
+      var calCard = ui.card(left, { tab: "Calendar", tone: "t-1", title: "캘린더" });
       var moodCard = ui.card(rightIn, { tab: "Mood", tone: "t-3", title: "오늘의 기분" });
       moodCard.el.classList.add("mood-card");
       var moods = {};
@@ -153,6 +87,7 @@
         onDays: function (d) { moods = d; drawCal(); },
         onPickDay: function (k) { pickDay(k); }
       });
+      overdueCard(rightIn);
       /* Google · Upcoming: small, side by side, folded until needed */
       var bottom = el("div", "cal-bottom"); view.appendChild(bottom);
       var gCard = ui.card(bottom, { tab: "Google", tone: "t-2", title: "Google 캘린더 연동" });
@@ -173,22 +108,26 @@
       legend.innerHTML = '<span><i class="event"></i>일정</span><span><i class="task"></i>Google 할 일</span>';
       [filters, head, grid, legend].forEach(function (n) { calCard.body.appendChild(n); });
 
-      var dayTitle = el("div", "mini-title");
-      var form = el("form", "quick-add");
-      var dateEl = el("input", "w-date"); dateEl.type = "date"; dateEl.required = true; dateEl.value = state.sel;
-      /* this form adds schedules only; Google 할 일 are added (and listed) once, in the 할 일 section below */
+      /* clicking a day opens a small list of that day's events and tasks under the clicked cell */
       var TASK = "할 일";
-      var catEl = el("select"); App.CATS.forEach(function (c) { var o = el("option", "", c); o.value = c; catEl.appendChild(o); });
-      catEl.setAttribute("aria-label", "분류");
-      var titleEl = el("input"); titleEl.placeholder = "일정 제목"; titleEl.maxLength = 80; titleEl.required = true;
-      var addBtn = el("button", "btn", "추가"); addBtn.type = "submit";
-      [dateEl, catEl, titleEl, addBtn].forEach(function (n) { form.appendChild(n); });
+      var pop = el("div", "cal-pop"); pop.hidden = true; pop.setAttribute("role", "dialog");
+      var popHead = el("div", "cal-pop-head"), popTitle = el("strong"), popClose = el("button", "icon-btn", "×");
+      popClose.type = "button"; popClose.setAttribute("aria-label", "닫기");
+      popHead.appendChild(popTitle); popHead.appendChild(popClose);
       var dayList = el("div", "plain-list");
-      /* the selected day's events and the add form sit under the month grid */
-      var dayBox = el("div", "cal-day");
-      [dayTitle, form, dayList].forEach(function (n) { dayBox.appendChild(n); });
-      calCard.body.appendChild(dayBox);
-      var todo = todoCard(null, calCard.body);
+      pop.appendChild(popHead); pop.appendChild(dayList);
+      calCard.body.appendChild(pop);
+      var popFor = "";
+      function closePop() {
+        pop.hidden = true; popFor = "";
+        var on = grid.querySelector(".cal-cell[aria-expanded='true']"); if (on) { on.setAttribute("aria-expanded", "false"); }
+      }
+      popClose.addEventListener("click", closePop);
+      function onPopKey(e) { if (e.key === "Escape" && !pop.hidden) { closePop(); } }
+      function onPopDown(e) { if (!pop.hidden && !pop.contains(e.target) && !grid.contains(e.target)) { closePop(); } }
+      document.addEventListener("keydown", onPopKey);
+      document.addEventListener("mousedown", onPopDown);
+      App.unsubs.push(function () { document.removeEventListener("keydown", onPopKey); document.removeEventListener("mousedown", onPopDown); });
 
       function visible() {
         var y = state.month.getFullYear(), m = state.month.getMonth();
@@ -235,60 +174,67 @@
               var nT = evs.filter(function (s) { return s.source === "tasks"; }).length;
               cell.title = "일정 " + (evs.length - nT) + " · 할 일 " + nT + "\n" + evs.map(function (s) { return (s.source === "tasks" ? "☐ " : "• ") + s.title; }).join("\n");
             }
-            cell.addEventListener("click", function () { pickDay(key); });
+            cell.setAttribute("data-date", key); cell.setAttribute("aria-expanded", popFor === key ? "true" : "false");
+            cell.addEventListener("click", function () { if (popFor === key) { closePop(); } else { pickDay(key, true); } });
             grid.appendChild(cell);
           })(d);
         }
       }
-      /* choosing a day moves the calendar, the day list and the 기분 card together */
-      function pickDay(key) {
-        state.sel = key; dateEl.value = key;
+      /* choosing a day moves the calendar and the 기분 card together and opens that day's list */
+      function pickDay(key, open) {
+        state.sel = key;
         var d = H.parseKey(key); state.month = new Date(d.getFullYear(), d.getMonth(), 1);
         if (key <= H.todayStr()) { picker.setDate(key); }
+        if (open) { popFor = key; } else { closePop(); }
         drawCal(); drawDay();
       }
       function drawDay() {
-        var p = H.parseKey(state.sel);
-        dayTitle.textContent = state.sel + " (" + H.DOW[p.getDay()] + ")";
+        if (!popFor) { return; }
+        var cell = grid.querySelector(".cal-cell[data-date='" + popFor + "']");
+        if (!cell) { closePop(); return; }
+        var p = H.parseKey(popFor);
+        popTitle.textContent = (p.getMonth() + 1) + "월 " + p.getDate() + "일 (" + H.DOW[p.getDay()] + ")";
         H.clear(dayList);
-        if (todo) { todo.setSel(state.sel); }
-        /* tasks are not repeated here: they are highlighted in the 할 일 list instead */
-        var day = visible().filter(function (s) { return s.date === state.sel; });
-        var evs = day.filter(function (s) { return s.source !== "tasks"; });
-        var nTask = day.filter(function (s) { return s.source === "tasks" && !s.done; }).length;
-        if (nTask) { dayList.appendChild(el("p", "hint cal-task-note", "이 날까지 할 일 " + nTask + "개 · 아래 할 일 목록에 표시했어요")); }
-        if (!evs.length) { dayList.appendChild(ui.empty("이 날의 일정이 없습니다.")); return; }
-        evs.sort(function (a, b) { return (a.time || "") < (b.time || "") ? -1 : ((a.time || "") > (b.time || "") ? 1 : 0); });
-        evs.forEach(function (s) {
-          var row = el("div", "upcoming-item");
-          var chip = el("span", "cat-chip", s.cat || "개인"); chip.setAttribute("data-cat", s.cat || "개인");
-          row.appendChild(chip);
-          if (s.source === "google") {
+        var day = visible().filter(function (s) { return s.date === popFor; });
+        if (!day.length) { dayList.appendChild(ui.empty("이 날의 일정이 없어요.")); }
+        day.sort(function (a, b) {
+          return ((a.source === "tasks") - (b.source === "tasks")) || ((a.time || "") < (b.time || "") ? -1 : ((a.time || "") > (b.time || "") ? 1 : 0));
+        });
+        day.forEach(function (s) {
+          var row = el("div", "upcoming-item" + (s.done ? " done" : ""));
+          if (s.source === "tasks") {
+            var cb = el("input"); cb.type = "checkbox"; cb.checked = !!s.done; cb.setAttribute("aria-label", s.title + (s.done ? " 완료 취소" : " 완료"));
+            cb.addEventListener("change", function () { App.gtasks.setDone(s.id, cb.checked).catch(function (err) { cb.checked = !cb.checked; window.alert("Google 저장 실패: " + App.gtasks.explain(err)); }); });
+            row.appendChild(cb);
+            row.appendChild(el("span", "u-title", s.title));
+            row.appendChild(el("span", "u-date", "할 일"));
+          } else {
+            var chip = el("span", "cat-chip", s.cat || "개인"); chip.setAttribute("data-cat", s.cat || "개인");
+            row.appendChild(chip);
             var t = el("span", "u-title");
             if (s.link) { var a = el("a", "", s.title); a.href = s.link; a.target = "_blank"; a.rel = "noopener noreferrer"; t.appendChild(a); } else { t.textContent = s.title; }
             row.appendChild(t);
-            row.appendChild(el("span", "u-date", (s.allDay ? "종일" : s.time) + " · Google" + (s.calName ? " · " + s.calName : "")));
-          } else {
-            row.appendChild(el("span", "u-title", s.title));
-            var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제";
-            del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function (e) { window.alert("삭제 실패: " + e.message); }); });
-            row.appendChild(del);
+            if (s.source === "google") { row.appendChild(el("span", "u-date", s.allDay ? "종일" : s.time)); }
+            else {
+              if (s.time) { row.appendChild(el("span", "u-date", s.time)); }
+              var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제"; del.setAttribute("aria-label", s.title + " 삭제");
+              del.addEventListener("click", function () { scheduleRef.doc(s.id).delete().catch(function (e) { window.alert("삭제 실패: " + e.message); }); });
+              row.appendChild(del);
+            }
           }
           dayList.appendChild(row);
         });
+        /* place the box under the clicked day, kept inside the card */
+        pop.hidden = false;
+        var body = calCard.body.getBoundingClientRect(), r = cell.getBoundingClientRect();
+        var w = Math.min(300, body.width);
+        pop.style.width = w + "px";
+        pop.style.left = Math.max(0, Math.min(r.left - body.left, body.width - w)) + "px";
+        pop.style.top = (r.bottom - body.top + 4) + "px";
       }
-      prev.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); drawCal(); });
-      next.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); drawCal(); });
+      prev.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); closePop(); drawCal(); });
+      next.addEventListener("click", function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); closePop(); drawCal(); });
       today.addEventListener("click", function () { pickDay(H.todayStr()); });
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var t = titleEl.value.trim();
-        if (!t || !dateEl.value) { return; }
-        scheduleRef.add({ date: dateEl.value, title: t, cat: catEl.value, note: "", createdAt: new Date().toISOString() }).catch(function (err) { window.alert("저장 실패: " + err.message); });
-        titleEl.value = "";
-        state.sel = dateEl.value;
-        var d = H.parseKey(state.sel); state.month = new Date(d.getFullYear(), d.getMonth(), 1);
-      });
       /* ---------- Google Calendar connection (read-only) ---------- */
       var gStatus = el("p", "hint");
       var gRow = el("div", "items-tools");

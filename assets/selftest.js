@@ -368,49 +368,45 @@
       return realFetchT.apply(window, arguments);
     };
     App.gtasks.clearToken();  /* start disconnected even when the tab kept a token from an earlier run */
-    await App.col("todos").add({ text: "예전 할 일", done: false, createdAt: "2026-01-01T00:00:00Z" });
     await go("personal-calendar"); await sleep(120);
     ok("menu: no 할 일/메모/습관", !$("#subnav a[data-page='personal-todos']") && !$("#subnav a[data-page='personal-memos']") && !$("#subnav a[data-page='personal-habits']") && !!$("#subnav a[data-page='personal-budget']"));
     ok("calendar: no desc", !$("#pageHead .page-desc"));
-    var todoC = $("#view .todo-sec");
-    ok("todo card in calendar", !!todoC && /연결 안 됨/.test(todoC.textContent) && /예전 할 일 1개/.test(todoC.textContent));
-    var tf = $("form.quick-add", todoC);
-    setVal($("textarea.todo-text", tf), "테스트 할 일"); $("input[type=date]", tf).value = "2026-10-01"; submit(tf); await sleep(250);
-    ok("todo -> Google Tasks", gt.length === 1 && gt[0].title === "테스트 할 일" && gt[0].due === "2026-10-01T00:00:00.000Z", JSON.stringify(gt));
-    ok("todo cache + list", window.__MOCK_STORE["personal/gtasks"].items.length === 1 && $$(".todo-item", $("#view .todo-sec")).length === 1 && /Google 연결됨/.test($("#view .todo-sec").textContent));
-    var tcb = $(".todo-item input[type=checkbox]", $("#view .todo-sec")); tcb.checked = true; change(tcb); await sleep(250);
-    ok("todo done in Google", gt[0].status === "completed" && $(".todo-done", $("#view .todo-sec")).hidden === false, JSON.stringify(gt));
-    var realConfirmT = window.confirm; window.confirm = function () { return true; };
-    Array.prototype.filter.call($("#view .todo-sec").querySelectorAll(".tool-btn"), function (b) { return /예전 할 일/.test(b.textContent); })[0].click(); await sleep(350);
-    ok("legacy todos migrated", gt.some(function (q) { return q.title === "예전 할 일"; }) && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("todos/") === 0; }), JSON.stringify(gt));
-    $(".todo-done .icon-btn", $("#view .todo-sec")).click(); await sleep(250);
-    window.confirm = realConfirmT;
-    ok("todo delete in Google", gt.length === 1 && gt[0].title === "예전 할 일", JSON.stringify(gt));
-    /* tasks are added and listed once (the 할 일 section); the calendar only marks them and highlights the day's ones */
-    var todayK = App.h.todayStr();
-    $$("#view .cal-cell:not(.blank)").filter(function (c) { return c.classList.contains("today"); })[0].click(); await sleep(60);
-    ok("day form adds schedules only", !$$("#view .cal-day select option").some(function (o) { return o.value === "할 일"; }) && $$("#view form.quick-add").filter(function (x) { return !!$("textarea.todo-text", x); }).length === 1);
-    var tf2 = $("#view .todo-sec form.quick-add"); setVal($("textarea.todo-text", tf2), "달력에서 만든 할 일"); $("input[type=date]", tf2).value = todayK; submit(tf2); await sleep(300);
-    ok("task added once", gt.filter(function (q) { return q.title === "달력에서 만든 할 일" && q.due === todayK + "T00:00:00.000Z"; }).length === 1, JSON.stringify(gt));
-    ok("task: dot on calendar, not repeated in day list, highlighted in 할 일", !!$("#view .cal-cell.today .cal-dot[data-kind='task']") && !$$("#view .cal-day .upcoming-item").some(function (r) { return /달력에서 만든 할 일/.test(r.textContent); }) && /할 일 1개/.test(($("#view .cal-task-note") || {}).textContent) && $$("#view .todo-sec .todo-item.due-sel").some(function (r) { return /달력에서 만든 할 일/.test(r.textContent); }) && $$("#view .todo-sec .todo-item").filter(function (r) { return /달력에서 만든 할 일/.test(r.textContent); }).length === 1);
-    var dayTaskCb = $$("#view .todo-sec .todo-item.due-sel").filter(function (r) { return /달력에서 만든 할 일/.test(r.textContent); })[0].querySelector("input[type=checkbox]");
-    dayTaskCb.checked = true; change(dayTaskCb); await sleep(300);
-    ok("task checked from the 할 일 list", gt.filter(function (q) { return q.title === "달력에서 만든 할 일"; })[0].status === "completed");
-    /* one dot per item: add two events today → 2 yellow + 1 blue */
+    /* 위쪽 빠른 할 일 (홈과 같은 입력) → Google Tasks */
+    var cqf = $("#view form.capture.cal-capture");
+    ok("calendar: quick add on top, no day form / to-do section", !!cqf && $("#view").firstElementChild === cqf && !$("#view .cal-day") && !$("#view .todo-sec") && !$("#view .todo-form") && !$("#view .capture-hint") && !!cardBy("캘린더"));
+    var todayK = App.h.todayStr(), pastK = App.h.dateKey(App.h.addDays(new Date(), -3));
+    setVal($("input[aria-label='빠른 할 일']", cqf), "달력에서 만든 할 일"); $("input[type=date]", cqf).value = todayK; submit(cqf); await sleep(300);
+    setVal($("input[aria-label='빠른 할 일']", cqf), "밀린 할 일"); $("input[type=date]", cqf).value = pastK; submit(cqf); await sleep(300);
+    ok("calendar quick add -> Google Tasks", gt.filter(function (q) { return q.title === "달력에서 만든 할 일" && q.due === todayK + "T00:00:00.000Z"; }).length === 1 && gt.some(function (q) { return q.title === "밀린 할 일"; }), JSON.stringify(gt));
+    /* 오른쪽: 기분 밑에 지나간 할 일 (오늘 할 일은 빠짐) */
+    var odC = cardBy("지나간 할 일");
+    ok("overdue card under mood", !!odC && $("#view .cal-right").contains(odC) && odC.previousElementSibling === cardBy("오늘의 기분") && $$(".todo-item", odC).length === 1 && /밀린 할 일/.test(odC.textContent) && /D\+3/.test(odC.textContent), odC && odC.textContent);
+    var ocb = $(".todo-item input[type=checkbox]", odC); ocb.checked = true; change(ocb); await sleep(300);
+    ok("overdue checked -> done in Google, leaves the list", gt.filter(function (q) { return q.title === "밀린 할 일"; })[0].status === "completed" && !$(".todo-item", cardBy("지나간 할 일")) && /밀린 할 일이 없어요/.test(cardBy("지나간 할 일").textContent));
+    /* 날짜를 누르면 그날 일정 · 할 일이 작은 창으로 */
     await App.col("schedule").add({ date: todayK, title: "점 테스트 1", cat: "개인" });
     await App.col("schedule").add({ date: todayK, title: "점 테스트 2", cat: "논문" });
     await sleep(150);
+    ok("no day list until a day is clicked", $("#view .cal-pop").hidden);
+    $("#view .cal-cell.today").click(); await sleep(60);
+    var pop = $("#view .cal-pop");
+    ok("day click opens that day's list", !pop.hidden && $$(".upcoming-item", pop).length === 3 && /점 테스트 1/.test(pop.textContent) && /달력에서 만든 할 일/.test(pop.textContent) && $("#view .cal-cell.today").getAttribute("aria-expanded") === "true", pop.textContent);
+    var pr = pop.getBoundingClientRect(), cr = $("#view .cal-cell.today").getBoundingClientRect();
+    ok("day list sits under the clicked day", pr.top >= cr.bottom - 1 && pr.top - cr.bottom < 12, pr.top + " / " + cr.bottom);
+    var ptcb = $$(".upcoming-item", pop).filter(function (r) { return /달력에서 만든 할 일/.test(r.textContent); })[0].querySelector("input[type=checkbox]");
+    ptcb.checked = true; change(ptcb); await sleep(300);
+    ok("task checked from the day list", gt.filter(function (q) { return q.title === "달력에서 만든 할 일"; })[0].status === "completed" && !$("#view .cal-pop").hidden);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await sleep(30);
+    ok("day list closes with Esc", $("#view .cal-pop").hidden);
+    $("#view .cal-cell.today").click(); await sleep(40); $("#view .cal-cell.today").click(); await sleep(40);
+    ok("clicking the same day again closes it", $("#view .cal-pop").hidden);
     var tc = $("#view .cal-cell.today");
     ok("dot per item, yellow events + blue tasks", $$(".cal-dot[data-kind='event']", tc).length === 2 && $$(".cal-dot[data-kind='task']", tc).length === 1 && /일정 2 · 할 일 1/.test(tc.title) && !!$("#view .cal-legend"), $$(".cal-dot", tc).length + " / " + tc.title.split("\n")[0]);
     var dotCol = function (k) { return getComputedStyle($(".cal-dot[data-kind='" + k + "']", tc)).backgroundColor; };
     ok("dot colors differ", dotCol("event") !== dotCol("task") && dotCol("event") !== "rgba(0, 0, 0, 0)", dotCol("event") + " / " + dotCol("task"));
-    ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);    ok("월별 리포트 hidden from menu bar", !$("#subnav a[data-page='personal-budget-report']") && !!$("#subnav a[data-page='personal-budget']"));
-    ok("calendar + to-do in one card, mood on the right", !cardBy("선택한 날") && cardBy("캘린더 · 할 일").contains($("#view .todo-sec")) && $("#view .cal-right").contains(cardBy("오늘의 기분")) && $$("#view .cal-right .mood-btn").length === 8 && $$("#view .cal-right .mood-strip-day").length === 7 && !cardBy("메모") && !cardBy("다가오는 일정") && $("#view .cal-left").contains($("#view .cal-day form.quick-add")));
-    var tf = $("#view .todo-form");
-    ok("todo: 2-line box, date · memo · add on one line", tf.querySelector("textarea.todo-text").rows === 2 && $$(".todo-line2 > *", tf).length === 3 && (function () { var r = $$(".todo-line2 > *", tf).map(function (n) { var b = n.getBoundingClientRect(); return b.top + b.height / 2; }); return Math.abs(r[0] - r[1]) < 3 && Math.abs(r[1] - r[2]) < 3; })());
+    ok("one Google connection covers tasks", App.gcal.scopes.indexOf("https://www.googleapis.com/auth/tasks") !== -1);
+    ok("calendar left, mood + overdue on the right", $("#view .cal-right").contains(cardBy("오늘의 기분")) && $$("#view .cal-right .mood-btn").length === 8 && $$("#view .cal-right .mood-strip-day").length === 7 && !cardBy("메모") && !cardBy("다가오는 일정") && !$("#view .cal-left form.quick-add"));
     ok("daily sync bar when not synced today", !$("#view .gsync-bar").hidden && /지금 동기화/.test($("#view .gsync-bar").textContent));
-    var calH = $("#view .cal-left").getBoundingClientRect().height, rightH = $("#view .cal-right").getBoundingClientRect().height;
-    ok("mood card no taller than the calendar card", window.innerWidth <= 900 || rightH <= calH + 1, rightH + " vs " + calH);
 
 
     var gC = cardBy("Google 캘린더 연동");
@@ -420,14 +416,15 @@
     ok("fold opens + remembered", !$(".card-body", gC).hidden && App.h.safeGet("hds_fold_gcal") === "1");
     $(".fold-btn", gC).click(); await sleep(30);
     await go("home"); await sleep(120);
-    ok("home todo from Google", /예전 할 일/.test($("#view").textContent) && !/남은 할 일|졸업 요건/.test($("#view .tiles").textContent) && !$("#view .capture input[placeholder^='빠른 메모']"));
+    ok("home quick add without hint", !!$("#view form.capture") && !$("#view .capture-hint") && !/남은 할 일|졸업 요건/.test($("#view .tiles").textContent) && !$("#view .capture input[placeholder^='빠른 메모']"));
     window.fetch = realFetchT;
     await go("personal-calendar");
-    var cell = $$("#view .cal-cell:not(.blank)")[14]; cell.click(); await sleep(60);
-    var cf = $$("#view form.quick-add")[0];
-    setVal($("input[placeholder='일정 제목']", cf), "테스트 일정"); submit(cf); await sleep(100);
-    ok("calendar event", $$("#view .cal-dot").length >= 1 && $$("#view .upcoming-item").length >= 1, "dots=" + $$("#view .cal-dot").length);
+    var cell = $$("#view .cal-cell:not(.blank)")[14], cellK = cell.getAttribute("data-date");
+    await App.col("schedule").add({ date: cellK, title: "테스트 일정", cat: "개인" }); await sleep(120);
+    $("#view .cal-cell[data-date='" + cellK + "']").click(); await sleep(60);
+    ok("calendar event", $$("#view .cal-dot").length >= 1 && /테스트 일정/.test($("#view .cal-pop").textContent), "dots=" + $$("#view .cal-dot").length);
     $$("#view .cal-head .tool-btn")[2].click(); await sleep(60);
+    ok("month change closes the day list", $("#view .cal-pop").hidden);
     ok("calendar next-month", /\d+년 \d+월/.test($("#view .cal-title").textContent));
 
     await go("writer-desk");
@@ -549,7 +546,9 @@
     ok("gcal primary on / other off", gd && gd.calendars[0].on === true && gd.calendars[1].on === false);
     ok("gcal cancelled skipped", gd && !gd.events.some(function (e) { return e.title === "취소된 일정"; }));
     ok("gcal all-day end inclusive", gd && gd.events.filter(function (e) { return e.title === "종일 행사"; })[0].end === dk(1), gd && JSON.stringify(gd.events.map(function (e) { return e.end; })));
-    ok("gcal day list", /구글 회의/.test($("#view .card:nth-of-type(2)") ? $("#view .card:nth-of-type(2)").textContent : "") || $$("#view .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }));
+    var gEv = gd && gd.events.filter(function (e) { return e.title === "구글 회의"; })[0];
+    if (gEv) { $$("#view .cal-head .tool-btn")[1].click(); await sleep(40); var gCell = $("#view .cal-cell[data-date='" + gEv.date + "']"); if (gCell) { gCell.click(); await sleep(60); } }
+    ok("gcal day list", $$("#view .cal-pop .upcoming-item").some(function (r) { return /구글 회의/.test(r.textContent); }), gEv && gEv.date);
     ok("gcal event link", $$("#view .upcoming-item a").some(function (a) { return /calendar\.google\.com/.test(a.href); }));
     ok("gcal status shown", /일정 2개/.test($$("#view .hint")[0].textContent + $$("#view .hint").map(function (h) { return h.textContent; }).join(" ")));
     var cbs = $$("#view input[type=checkbox]").filter(function (c) { return /가져오기/.test(c.getAttribute("aria-label") || ""); });

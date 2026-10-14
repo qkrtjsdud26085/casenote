@@ -2,6 +2,27 @@
 (function (App) {
   "use strict";
   var ui = App.ui, H = App.h, el = H.el;
+
+  /* quick capture → Google Tasks (or a Calendar event when a date and time are given); 홈 · 일정 · 캘린더 */
+  App.quickCapture = function (parent) {
+    var cap = el("form", "capture");
+    var qt = el("input"); qt.placeholder = "빠른 할 일 (Enter)"; qt.maxLength = 200; qt.setAttribute("aria-label", "빠른 할 일");
+    var qd = el("input"); qd.type = "date"; qd.className = "cap-date"; qd.setAttribute("aria-label", "날짜 (선택)");
+    var qh = el("input"); qh.type = "time"; qh.className = "cap-time"; qh.setAttribute("aria-label", "시간 (선택)");
+    var qb = el("button", "btn", "추가"); qb.type = "submit";
+    cap.appendChild(qt); cap.appendChild(qd); cap.appendChild(qh); cap.appendChild(qb);
+    parent.appendChild(cap);
+    cap.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var t = qt.value.trim();
+      if (!t) { return; }
+      var job = qh.value && qd.value ? App.gtasks.createEvent(t, qd.value, qh.value, "") : App.gtasks.add(t, qd.value, "");
+      job.catch(function (err) { window.alert("Google 저장 실패: " + App.gtasks.explain(err)); });
+      qt.value = ""; qd.value = ""; qh.value = "";
+    });
+    return cap;
+  };
+
   App.page({
     id: "home", title: "홈",
     render: function (view) {
@@ -16,23 +37,7 @@
       strip.appendChild(badges);
       strip.hidden = false;
 
-      /* ---------- quick capture → Google Tasks (or a Calendar event when a time is given) ---------- */
-      var cap = el("form", "capture");
-      var qt = el("input"); qt.placeholder = "빠른 할 일 (Enter)"; qt.maxLength = 200; qt.setAttribute("aria-label", "빠른 할 일");
-      var qd = el("input"); qd.type = "date"; qd.className = "cap-date"; qd.setAttribute("aria-label", "날짜 (선택)");
-      var qh = el("input"); qh.type = "time"; qh.className = "cap-time"; qh.setAttribute("aria-label", "시간 (선택)");
-      var qb = el("button", "btn", "추가"); qb.type = "submit";
-      cap.appendChild(qt); cap.appendChild(qd); cap.appendChild(qh); cap.appendChild(qb);
-      view.appendChild(cap);
-      view.appendChild(el("p", "capture-hint", "할 일은 Google 할 일(Tasks)에 바로 저장돼요. 시간까지 적으면 Google 캘린더 일정으로 등록돼요."));
-      cap.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var t = qt.value.trim();
-        if (!t) { return; }
-        var job = qh.value && qd.value ? App.gtasks.createEvent(t, qd.value, qh.value, "") : App.gtasks.add(t, qd.value, "");
-        job.catch(function (err) { window.alert("Google 저장 실패: " + App.gtasks.explain(err)); });
-        qt.value = ""; qd.value = ""; qh.value = "";
-      });
+      App.quickCapture(view);
 
       var tilesHost = el("div"); view.appendChild(tilesHost);
 
