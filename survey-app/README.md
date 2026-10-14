@@ -36,6 +36,11 @@
 7. 나온 주소(`…/exec`)가 참여자 주소예요. 관리자 화면은 주소 뒤에 `?page=admin`을 붙여요.
 8. 안드로이드 Chrome에서 주소를 열고 **⋮ › 홈 화면에 추가**하면 앱처럼 쓸 수 있어요.
 
+> **"Cannot read properties of null (reading 'getSheetByName')" 오류가 나면**
+> Apps Script를 스프레드시트 메뉴가 아니라 script.google.com에서 따로 만든 경우예요.
+> 스프레드시트 주소 `https://docs.google.com/spreadsheets/d/【ID】/edit`의 【ID】를 복사해
+> `Code.gs` 맨 위 `var SHEET_ID = "";`의 따옴표 안에 붙여 넣고, 저장 후 새 버전으로 다시 배포해 주세요.
+
 코드를 고친 뒤에는 **배포 › 배포 관리 › 수정(연필) › 버전: 새 버전**으로 다시 배포해야 반영돼요.
 
 ## Vercel에 올리고 싶다면

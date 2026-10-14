@@ -2,6 +2,7 @@
  * 척도 응답 수집 앱 (Google Apps Script)
  *
  * 이 스크립트는 "앱_문항설정" 스프레드시트에 붙여 쓴다(확장 프로그램 > Apps Script).
+ * 따로 만든 프로젝트라면 아래 SHEET_ID에 스프레드시트 ID를 넣는다.
  * 문항 내용과 응답은 모두 그 스프레드시트에만 저장되고, 이 코드에는 들어 있지 않다.
  *
  * 시트 구성
@@ -19,6 +20,17 @@ var BASIC_FIELDS = [
 ];
 var SESSION_HOURS = 6;
 
+// 스프레드시트에서 [확장 프로그램 › Apps Script]로 열었다면 비워 둬도 돼요.
+// script.google.com에서 따로 만든 프로젝트라면, 스프레드시트 주소의
+// https://docs.google.com/spreadsheets/d/【이 부분】/edit 을 따옴표 안에 붙여 넣어 주세요.
+var SHEET_ID = "";
+
+function ss_() {
+  var ss = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : SpreadsheetApp.getActive();
+  if (!ss) throw new Error("연결된 스프레드시트가 없어요. Code.gs 맨 위 SHEET_ID에 스프레드시트 주소의 ID를 넣어 주세요.");
+  return ss;
+}
+
 function doGet(e) {
   var page = (e && e.parameter && e.parameter.page) === "admin" ? "admin" : "index";
   return HtmlService.createTemplateFromFile(page).evaluate()
@@ -34,7 +46,7 @@ function include(name) {
 /* ---------- 시트 읽기 ---------- */
 
 function sheet_(name) {
-  var sh = SpreadsheetApp.getActive().getSheetByName(name);
+  var sh = ss_().getSheetByName(name);
   if (!sh) throw new Error("'" + name + "' 시트가 없어요.");
   return sh;
 }
@@ -137,7 +149,7 @@ function ensureHeader_(sh, head) {
 }
 
 function getOrCreate_(name) {
-  var ss = SpreadsheetApp.getActive();
+  var ss = ss_();
   return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
@@ -209,7 +221,7 @@ function checkToken_(token) {
 }
 
 function table_(name) {
-  var sh = SpreadsheetApp.getActive().getSheetByName(name);
+  var sh = ss_().getSheetByName(name);
   if (!sh || sh.getLastRow() < 2) return { head: [], rows: [] };
   var v = sh.getDataRange().getValues();
   return { head: v.shift().map(String), rows: v };
