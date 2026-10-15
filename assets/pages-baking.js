@@ -1,4 +1,5 @@
 /* Hello dear Sunny — 개인 › 베이킹: 레시피 카드(준비물을 맨 위에 크게, 내 오븐[쿠쿠 26L] 시간, 만드는 법 · 팁은 펼쳐 보기)
+   맨 위 검색(레시피 이름 · 재료) + 바로가기 칩. 누른 레시피는 맨 앞으로(hds_bake_order, 이 브라우저에만 기억)
    레시피는 개인정보가 아니라서 코드에 그대로 둬요. 준비물 체크는 저장하지 않아요(새로고침하면 처음부터). */
 (function (App) {
   "use strict";
@@ -16,7 +17,7 @@
         { name: "설탕", amt: "90g", note: "약 9큰술" },
         { name: "박력분", amt: "50g", note: "약 5큰술" },
         { name: "아몬드가루", amt: "50g", note: "약 5큰술 · 없으면 박력분 50g" },
-        { name: "꿀", amt: "1큰술" },
+        { name: "꿀", amt: "1큰술", note: "약 20g" },
         { name: "소금", amt: "한 꼬집" }
       ],
       steps: [
@@ -45,7 +46,7 @@
         { name: "달걀", amt: "2개", note: "약 100g · 실온" },
         { name: "박력분", amt: "100g", note: "약 10큰술" },
         { name: "베이킹파우더", amt: "2g", note: "약 ½작은술" },
-        { name: "우유", amt: "1큰술", note: "선택 · 더 촉촉해요" },
+        { name: "우유", amt: "1큰술", note: "약 15g · 선택 · 더 촉촉해요" },
         { name: "소금", amt: "한 꼬집" }
       ],
       steps: [
@@ -107,7 +108,7 @@
         { name: "설탕", amt: "30g", note: "약 3큰술" },
         { name: "베이킹파우더", amt: "8g", note: "약 2작은술" },
         { name: "달걀", amt: "1개", note: "약 50g · 차갑게" },
-        { name: "우유", amt: "60ml", note: "약 4큰술 · 차갑게 (+윗면용 조금)" },
+        { name: "우유", amt: "62g", note: "60ml · 약 4큰술 · 차갑게 (+윗면용 조금)" },
         { name: "소금", amt: "한 꼬집" }
       ],
       steps: [
@@ -136,7 +137,7 @@
         { name: "설탕", amt: "70g", note: "약 7큰술" },
         { name: "버터", amt: "80g", note: "약 6큰술 · 녹여서 살짝 식히기" },
         { name: "달걀", amt: "1개", note: "약 50g · 실온" },
-        { name: "우유", amt: "80ml", note: "약 5큰술 · 실온" },
+        { name: "우유", amt: "82g", note: "80ml · 약 5큰술 · 실온" },
         { name: "베이킹파우더", amt: "5g", note: "약 1작은술" },
         { name: "블루베리", amt: "80g", note: "냉동도 OK · 빼면 플레인 머핀" },
         { name: "소금", amt: "한 꼬집" }
@@ -210,6 +211,7 @@
         b.classList.toggle("got", on); b.setAttribute("aria-pressed", on ? "true" : "false");
         paintCount();
       });
+      b.setAttribute("data-name", it.name);
       li.appendChild(b); list.appendChild(li);
     });
     box.appendChild(list);
@@ -238,7 +240,18 @@
       how.appendChild(tips);
     }
     c.body.appendChild(how);
+    return c.el;
   }
+
+  /* 누른 레시피가 맨 앞으로: 순서는 이 브라우저에 기억해요 */
+  function savedOrder() {
+    var keys = String(H.safeGet("hds_bake_order") || "").split(",");
+    var known = RECIPES.map(function (r) { return r.key; });
+    var out = keys.filter(function (k) { return known.indexOf(k) !== -1; });
+    known.forEach(function (k) { if (out.indexOf(k) === -1) { out.push(k); } });
+    return out;
+  }
+  function norm(t) { return String(t || "").toLowerCase().replace(/\s+/g, ""); }
 
   App.page({
     id: "personal-baking", title: "베이킹",
@@ -249,9 +262,64 @@
       var ul = el("ul", "bake-oven-tips");
       OVEN_TIPS.forEach(function (t) { ul.appendChild(el("li", "", t)); });
       oc.body.appendChild(ul);
+      /* 검색 + 레시피 바로가기 */
+      var bar = el("div", "bake-bar");
+      var q = el("input", "bake-search"); q.type = "search";
+      q.placeholder = "레시피 · 재료 검색 (예: 버터, 블루베리)"; q.setAttribute("aria-label", "레시피 · 재료 검색");
+      bar.appendChild(q);
+      var chips = el("div", "bake-chips");
+      bar.appendChild(chips);
+      var found = el("p", "hint bake-found");
+      bar.appendChild(found);
+      view.insertBefore(bar, oc.el);
+
       var g = ui.grid(view, true);
       g.classList.add("bake-grid");
-      RECIPES.forEach(function (r) { recipeCard(g, r); });
+      var cards = {};
+      savedOrder().forEach(function (k) {
+        var r = RECIPES.filter(function (x) { return x.key === k; })[0];
+        cards[k] = recipeCard(g, r);
+        /* 카드 어디든 누르면 맨 앞으로(이미 맨 앞이면 그대로) */
+        cards[k].addEventListener("click", function () { toFront(k, false); });
+      });
+      var empty = el("p", "empty-state bake-empty", "찾는 레시피가 없어요. 다른 재료 이름으로 검색해 보세요.");
+      empty.hidden = true; view.appendChild(empty);
+
+      function toFront(k, scroll) {
+        var card = cards[k];
+        if (g.firstChild !== card) { g.insertBefore(card, g.firstChild); scroll = true; }
+        H.safeSet("hds_bake_order", Array.prototype.map.call(g.children, function (n) { return n.getAttribute("data-recipe"); }).join(","));
+        if (scroll && card.scrollIntoView) { card.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      }
+      RECIPES.forEach(function (r) {
+        var b = el("button", "chip bake-chip", r.emoji + " " + r.title); b.type = "button";
+        b.setAttribute("data-recipe", r.key);
+        b.addEventListener("click", function () {
+          if (q.value) { q.value = ""; filter(); }
+          toFront(r.key, true);
+        });
+        chips.appendChild(b);
+      });
+
+      function filter() {
+        var t = norm(q.value), n = 0;
+        RECIPES.forEach(function (r) {
+          var card = cards[r.key];
+          var hitTitle = !t || norm(r.title + r.tab + r.key).indexOf(t) !== -1;
+          var hitIng = false;
+          Array.prototype.forEach.call(card.querySelectorAll(".bake-ing-item"), function (b) {
+            var on = !!t && norm(b.getAttribute("data-name")).indexOf(t) !== -1;
+            b.classList.toggle("hit", on);
+            if (on) { hitIng = true; }
+          });
+          card.hidden = !(hitTitle || hitIng);
+          if (!card.hidden) { n++; }
+        });
+        found.textContent = t ? "검색 결과 " + n + "개" : "";
+        empty.hidden = n > 0;
+      }
+      q.addEventListener("input", filter);
+      filter();
     }
   });
 

@@ -1179,3 +1179,13 @@ body.cmp-full-open { overflow: hidden; }
 .bake-oven-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent-strong); }
 .bake-oven-time { font-size: 0.98rem; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
 .bake-oven-note { flex-basis: 100%; font-size: 0.76rem; color: var(--ink-soft); line-height: 1.5; }
+.bake-bar { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.bake-search { width: 100%; max-width: 520px; font-size: 0.95rem; padding: 10px 12px; background: var(--surface); }
+.bake-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.bake-chip { font-family: var(--font-body); font-size: 0.8rem; }
+.bake-chip:hover { color: var(--ink); border-color: var(--ink-soft); }
+.bake-found { margin: 0; }
+.bake-found:empty { display: none; }
+.bake-card { scroll-margin-top: 140px; }
+.bake-ing-item.hit { background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px; }
+.bake-empty { margin-top: 18px; }
