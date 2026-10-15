@@ -1,4 +1,4 @@
-/* Hello dear Sunny — 개인 › 베이킹: 레시피 카드(준비물을 맨 위에 크게, 만드는 법 · 팁은 펼쳐 보기)
+/* Hello dear Sunny — 개인 › 베이킹: 레시피 카드(준비물을 맨 위에 크게, 내 오븐[쿠쿠 26L] 시간, 만드는 법 · 팁은 펼쳐 보기)
    레시피는 개인정보가 아니라서 코드에 그대로 둬요. 준비물 체크는 저장하지 않아요(새로고침하면 처음부터). */
 (function (App) {
   "use strict";
@@ -8,6 +8,7 @@
     {
       key: "financier", tab: "Financier", tone: "t-1", emoji: "🧈", title: "브라운버터 피낭시에",
       meta: ["미니 10~12개", "190~200℃", "10~13분", "휴지 30분+"],
+      myOven: { time: "200℃ · 13~16분", note: "가장자리가 진한 갈색이 될 때까지. 10분째부터 확인해요." },
       intro: "버터 100g 기준이에요. 브라운버터는 굽는 과정에서 수분이 날아가 양이 줄어드니, 처음 버터를 100g으로 잡으면 완성 후 약 80g이 남아요.",
       items: [
         { name: "버터", amt: "100g", note: "밥숟가락 약 7큰술" },
@@ -36,6 +37,7 @@
     {
       key: "pound", tab: "Pound", tone: "t-2", emoji: "🍰", title: "기본 파운드케이크",
       meta: ["파운드틀 1개", "170℃", "40~45분", "실온 재료"],
+      myOven: { time: "170℃ · 50~55분", note: "아래 칸에서 굽고, 25분쯤 윗면이 진해지면 호일을 덮어요. 꼬치로 꼭 확인해요." },
       intro: "버터 · 설탕 · 달걀 · 밀가루를 거의 같은 양으로 넣는 기본 파운드예요. 틀은 약 21×8cm 크기 1개 분량이에요.",
       items: [
         { name: "버터", amt: "100g", note: "약 7큰술 · 실온에 말랑하게" },
@@ -66,6 +68,7 @@
     {
       key: "cookie", tab: "Cookie", tone: "t-3", emoji: "🍪", title: "초코칩 쿠키",
       meta: ["약 10개", "180℃", "10~12분", "휴지 30분"],
+      myOven: { time: "180℃ · 13~15분", note: "한 판에 5~6개씩. 가장자리만 노릇하면 꺼내요." },
       intro: "겉은 바삭, 속은 쫀득한 초코칩 쿠키예요. 한 개에 약 45g씩, 지름 7~8cm 크기로 구워져요.",
       items: [
         { name: "버터", amt: "100g", note: "약 7큰술 · 실온에 말랑하게" },
@@ -92,7 +95,47 @@
         "빚어 둔 반죽은 냉동실에서 2주까지 두고, 꺼내서 바로 1~2분 더 구우면 돼요.",
         "에어프라이어는 160℃에서 8~10분, 종이호일을 깔고 3~4개씩 구워요."
       ]
+    },
+    {
+      key: "scone", tab: "Scone", tone: "t-1", emoji: "🥐", title: "플레인 스콘",
+      meta: ["6개", "200℃", "15~18분", "휴지 30분"],
+      myOven: { time: "200℃ · 20~23분", note: "옆면까지 노릇해지고 윗면이 갈색이면 다 된 거예요." },
+      intro: "겉은 바삭, 속은 포슬포슬한 기본 스콘이에요. 버터가 녹지 않게 모든 재료를 차갑게 쓰는 게 제일 중요해요.",
+      items: [
+        { name: "박력분", amt: "200g", note: "약 20큰술" },
+        { name: "버터", amt: "60g", note: "약 4큰술 · 냉장고에서 바로 꺼낸 차가운 것" },
+        { name: "설탕", amt: "30g", note: "약 3큰술" },
+        { name: "베이킹파우더", amt: "8g", note: "약 2작은술" },
+        { name: "달걀", amt: "1개", note: "약 50g · 차갑게" },
+        { name: "우유", amt: "60ml", note: "약 4큰술 · 차갑게 (+윗면용 조금)" },
+        { name: "소금", amt: "한 꼬집" }
+      ],
+      steps: [
+        ["가루 섞기", "볼에 박력분, 베이킹파우더, 설탕, 소금을 넣고 섞습니다."],
+        ["버터 자르기", "차가운 버터를 깍둑 썰어 넣고, 스크래퍼(없으면 포크)로 자르듯 섞어 빵가루처럼 보슬보슬하게 만듭니다. 손으로 오래 만지면 버터가 녹아요."],
+        ["달걀 · 우유", "달걀과 우유를 섞어 붓고, 주걱으로 가르듯 섞어 한 덩어리로 뭉칩니다. 치대지 않아요."],
+        ["휴지", "랩으로 싸서 냉장고에서 30분 이상 휴지시킵니다. 이때 오븐을 200℃로 예열해요."],
+        ["모양 잡기", "반죽을 약 3cm 두께로 펴서 6조각(동그랗게 찍거나 삼각형으로 자르기)으로 나눕니다."],
+        ["윗면 바르기", "팬에 간격을 두고 올린 뒤, 윗면에만 우유(또는 달걀물)를 얇게 바릅니다. 옆면에 흐르면 덜 부풀어요."],
+        ["굽기", "200℃에서 15~18분, 윗면이 노릇하고 옆면이 갈라지면서 부풀면 꺼내 식힘망에 올립니다."]
+      ],
+      tips: [
+        "결을 살리고 싶으면 반죽을 반으로 접어 누르기를 2번만 해요.",
+        "초코칩 · 크랜베리 50g을 3단계에서 같이 넣으면 응용 스콘이 돼요.",
+        "구운 스콘은 식혀서 냉동해 두었다가 전자레인지 20초 + 오븐 3분이면 갓 구운 맛이 나요.",
+        "에어프라이어는 170℃에서 13~15분 구워요."
+      ]
     }
+  ];
+
+  /* 쿠쿠 26L 복합레인지(오븐 기능): 작은 오븐이라 열이 약하고 위 히터가 가까워요 */
+  var MY_OVEN = "쿠쿠 26L 복합레인지";
+  var OVEN_TIPS = [
+    "반드시 \"오븐(컨벡션)\" 모드로 굽기 — 전자레인지 · 콤비 모드는 쓰지 않아요.",
+    "예열은 표시가 떠도 5분 더, 15분쯤 충분히 해요. 문을 자주 열면 온도가 크게 떨어져요.",
+    "위 히터가 가까워 윗면이 먼저 타요. 낮은 받침에 올리고, 진해지면 호일을 덮어요.",
+    "레시피 시간보다 20~30% 더 걸려요. 처음엔 아래 \"내 오븐\" 시간대로 굽고, 다음엔 결과를 보고 조절해요.",
+    "한 판에 너무 많이 올리지 말고, 가운데와 가장자리가 다르게 익으면 중간에 팬을 180° 돌려요."
   ];
 
   function recipeCard(parent, r) {
@@ -103,6 +146,13 @@
     var meta = el("div", "bake-meta");
     r.meta.forEach(function (m) { meta.appendChild(el("span", "bake-pill", m)); });
     c.body.appendChild(meta);
+    if (r.myOven) {
+      var mo = el("div", "bake-oven");
+      mo.appendChild(el("span", "bake-oven-label", "내 오븐 · " + MY_OVEN));
+      mo.appendChild(el("strong", "bake-oven-time", r.myOven.time));
+      if (r.myOven.note) { mo.appendChild(el("span", "bake-oven-note", r.myOven.note)); }
+      c.body.appendChild(mo);
+    }
 
     /* 준비물: 카드 맨 위 상자에 크게. 누르면 "챙겼어요" 표시 */
     var box = el("section", "bake-ing");
@@ -163,7 +213,12 @@
     id: "personal-baking", title: "베이킹",
     desc: "자주 굽는 레시피 모음. 준비물을 먼저 챙기고, 만드는 법은 펼쳐서 보세요.",
     render: function (view) {
-      var g = ui.grid(view);
+      var oc = ui.card(view, { tab: "Oven", tone: "t-3", title: "🔥 " + MY_OVEN + "로 구울 때", wide: true });
+      oc.el.classList.add("bake-oven-card");
+      var ul = el("ul", "bake-oven-tips");
+      OVEN_TIPS.forEach(function (t) { ul.appendChild(el("li", "", t)); });
+      oc.body.appendChild(ul);
+      var g = ui.grid(view, true);
       g.classList.add("bake-grid");
       RECIPES.forEach(function (r) { recipeCard(g, r); });
     }
