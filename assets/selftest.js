@@ -912,8 +912,8 @@
     /* 베이킹: 레시피 카드 3개, 준비물 먼저 · 체크 토글, 만드는 법은 접혀 있음 */
     await go("personal-baking"); await sleep(80);
     var bakes = $$("#view .bake-card");
-    ok("baking cards", bakes.length === 5 && bakes.map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "financier|pound|cookie|scone|muffin" && bakes.every(function (c) { return /쿠쿠 26L/.test($(".bake-oven", c).textContent); }) && !!$("#view .bake-oven-card") && bakes.every(function (c) { return $(".bake-ing", c) && $$(".bake-ing-item", c).length >= 7 && $("details.bake-how", c) && !$("details.bake-how", c).open; }), bakes.length);
-    App.h.safeSet("hds_bake_order", ""); await go("home"); await go("personal-baking"); await sleep(80);
+    ok("baking cards", bakes.length === 7 && bakes.map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "financier|pound|cookie|scone|muffin|levain|redvelvet" && bakes.every(function (c) { return /쿠쿠 26L/.test($(".bake-oven", c).textContent); }) && !!$("#view .bake-oven-card") && bakes.every(function (c) { return $(".bake-ing", c) && $$(".bake-ing-item", c).length >= 7 && $("details.bake-how", c) && !$("details.bake-how", c).open; }), bakes.length);
+    App.h.safeSet("hds_bake_order", ""); await App.doc("personal/baking").set({ order: [] }); await go("home"); await go("personal-baking"); await sleep(80);
     bakes = $$("#view .bake-card");
     var ing0 = $(".bake-ing-item", bakes[0]); ing0.click(); await sleep(20);
     ok("baking ingredient check", ing0.classList.contains("got") && ing0.getAttribute("aria-pressed") === "true" && /챙김 1 \/ 7/.test($(".bake-ing-count", bakes[0]).textContent), $(".bake-ing-count", bakes[0]).textContent);
@@ -921,10 +921,16 @@
     ok("baking touched card goes first", $("#view .bake-grid").firstChild.getAttribute("data-recipe") === "muffin" && App.h.safeGet("hds_bake_order").indexOf("muffin") === 0, App.h.safeGet("hds_bake_order"));
     await go("home"); await go("personal-baking"); await sleep(80);
     ok("baking order remembered", $("#view .bake-grid").firstChild.getAttribute("data-recipe") === "muffin");
+    ok("baking order saved to Firestore", ((window.__MOCK_STORE["personal/baking"] || {}).order || [])[0] === "muffin", JSON.stringify(window.__MOCK_STORE["personal/baking"]));
+    App.h.safeSet("hds_bake_order", ""); await App.doc("personal/baking").set({ order: ["redvelvet", "cookie"] }, { merge: true });
+    await go("home"); await go("personal-baking"); await sleep(120);
+    ok("baking order follows Firestore (other device)", $$("#view .bake-card").map(function (c) { return c.getAttribute("data-recipe"); }).slice(0, 3).join("|") === "redvelvet|cookie|financier");
     $$("#view .bake-chip").filter(function (b) { return b.getAttribute("data-recipe") === "scone"; })[0].click(); await sleep(30);
     ok("baking chip -> first", $("#view .bake-grid").firstChild.getAttribute("data-recipe") === "scone");
     var bq = $("#view .bake-search"); setVal(bq, "블루베리"); await sleep(20);
     ok("baking search by ingredient", $$("#view .bake-card").filter(function (c) { return !c.hidden; }).map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "muffin" && $$("#view .bake-ing-item.hit").length === 1 && /1개/.test($("#view .bake-found").textContent));
+    setVal(bq, "황치즈"); await sleep(20);
+    ok("baking search levain", $$("#view .bake-card").filter(function (c) { return !c.hidden; }).map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "levain");
     setVal(bq, "없는재료"); await sleep(20);
     ok("baking search empty", $$("#view .bake-card").every(function (c) { return c.hidden; }) && !$("#view .bake-empty").hidden);
     setVal(bq, ""); await sleep(20);

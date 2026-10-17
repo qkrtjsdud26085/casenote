@@ -1,5 +1,5 @@
 /* Hello dear Sunny — 개인 › 베이킹: 레시피 카드(준비물을 맨 위에 크게, 내 오븐[쿠쿠 26L] 시간, 만드는 법 · 팁은 펼쳐 보기)
-   맨 위 검색(레시피 이름 · 재료) + 바로가기 칩. 누른 레시피는 맨 앞으로(hds_bake_order, 이 브라우저에만 기억)
+   맨 위 검색(레시피 이름 · 재료) + 바로가기 칩. 누른 레시피는 맨 앞으로(Firestore personal/baking.order로 모든 기기에서 같은 순서, hds_bake_order는 브라우저 임시 기억)
    레시피는 개인정보가 아니라서 코드에 그대로 둬요. 준비물 체크는 저장하지 않아요(새로고침하면 처음부터). */
 (function (App) {
   "use strict";
@@ -157,6 +157,75 @@
         "윗면에 설탕을 조금 뿌려 구우면 바삭한 껍질이 생겨요.",
         "에어프라이어는 실리콘 머핀컵에 담아 160℃에서 15~18분 구워요."
       ]
+    },
+    {
+      key: "levain", tab: "Levain", tone: "t-3", emoji: "🧀", title: "황치즈 르뱅쿠키",
+      meta: ["큰 쿠키 4개", "180℃", "13~15분", "냉동 30분"],
+      myOven: { time: "180℃ · 16~19분", note: "두꺼워서 오래 걸려요. 10분쯤 윗면이 진해지면 호일을 덮고, 한 판에 2개씩 구워요." },
+      intro: "겉은 바삭, 속은 촉촉하게 덜 익은 듯한 두툼한 르뱅쿠키예요. 가운데에 크림치즈 필링이 들어가요. 하나에 약 120g으로 크게 빚어요.",
+      items: [
+        { name: "버터", amt: "100g", note: "약 7큰술 · 차가운 것 깍둑썰기" },
+        { name: "황설탕", amt: "70g", note: "약 7큰술 · 없으면 설탕" },
+        { name: "설탕", amt: "30g", note: "약 3큰술" },
+        { name: "달걀", amt: "1개", note: "약 50g · 차갑게" },
+        { name: "박력분", amt: "160g", note: "약 16큰술" },
+        { name: "황치즈가루", amt: "30g", note: "약 4큰술 · 체다치즈 파우더" },
+        { name: "베이킹파우더", amt: "2g", note: "약 ½작은술" },
+        { name: "화이트초코칩", amt: "50g", note: "선택" },
+        { name: "크림치즈", amt: "80g", note: "필링용" },
+        { name: "필링용 설탕", amt: "10g", note: "약 1큰술" },
+        { name: "소금", amt: "아주 조금", note: "치즈가루가 짜서 생략해도 돼요" }
+      ],
+      steps: [
+        ["필링 만들기", "크림치즈와 필링용 설탕을 섞어 4등분하고, 랩에 싸서 동그랗게 만든 뒤 냉동실에 30분 넣어 단단하게 굳힙니다."],
+        ["버터 · 설탕", "차가운 버터를 깍둑 썰어 황설탕 · 설탕과 함께 주걱(또는 거품기)으로 섞습니다. 하얗게 휘핑하지 말고, 버터 덩어리가 조금 남아도 괜찮아요."],
+        ["달걀 넣기", "달걀을 넣고 한 덩어리가 될 때까지만 섞습니다."],
+        ["가루 섞기", "박력분 · 황치즈가루 · 베이킹파우더 · 소금을 체 쳐 넣고 주걱으로 가르듯 섞은 뒤, 화이트초코칩을 넣습니다."],
+        ["필링 감싸기", "반죽을 4등분(약 120g씩)해 손바닥에 넓게 펴고, 언 필링을 가운데 올려 빈틈없이 감쌉니다. 누르지 말고 높고 둥글게 빚어요."],
+        ["굳히기", "빚은 반죽을 냉동실에 30분 넣습니다. 이때 오븐을 190℃로 충분히 예열해요."],
+        ["굽기", "팬에 넉넉히 띄워 올리고 180℃로 낮춰 13~15분, 겉이 노릇하고 가운데는 덜 익은 듯 말랑할 때 꺼냅니다."],
+        ["식히기", "구운 직후엔 아주 부드러워 부서져요. 팬 위에서 15분 이상 식힌 뒤 옮깁니다."]
+      ],
+      tips: [
+        "누르지 않고 높게 빚는 게 르뱅 모양의 비결이에요. 차가운 반죽 그대로 구워야 덜 퍼져요.",
+        "황치즈가루는 짠맛이 있어서 소금은 아주 조금만 넣거나 빼도 돼요.",
+        "박력분 중 60g을 강력분으로 바꾸면 더 쫀득해요.",
+        "밀폐해서 실온 2~3일, 먹기 전에 전자레인지 10초 데우면 갓 구운 느낌이 나요.",
+        "에어프라이어는 160℃에서 12~14분, 한 번에 2개씩 구워요."
+      ]
+    },
+    {
+      key: "redvelvet", tab: "Red Velvet", tone: "t-1", emoji: "❤️", title: "레드벨벳 쿠키",
+      meta: ["약 10개", "180℃", "10~12분", "휴지 30분"],
+      myOven: { time: "180℃ · 13~15분", note: "오래 구우면 붉은색이 갈색으로 변해요. 가장자리만 굳으면 꺼내요." },
+      intro: "붉은 반죽에 화이트초코칩이 콕콕 박힌 쫀득한 쿠키예요. 코코아가루가 조금 들어가 은은한 초코 맛이 나요.",
+      items: [
+        { name: "버터", amt: "100g", note: "약 7큰술 · 실온에 말랑하게" },
+        { name: "황설탕", amt: "60g", note: "약 6큰술 · 없으면 설탕" },
+        { name: "설탕", amt: "40g", note: "약 4큰술" },
+        { name: "달걀", amt: "1개", note: "약 50g · 실온" },
+        { name: "박력분", amt: "150g", note: "약 15큰술" },
+        { name: "코코아가루", amt: "10g", note: "약 1½큰술 · 무가당" },
+        { name: "베이킹소다", amt: "2g", note: "약 ½작은술" },
+        { name: "레드 식용색소", amt: "콩알만큼", note: "젤 타입 · 없으면 비트가루 15g" },
+        { name: "화이트초코칩", amt: "70g", note: "토핑용으로 조금 남기기" },
+        { name: "소금", amt: "한 꼬집" }
+      ],
+      steps: [
+        ["버터 · 설탕", "실온 버터를 부드럽게 풀고 황설탕 · 설탕 · 소금을 넣어 섞습니다. 오래 휘핑하지 않아요."],
+        ["달걀 · 색소", "달걀을 2번에 나눠 넣어 섞고, 식용색소를 넣어 원하는 빨간색이 될 때까지 섞습니다. 구우면 조금 어두워지니 생각보다 진하게 해요."],
+        ["가루 섞기", "박력분 · 코코아가루 · 베이킹소다를 체 쳐 넣고 주걱으로 가르듯 섞습니다."],
+        ["초코칩", "화이트초코칩을 넣고 마저 섞은 뒤, 랩을 씌워 냉장고에서 30분 이상 휴지시킵니다."],
+        ["모양 잡기", "약 45g씩 떼어 동글게 빚고, 팬에 간격을 넉넉히 두고 올려 살짝 누릅니다. 남긴 화이트초코칩을 위에 꽂아요."],
+        ["굽기", "180℃로 예열한 오븐에서 10~12분, 가장자리만 굳고 가운데는 말랑할 때 꺼냅니다."],
+        ["식히기", "팬 위에서 5분 두었다가 식힘망으로 옮깁니다."]
+      ],
+      tips: [
+        "액상 색소는 많이 넣어야 해서 반죽이 질어져요. 젤 타입을 이쑤시개로 조금씩 넣어요.",
+        "비트가루를 쓰면 색이 자연스럽고, 박력분을 15g 줄여 주세요.",
+        "구운 뒤 따뜻할 때 화이트초코칩을 몇 개 더 꽂으면 보기 좋아요.",
+        "에어프라이어는 160℃에서 8~10분, 종이호일을 깔고 3~4개씩 구워요."
+      ]
     }
   ];
 
@@ -244,8 +313,8 @@
   }
 
   /* 누른 레시피가 맨 앞으로: 순서는 이 브라우저에 기억해요 */
-  function savedOrder() {
-    var keys = String(H.safeGet("hds_bake_order") || "").split(",");
+  function savedOrder(list) {
+    var keys = list || String(H.safeGet("hds_bake_order") || "").split(",");
     var known = RECIPES.map(function (r) { return r.key; });
     var out = keys.filter(function (k) { return known.indexOf(k) !== -1; });
     known.forEach(function (k) { if (out.indexOf(k) === -1) { out.push(k); } });
@@ -288,7 +357,9 @@
       function toFront(k, scroll) {
         var card = cards[k];
         if (g.firstChild !== card) { g.insertBefore(card, g.firstChild); scroll = true; }
-        H.safeSet("hds_bake_order", Array.prototype.map.call(g.children, function (n) { return n.getAttribute("data-recipe"); }).join(","));
+        var order = Array.prototype.map.call(g.children, function (n) { return n.getAttribute("data-recipe"); });
+        H.safeSet("hds_bake_order", order.join(","));
+        if (order.join(",") !== remote) { remote = order.join(","); App.doc("personal/baking").set({ order: order }, { merge: true }); }
         if (scroll && card.scrollIntoView) { card.scrollIntoView({ behavior: "smooth", block: "start" }); }
       }
       RECIPES.forEach(function (r) {
@@ -320,6 +391,17 @@
       }
       q.addEventListener("input", filter);
       filter();
+
+      /* 순서는 Firestore(personal/baking.order)에 저장해 모든 기기에서 같게. 브라우저 기억은 처음 빨리 그리기용 */
+      var remote = null;
+      App.watchDoc(App.doc("personal/baking"), function (d) {
+        var list = d && Array.isArray(d.order) ? d.order : null;
+        if (!list) { return; }
+        remote = list.join(",");
+        var order = savedOrder(list);
+        H.safeSet("hds_bake_order", order.join(","));
+        order.forEach(function (k) { g.appendChild(cards[k]); });
+      });
     }
   });
 
