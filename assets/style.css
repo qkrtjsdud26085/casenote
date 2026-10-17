@@ -1189,6 +1189,9 @@ body.cmp-full-open { overflow: hidden; }
 .bake-card { scroll-margin-top: 140px; }
 .bake-ing-item.hit { background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 4px; }
 .bake-empty { margin-top: 18px; }
+.bake-ing-list li.bake-ing-group { border-top: none; padding: 10px 2px 2px; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; color: var(--accent-strong); }
+.bake-ing-list li.bake-ing-group:first-child { padding-top: 0; }
+.bake-ing-list li.bake-ing-group + li { border-top: none; }
 
 /* ---------- 개인 › 수학 (pages-math.js) ---------- */
 .math-progress-card { margin-top: 26px; }
