@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 41, ids.length);
+    ok("page count", ids.length === 42, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -942,22 +942,26 @@
     await App.doc("personal/math").set({ start: App.h.todayStr(), done: {} });
     await go("personal-math"); await sleep(100);
     ok("math all open, no warning on day 1", $$("#view .math-chip").length === App.MATH_LESSONS.length && $$("#view .math-chip[disabled]").length === 0 && /오늘 계획 Day 1 \//.test($("#view .math-today-line").textContent) && !$("#view .math-warn") && $$("#view .math-archive-item").length === App.MATH_LESSONS.length && /오늘의 개념/.test($("#view .math-lesson-card h2").textContent), $("#view .math-today-line").textContent);
-    ok("math lesson parts", /수열의 수렴과 발산/.test($("#view .math-title").textContent) && /교재 p\.8/.test($("#view .math-book").textContent) && $$("#view .math-q").length === 3 && $$("#view .math-q-src").length === 3 && !!$("#view .math-course") && $$("#view details.math-sol").every(function (d) { return !d.open; }) && $$("#view .math-formula .math-why li").length >= 3 && !!$("#view .math-disp") && !!$("#view .math-lesson-card .mfrac") && !!$("#view .math-wrap"));
+    ok("math lesson parts", /무리수 e와 자연로그/.test($("#view .math-title").textContent) && /교재 p\.62/.test($("#view .math-book").textContent) && !!$("#pageHead .math-tabs") && $$("#view .math-q").length === 3 && $$("#view .math-q-src").length === 3 && !!$("#view .math-course") && $$("#view details.math-sol").every(function (d) { return !d.open; }) && $$("#view .math-formula .math-why li").length >= 3 && !!$("#view .math-disp") && !!$("#view .math-lesson-card .mfrac") && !!$("#view .math-wrap"));
     ok("math lessons complete", App.MATH_LESSONS.every(function (L) { return L.course && L.examples.length === 3 && L.formulas.length && L.goal.length && L.wrap && L.examples.every(function (e) { return e.src && e.q && e.steps.length && e.ans; }); }) && App.MATH_LESSONS.every(function (L) { return [L.title, L.wrap].concat(L.goal, L.examples.map(function (e) { return e.q + e.ans + e.steps.join(""); })).every(function (t) { return t.split("$").length % 2 === 1; }); }));
     $$("#view .math-chip").filter(function (a) { return a.getAttribute("data-day") === "9"; })[0].click(); await sleep(40);
     ok("math future day opens (예습)", /Day 9 · /.test($("#view .math-day-pill").textContent) && /예습/.test($("#view .math-lesson-card h2").textContent));
     $$("#view .math-chip").filter(function (a) { return a.getAttribute("data-day") === "1"; })[0].click(); await sleep(40);
     $("#view .math-done-btn").click(); await sleep(80);
-    ok("math done saved", !!((window.__MOCK_STORE["personal/math"] || {}).done || {}).m01 && $("#view .math-done-btn").classList.contains("on") && /완료 1 \//.test($("#view .math-progress-card").textContent) && !!$("#view .math-ok"), JSON.stringify(window.__MOCK_STORE["personal/math"]));
-    await App.doc("personal/math").set({ start: App.h.dateKey(App.h.addDays(new Date(), -4)), done: { m01: App.h.todayStr(), m03: App.h.todayStr() } });
+    ok("math done saved", !!((window.__MOCK_STORE["personal/math"] || {}).done || {}).m11 && $("#view .math-done-btn").classList.contains("on") && /완료 1 \//.test($("#view .math-progress-card").textContent) && !!$("#view .math-ok"), JSON.stringify(window.__MOCK_STORE["personal/math"]));
+    await App.doc("personal/math").set({ start: App.h.dateKey(App.h.addDays(new Date(), -4)), done: { m11: App.h.todayStr(), m13: App.h.todayStr() } });
     await go("home"); await go("personal-math"); await sleep(120);
     ok("math late warning", !!$("#view .math-warn") && /2개 밀렸어요/.test($("#view .math-warn").textContent) && /Day 2 \(.*3일 지남\) · Day 4/.test($("#view .math-warn-list").textContent) && $$("#view .math-chip.late").length === 2 && /Day 2 · /.test($("#view .math-day-pill").textContent) && /3일 밀림/.test($("#view .math-stat").textContent) && /밀린 개념/.test($("#view .math-lesson-card h2").textContent), $("#view .math-warn") ? $("#view .math-warn").textContent : "no warn");
     $$("#view .math-archive-item").filter(function (a) { return a.getAttribute("data-day") === "5"; })[0].click(); await sleep(40);
     ok("math today from list", /Day 5 · /.test($("#view .math-day-pill").textContent) && /오늘의 개념/.test($("#view .math-lesson-card h2").textContent));
     $("#view .math-warn-btn").click(); await sleep(40);
-    ok("math warn button -> oldest late", /Day 2 · /.test($("#view .math-day-pill").textContent) && /극한의 성질/.test($("#view .math-title").textContent));
+    ok("math warn button -> oldest late", /Day 2 · /.test($("#view .math-day-pill").textContent) && /지수함수와 로그함수의 도함수/.test($("#view .math-title").textContent));
     $("#view .math-done-btn").click(); await sleep(80);
     ok("math late count drops", /1개 밀렸어요/.test($("#view .math-warn").textContent) && $$("#view .math-chip.late").length === 1);
+    await go("personal-math-shelf"); await sleep(100);
+    ok("math shelf", App.MATH_SHELF.length === 10 && App.MATH_LESSONS.length + App.MATH_SHELF.length === 29 && App.MATH_SHELF.every(function (L) { return App.MATH_LESSONS.indexOf(L) === -1; }) && $$("#view .math-archive-item").length === 10 && /보관함/.test($("#view .math-day-pill").textContent) && /수열의 수렴과 발산/.test($("#view .math-title").textContent) && !$("#view .math-warn") && $("#subnav a.active").getAttribute("data-page") === "personal-math" && /보관함/.test($("#pageHead .bud-tab.on").textContent));
+    $$("#view .math-archive-item").filter(function (a) { return a.getAttribute("data-key") === "m08"; })[0].click(); await sleep(40);
+    ok("math shelf open item", /등비급수의 합/.test($("#view .math-title").textContent) && !$("#view .math-next"));
     /* Necessary › PDF 나누기: 쪽 범위 계산 + (도구가 불러와지면) 5쪽 PDF를 2쪽씩 나누기 */
     var T = App.pdfTools;
     ok("pdf plan by pages", JSON.stringify(T.planRanges("pages", "20", 45, 1)) === "[[1,20],[21,40],[41,45]]");
