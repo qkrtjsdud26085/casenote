@@ -1192,3 +1192,70 @@ body.cmp-full-open { overflow: hidden; }
 .bake-ing-list li.bake-ing-group { border-top: none; padding: 10px 2px 2px; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.06em; color: var(--accent-strong); }
 .bake-ing-list li.bake-ing-group:first-child { padding-top: 0; }
 .bake-ing-list li.bake-ing-group + li { border-top: none; }
+
+/* ---------- 개인 › 수학 (pages-math.js) ---------- */
+.math-progress-card { margin-top: 26px; }
+.math-today-line { margin: 0 0 10px; font-size: 0.9rem; line-height: 1.6; color: var(--ink-soft); }
+.math-today-line strong { color: var(--accent-strong); font-family: var(--font-mono); margin-right: 2px; }
+.math-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.math-chip.done:not(.active) { border-color: var(--accent-2); color: var(--accent-2-strong); }
+.math-chip.locked { cursor: default; opacity: 0.55; }
+.math-lesson-card, .math-archive-card { margin-top: 18px; }
+.math-lesson-card .card-body { max-width: 860px; }
+.math-lesson-top { margin-bottom: 14px; }
+.math-day-pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; background: var(--accent-ink); color: var(--accent-strong); border: 1px solid var(--accent); }
+.math-title { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; line-height: 1.45; margin: 10px 0 0; color: var(--ink); }
+.math-goal { background: var(--surface-2); border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; }
+.math-goal h3, .math-part h3, .math-sec-title { font-family: var(--font-display); font-size: 1.02rem; margin: 0 0 8px; color: var(--accent-strong); }
+.math-goal ul { margin: 0; padding-left: 1.2em; font-size: 0.92rem; line-height: 1.75; }
+.math-part { margin-bottom: 16px; }
+.math-part p { margin: 0 0 8px; font-size: 0.92rem; line-height: 1.85; }
+.math-table-wrap { overflow-x: auto; margin: 0 0 18px; }
+.math-table { border-collapse: collapse; font-size: 0.86rem; min-width: 320px; }
+.math-table th, .math-table td { border-bottom: 1px solid var(--line); padding: 6px 14px; text-align: left; }
+.math-table th { font-weight: 600; color: var(--ink-soft); background: var(--surface-2); }
+.math-table td:last-child { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.math-formulas, .math-examples { margin-top: 22px; }
+.math-formula { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 12px 16px; margin-bottom: 12px; background: var(--bg); }
+.math-formula-name { margin: 0; font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); }
+.math-disp { font-size: 1.25rem; padding: 12px 0 10px; overflow-x: auto; white-space: nowrap; color: var(--accent-strong); }
+.math-why-label { margin: 4px 0 4px; font-size: 0.82rem; font-weight: 700; color: var(--accent-2-strong); }
+.math-why { margin: 0; padding-left: 1.3em; font-size: 0.88rem; line-height: 1.8; }
+.math-q { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; background: var(--surface); }
+.math-q-text { margin: 0; font-size: 0.93rem; line-height: 1.8; }
+.math-q-no { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 500; color: var(--accent-2-ink); background: var(--accent-2); border-radius: 4px; padding: 1px 7px; margin-right: 8px; vertical-align: 2px; }
+.math-sol { margin-top: 8px; }
+.math-sol > summary { cursor: pointer; font-size: 0.84rem; font-weight: 600; color: var(--accent); }
+.math-sol ol { margin: 8px 0 0; padding-left: 1.3em; font-size: 0.88rem; line-height: 1.8; }
+.math-ans { margin: 8px 0 0; font-weight: 700; font-size: 0.9rem; color: var(--accent-2-strong); }
+.math-wrap { margin-top: 20px; padding: 12px 16px; border-radius: 6px; background: var(--accent-2-ink); border: 1px solid color-mix(in srgb, var(--accent-2) 40%, transparent); font-size: 0.92rem; line-height: 1.7; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.math-wrap strong { color: var(--accent-2-strong); }
+.math-foot { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.math-done-btn.on { background: var(--accent-2); color: var(--accent-2-ink); border-color: var(--accent-2); }
+.math-next { margin: 0; }
+.math-archive { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.math-archive-item { width: 100%; height: 100%; text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.math-archive-item:hover { border-color: var(--ink-soft); }
+.math-archive li.on .math-archive-item { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.math-archive-day { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-soft); }
+.math-archive-title { font-weight: 600; font-size: 0.9rem; line-height: 1.5; }
+.math-archive-wrap { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.6; }
+.math-archive-done { font-size: 0.72rem; color: var(--accent-2-strong); font-weight: 600; }
+/* 수식 */
+.mx { font-family: "Cambria Math", "STIX Two Math", "Times New Roman", var(--font-display); font-style: normal; white-space: nowrap; }
+.mx sup, .mx sub { font-size: 0.72em; line-height: 0; }
+.mfrac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 0.12em; font-size: 0.86em; line-height: 1.15; }
+.mfrac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 0.15em; }
+.mfrac > span:last-child { padding: 0 0.15em; }
+.msqrt { border-top: 1px solid currentColor; padding: 0 0.1em; }
+.mop { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.05; margin-right: 0.15em; }
+.mop > span { font-size: 0.62em; }
+.mop.msum { font-size: 1.1em; }
+.mop.msum > small { font-size: 0.56em; }
+.mfn { font-style: normal; margin-right: 0.1em; }
+.math-disp .mfrac { font-size: 0.8em; }
+@media (max-width: 640px) {
+  .math-title { font-size: 1.15rem; }
+  .math-disp { font-size: 1.05rem; }
+  .mx { white-space: normal; }
+}
