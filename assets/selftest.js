@@ -927,6 +927,8 @@
     ok("baking order follows Firestore (other device)", $$("#view .bake-card").map(function (c) { return c.getAttribute("data-recipe"); }).slice(0, 3).join("|") === "redvelvet|cookie|financier");
     $$("#view .bake-chip").filter(function (b) { return b.getAttribute("data-recipe") === "scone"; })[0].click(); await sleep(30);
     ok("baking chip -> first", $("#view .bake-grid").firstChild.getAttribute("data-recipe") === "scone");
+    var etc = $("#view .bake-card[data-recipe='eggtart']");
+    ok("baking eggtart homemade pastry groups", $$(".bake-ing-group", etc).map(function (n) { return n.textContent; }).join("|") === "파이시트|필링" && $$(".bake-ing-item", etc).length === 10 && /10가지/.test($(".bake-ing-count", etc).textContent) && !/냉동 파이시트/.test($(".bake-ing", etc).textContent));
     var bq = $("#view .bake-search"); setVal(bq, "블루베리"); await sleep(20);
     ok("baking search by ingredient", $$("#view .bake-card").filter(function (c) { return !c.hidden; }).map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "muffin" && $$("#view .bake-ing-item.hit").length === 1 && /1개/.test($("#view .bake-found").textContent));
     setVal(bq, "황치즈"); await sleep(20);
