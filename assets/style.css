@@ -1199,7 +1199,24 @@ body.cmp-full-open { overflow: hidden; }
 .math-today-line strong { color: var(--accent-strong); font-family: var(--font-mono); margin-right: 2px; }
 .math-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .math-chip.done:not(.active) { border-color: var(--accent-2); color: var(--accent-2-strong); }
-.math-chip.locked { cursor: default; opacity: 0.55; }
+.math-chip.late:not(.active) { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-ink); font-weight: 600; }
+.math-chip.today:not(.active) { border-color: var(--ink-soft); color: var(--ink); font-weight: 600; }
+.math-warn { margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--accent); border-left-width: 4px; border-radius: 6px; background: var(--accent-ink); }
+.math-warn-title { margin: 0; font-weight: 700; font-size: 0.95rem; color: var(--accent-strong); }
+.math-warn-list { margin: 4px 0 10px; font-size: 0.8rem; line-height: 1.6; color: var(--ink); font-variant-numeric: tabular-nums; }
+.math-warn-btn { background: var(--accent); color: var(--accent-ink); }
+.math-ok { margin: 0 0 12px; padding: 10px 14px; border-radius: 6px; background: var(--accent-2-ink); color: var(--accent-2-strong); font-weight: 600; font-size: 0.88rem; }
+.math-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.math-stat, .math-course { display: inline-block; font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-soft); }
+.math-stat.late { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.math-stat.today { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.math-stat.done { border-color: var(--accent-2); background: var(--accent-2); color: var(--accent-2-ink); font-weight: 600; }
+.math-course { background: var(--surface-2); color: var(--ink); }
+.math-q-src { display: inline-block; font-size: 0.7rem; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin-right: 8px; vertical-align: 2px; }
+.math-q-body { display: block; margin-top: 6px; }
+.math-archive li.late .math-archive-item { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+.math-archive-done.late { color: var(--accent-strong); }
+.math-archive-done.today, .math-archive-done.ahead { color: var(--ink-soft); }
 .math-lesson-card, .math-archive-card { margin-top: 18px; }
 .math-lesson-card .card-body { max-width: 860px; }
 .math-lesson-top { margin-bottom: 14px; }
