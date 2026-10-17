@@ -8,9 +8,12 @@
   var ui = App.ui, H = App.h, el = H.el, clear = H.clear;
 
   var START = "2026-10-17";
-  var UNIT = "미적분Ⅱ";
+  var UNIT = "미적분Ⅱ · e의 정의부터";
+  /* 보관함: 지금 계획에서 잠시 빼 둔 개념(수열의 극한 · 급수 · 지수 · 로그 극한). 수학 › 보관함에서 언제든 볼 수 있어요.
+     다시 계획에 넣으려면 이 목록에서 key를 빼면 돼요. */
+  var SHELF_KEYS = ["m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"];
 
-  var LESSONS = [
+  var ALL_LESSONS = [
     /* ===== Ⅰ. 수열의 극한 ===== */
     {
       key: "m01", course: "Ⅰ-1 수열의 극한", book: "p.8–10 · 필수예제 01", emoji: "🎯", title: "수열의 수렴과 발산",
@@ -652,6 +655,8 @@
       wrap: "부피 = ∫단면, 거리 = ∫속력, 길이 = ∫$\\sqrt{1 + f'^{2}}$. 모두 잘게 잘라 더하기."
     }
   ];
+  var LESSONS = ALL_LESSONS.filter(function (L) { return SHELF_KEYS.indexOf(L.key) === -1; });
+  var SHELF = ALL_LESSONS.filter(function (L) { return SHELF_KEYS.indexOf(L.key) !== -1; });
 
   /* ---------- 아주 작은 수식 표기 → HTML (코드 안 글만 넣어요) ---------- */
   function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -715,14 +720,19 @@
   }
   var STATUS_LABEL = { done: "✓ 완료", late: "⚠ 밀림", today: "오늘", ahead: "예습" };
 
-  function lessonView(parent, L, idx, st, onDone) {
+  function lessonView(parent, L, idx, st, onDone, shelf) {
     clear(parent);
-    var date = dayOf(idx, st.start), stat = statusOf(idx, st);
     var top = el("div", "math-lesson-top");
     var pills = el("div", "math-pills");
-    pills.appendChild(el("span", "math-day-pill", "Day " + (idx + 1) + " · " + md(date) + " 계획"));
-    var late = todayIndex(st.start) - idx;
-    pills.appendChild(el("span", "math-stat " + stat, stat === "late" ? "⚠ " + late + "일 밀림" : STATUS_LABEL[stat]));
+    if (shelf) {
+      pills.appendChild(el("span", "math-day-pill", "🗄️ 보관함"));
+      if (st.done[L.key]) { pills.appendChild(el("span", "math-stat done", STATUS_LABEL.done)); }
+    } else {
+      var date = dayOf(idx, st.start), stat = statusOf(idx, st);
+      pills.appendChild(el("span", "math-day-pill", "Day " + (idx + 1) + " · " + md(date) + " 계획"));
+      var late = todayIndex(st.start) - idx;
+      pills.appendChild(el("span", "math-stat " + stat, stat === "late" ? "⚠ " + late + "일 밀림" : STATUS_LABEL[stat]));
+    }
     if (L.course) { pills.appendChild(el("span", "math-course", L.course)); }
     if (L.book) { pills.appendChild(el("span", "math-book", "📖 교재 " + L.book)); }
     top.appendChild(pills);
@@ -800,15 +810,34 @@
     b.type = "button"; b.setAttribute("aria-pressed", done ? "true" : "false");
     b.addEventListener("click", function () { onDone(L.key, !done); });
     foot.appendChild(b);
-    var next = LESSONS[idx + 1];
+    var next = shelf ? null : LESSONS[idx + 1];
     if (next) { foot.appendChild(richEl("span", "hint math-next", "다음: Day " + (idx + 2) + " " + next.title + " (" + md(dayOf(idx + 1, st.start)) + " 계획)")); }
     parent.appendChild(foot);
+  }
+
+  /* 수학 · 보관함 전환 버튼(제목 옆) — 가계부의 [가계부 | 월별 리포트]와 같은 모양 */
+  function headTabs(active) {
+    var head = document.getElementById("pageHead"), h1 = head && head.querySelector(".page-title");
+    if (!h1) { return; }
+    head.classList.add("has-tabs");
+    var nav = el("nav", "bud-tabs math-tabs"); nav.setAttribute("aria-label", "수학 보기");
+    [["personal-math", "공부 계획"], ["personal-math-shelf", "🗄️ 보관함 " + SHELF.length]].forEach(function (t) {
+      var a = el("a", "bud-tab" + (t[0] === active ? " on" : ""), t[1]); a.href = "#/" + t[0];
+      if (t[0] === active) { a.setAttribute("aria-current", "page"); }
+      nav.appendChild(a);
+    });
+    h1.insertAdjacentElement("afterend", nav);
+  }
+  function readMath(d, st) {
+    st.start = d && /^\d{4}-\d{2}-\d{2}$/.test(d.start || "") ? d.start : START;
+    st.done = d && d.done && typeof d.done === "object" ? d.done : {};
   }
 
   App.page({
     id: "personal-math", title: "수학",
     desc: "하루 한 개념씩. 공식의 원리와 고2 예제 3문제. 계획보다 밀리면 경고해요.",
     render: function (view) {
+      headTabs("personal-math");
       var st = { start: START, done: {} };
       var sel = null;
 
@@ -909,5 +938,45 @@
     }
   });
 
+  App.page({
+    id: "personal-math-shelf", title: "수학 보관함",
+    navHidden: true, navParent: "personal-math",
+    render: function (view) {
+      headTabs("personal-math-shelf");
+      var st = { start: START, done: {} }, sel = 0;
+      var ic = ui.card(view, { tab: "Shelf", tone: "t-3", title: "🗄️ 잠시 보관한 개념", wide: true });
+      ic.el.classList.add("math-progress-card");
+      var lc = ui.card(view, { tab: "Lesson", tone: "t-2", title: "보관한 개념 보기", wide: true });
+      lc.el.classList.add("math-lesson-card");
+      function save(key, on) {
+        var done = Object.assign({}, st.done);
+        if (on) { done[key] = H.todayStr(); } else { delete done[key]; }
+        st.done = done; paint();
+        App.doc("personal/math").set({ start: st.start, done: done });
+      }
+      function paint() {
+        clear(ic.body);
+        ic.count.textContent = SHELF.length + "개";
+        ic.body.appendChild(el("p", "hint", "지금 공부 계획(자연상수 e의 정의부터)에서 잠시 빼 둔 개념이에요. 날짜 계획 · 밀림 경고 없이 언제든 열어 볼 수 있어요."));
+        var list = el("ol", "math-archive");
+        SHELF.forEach(function (L, i) {
+          var li = el("li", i === sel ? "on" : "");
+          var a = el("button", "math-archive-item"); a.type = "button"; a.setAttribute("data-key", L.key);
+          a.appendChild(el("span", "math-archive-day", (L.course || "") + (L.book ? " · 교재 " + L.book.split(" · ")[0] : "")));
+          a.appendChild(richEl("span", "math-archive-title", L.emoji + " " + L.title));
+          a.appendChild(richEl("span", "math-archive-wrap", L.wrap));
+          a.appendChild(el("span", "math-archive-done" + (st.done[L.key] ? " done" : " ahead"), st.done[L.key] ? STATUS_LABEL.done : "보관 중"));
+          a.addEventListener("click", function () { sel = i; paint(); if (lc.el.scrollIntoView) { lc.el.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+          li.appendChild(a); list.appendChild(li);
+        });
+        ic.body.appendChild(list);
+        lessonView(lc.body, SHELF[sel], sel, st, save, true);
+      }
+      paint();
+      App.watchDoc(App.doc("personal/math"), function (d) { if (!d) { return; } readMath(d, st); paint(); });
+    }
+  });
+
   App.MATH_LESSONS = LESSONS;
+  App.MATH_SHELF = SHELF;
 })(window.App);
