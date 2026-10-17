@@ -1276,3 +1276,34 @@ body.cmp-full-open { overflow: hidden; }
   .math-disp { font-size: 1.05rem; }
   .mx { white-space: normal; }
 }
+
+/* ---------- Necessary › PDF 나누기 (pages-necessary.js) ---------- */
+.pdfs-card { margin-top: 26px; }
+.pdfs-safe { margin-bottom: 12px; }
+.pdfs-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 140px; padding: 20px 16px; border: 2px dashed var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); text-align: center; cursor: pointer; }
+.pdfs-drop:hover, .pdfs-drop.over { border-color: var(--accent); background: var(--accent-ink); }
+.pdfs-drop strong { font-size: 0.98rem; }
+.pdfs-drop span { font-size: 0.78rem; color: var(--ink-soft); }
+.pdfs-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.pdfs-info { margin: 12px 0 0; font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
+.pdfs-opts { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pdfs-modes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pdfs-mode { font-family: var(--font-body); font-size: 0.82rem; }
+.pdfs-val-row { display: flex; align-items: center; gap: 8px; }
+.pdfs-val { width: 220px; max-width: 100%; font-size: 1rem; padding: 8px 10px; }
+.pdfs-unit { font-size: 0.88rem; color: var(--ink-soft); }
+.pdfs-mode-hint { margin: 6px 0 0; }
+.pdfs-plan { margin: 10px 0; font-size: 0.86rem; line-height: 1.6; color: var(--ink); }
+.pdfs-plan.err, .pdfs-status.err { color: var(--accent-strong); font-weight: 600; }
+.pdfs-go { font-size: 0.92rem; padding: 10px 22px; }
+.pdfs-go:disabled, .pdfs-zip:disabled { opacity: 0.5; cursor: default; }
+.pdfs-status { margin: 12px 0 0; font-size: 0.88rem; font-weight: 600; color: var(--accent-2-strong); }
+.pdfs-result { margin-top: 18px; }
+.pdfs-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }
+.pdfs-bar .hint { margin: 0; }
+.pdfs-list { list-style: none; margin: 0; padding: 0; }
+.pdfs-item { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-top: 1px dashed var(--line); }
+.pdfs-name { flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+.pdfs-meta { flex: none; font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pdfs-get { flex: none; }
+.pdfs-tips { margin: 0; padding-left: 1.3em; font-size: 0.86rem; line-height: 1.8; }

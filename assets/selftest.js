@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 40, ids.length);
+    ok("page count", ids.length === 41, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -141,7 +141,7 @@
     await go("personal-weekly"); await sleep(200);
     ok("weekly shows today's diary summary", $("#view .mcal-day.today").classList.contains("diary") && /나갈 때 저장 확인/.test($("#view .review-sum").textContent) && /일기 전체 보기/.test($("#view .review-diary").textContent), $("#view .review-diary").textContent);
     await go("home");
-    ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
+    ok("top sections", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(",") === "박사,작가,개인,Necessary", $$("#sections .sec-btn").map(function (b) { return b.textContent; }).join(","));
     ok("logo quote", !!$("#brandQuote .quote-text") && $("#brandQuote .quote-text").textContent.length > 4 && /— .+ · .+/.test($("#brandQuote .quote-author").textContent) && !$("#homeStrip .quote-box"), $("#brandQuote").textContent);
     ok("quote data", App.QUOTES.length >= 30 && App.QUOTES.every(function (q) { return q.t && q.a && q.y; }), App.QUOTES.length);
     ok("home affiliation", !/한국가이던스/.test($(".badges").textContent) && /범죄심리학과 석·박사 수료/.test($(".badges").textContent) && $$(".badge").length === 1);
@@ -958,6 +958,36 @@
     ok("math warn button -> oldest late", /Day 2 · /.test($("#view .math-day-pill").textContent) && /극한/.test($("#view .math-title").textContent));
     $("#view .math-done-btn").click(); await sleep(80);
     ok("math late count drops", /1개 밀렸어요/.test($("#view .math-warn").textContent) && $$("#view .math-chip.late").length === 1);
+    /* Necessary › PDF 나누기: 쪽 범위 계산 + (도구가 불러와지면) 5쪽 PDF를 2쪽씩 나누기 */
+    var T = App.pdfTools;
+    ok("pdf plan by pages", JSON.stringify(T.planRanges("pages", "20", 45, 1)) === "[[1,20],[21,40],[41,45]]");
+    ok("pdf plan by size", T.planRanges("size", "10", 100, 100 * 1048576).length === 10);
+    ok("pdf plan ranges", JSON.stringify(T.parseRanges("1-6, 7-40,41", 50)) === "[[1,6],[7,40],[41,41]]" && typeof T.parseRanges("3-60", 50) === "string" && typeof T.parseRanges("abc", 50) === "string");
+    await go("necessary-pdf"); await sleep(80);
+    ok("pdf page", $("#sections a.active") && $("#sections a.active").getAttribute("data-section") === "necessary" && !!$("#view .pdfs-drop") && $("#view .pdfs-opts").hidden && $("#view .pdfs-result").hidden);
+    var libsOk = false; try { await Promise.race([T.load(), sleep(8000).then(function () { throw new Error("timeout"); })]); libsOk = true; } catch (e) { libsOk = false; }
+    ok("pdf libs load (cdnjs)", libsOk);
+    if (libsOk) {
+      var src = await PDFLib.PDFDocument.create();
+      for (var pg = 0; pg < 5; pg++) { src.addPage([200, 200]); }
+      var srcBytes = await src.save();
+      var pdt = new DataTransfer(); pdt.items.add(new File([srcBytes], "교재.pdf", { type: "application/pdf" }));
+      var pin = $("#view .pdfs-input"); pin.files = pdt.files; change(pin);
+      for (var pw = 0; pw < 40 && $("#view .pdfs-opts").hidden; pw++) { await sleep(50); }
+      ok("pdf loaded", !$("#view .pdfs-opts").hidden && /전체 5쪽/.test($("#view .pdfs-info").textContent), $("#view .pdfs-info").textContent);
+      setVal($("#view .pdfs-val"), "2"); await sleep(20);
+      ok("pdf plan text", /3개 파일/.test($("#view .pdfs-plan").textContent));
+      $("#view .pdfs-go").click();
+      for (pw = 0; pw < 60 && $("#view .pdfs-result").hidden; pw++) { await sleep(50); }
+      var items = $$("#view .pdfs-item");
+      ok("pdf split result", items.length === 3 && /교재_01_p1-2\.pdf/.test(items[0].textContent) && /교재_03_p5-5\.pdf/.test(items[2].textContent) && /1쪽/.test(items[2].textContent), items.map(function (x) { return x.textContent; }).join(" | "));
+      $$("#view .pdfs-mode").filter(function (b) { return b.getAttribute("data-mode") === "ranges"; })[0].click(); await sleep(20);
+      setVal($("#view .pdfs-val"), "1-9"); await sleep(20);
+      ok("pdf bad range warns", /벗어나요/.test($("#view .pdfs-plan").textContent) && $("#view .pdfs-go").disabled);
+      var bad = new DataTransfer(); bad.items.add(new File([new Uint8Array([1, 2, 3])], "책.ebsi", { type: "" }));
+      pin.files = bad.files; change(pin); await sleep(40);
+      ok("pdf rejects non-pdf", /PDF 파일만/.test($("#view .pdfs-status").textContent));
+    }
     await go("home");
     await sleep(80);
     ok("home reflects data", /이번 달 지출/.test($("#view .tiles").textContent) && $$("#view .tile-value").length === 4);
