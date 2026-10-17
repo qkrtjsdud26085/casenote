@@ -1212,6 +1212,7 @@ body.cmp-full-open { overflow: hidden; }
 .math-stat.today { border-color: var(--ink); color: var(--ink); font-weight: 600; }
 .math-stat.done { border-color: var(--accent-2); background: var(--accent-2); color: var(--accent-2-ink); font-weight: 600; }
 .math-course { background: var(--surface-2); color: var(--ink); }
+.math-book { display: inline-block; font-size: 0.72rem; padding: 3px 10px; border-radius: 999px; border: 1px dashed var(--line); color: var(--ink-soft); }
 .math-q-src { display: inline-block; font-size: 0.7rem; color: var(--ink-soft); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin-right: 8px; vertical-align: 2px; }
 .math-q-body { display: block; margin-top: 6px; }
 .math-archive li.late .math-archive-item { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
