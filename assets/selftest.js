@@ -912,7 +912,7 @@
     /* 베이킹: 레시피 카드 3개, 준비물 먼저 · 체크 토글, 만드는 법은 접혀 있음 */
     await go("personal-baking"); await sleep(80);
     var bakes = $$("#view .bake-card");
-    ok("baking cards", bakes.length === 7 && bakes.map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "financier|pound|cookie|scone|muffin|levain|redvelvet" && bakes.every(function (c) { return /쿠쿠 26L/.test($(".bake-oven", c).textContent); }) && !!$("#view .bake-oven-card") && bakes.every(function (c) { return $(".bake-ing", c) && $$(".bake-ing-item", c).length >= 7 && $("details.bake-how", c) && !$("details.bake-how", c).open; }), bakes.length);
+    ok("baking cards", bakes.length === 8 && bakes.map(function (c) { return c.getAttribute("data-recipe"); }).join("|") === "financier|pound|cookie|scone|muffin|levain|redvelvet|eggtart" && bakes.every(function (c) { return /쿠쿠 26L/.test($(".bake-oven", c).textContent); }) && !!$("#view .bake-oven-card") && bakes.every(function (c) { return $(".bake-ing", c) && $$(".bake-ing-item", c).length >= 7 && $("details.bake-how", c) && !$("details.bake-how", c).open; }), bakes.length);
     App.h.safeSet("hds_bake_order", ""); await App.doc("personal/baking").set({ order: [] }); await go("home"); await go("personal-baking"); await sleep(80);
     bakes = $$("#view .bake-card");
     var ing0 = $(".bake-ing-item", bakes[0]); ing0.click(); await sleep(20);
