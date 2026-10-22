@@ -276,8 +276,9 @@
     });
   }
   /* quick links to past-exam (기출문제) sites; defaults can be edited or restored */
-  function examLinks(parent, ref, defaults, wide, rounds) {
+  function examLinks(parent, ref, defaults, wide, rounds, myFiles) {
     var c = ui.card(parent, { tab: "Exams", tone: "t-3", title: "기출문제 바로가기", wide: wide });
+    if (myFiles) { examFiles(c.body, myFiles); }
     if (rounds) { examRounds(c.body, rounds); }
     ui.itemsPanel(c.body, {
       ref: ref, grid: true, titleLink: "url", defaults: defaults, addLabel: "+ 사이트 추가", empty: "사이트를 추가하세요.",
@@ -288,6 +289,20 @@
         { key: "memo", label: "메모", type: "text", maxLength: 120 }
       ]
     });
+  }
+
+  /* 내가 정리한 기출 파일(Google Drive) 바로가기: myFiles.list = [[이름, 링크, 설명], ...] */
+  function examFiles(body, myFiles) {
+    var box = el("div", "exam-rounds exam-files");
+    box.appendChild(el("div", "mini-title", myFiles.title));
+    var row = el("div", "exam-round-row");
+    myFiles.list.forEach(function (f) {
+      var a = el("a", "exam-round exam-file", f[0]);
+      a.href = f[1]; a.target = "_blank"; a.rel = "noopener"; a.title = f[2];
+      row.appendChild(a);
+    });
+    box.appendChild(row);
+    body.appendChild(box);
   }
 
   /* 회차별 바로가기: rounds.list = [[연도, 회차, 문항 수, 해설 번호], ...], 연도마다 한 줄 */
@@ -333,7 +348,7 @@
         });
 
         if (cfg.dday) { ddayBlock(o.body, R(cfg.key + "_dday")); }
-        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links, !cfg.dday, cfg.rounds); }
+        if (cfg.links) { examLinks(g, R(cfg.key + "_links"), cfg.links, !cfg.dday, cfg.rounds, cfg.myFiles); }
         /* 임상심리사 keeps only 자격 정보 · D-day and 기출문제; the checklist · plan · file cards are for the other certificates */
         if (cfg.compact) { return; }
 
@@ -411,6 +426,16 @@
       { name: "모두CBT", kind: "실기 기출", url: "https://www.moducbt.com/category/%EC%9E%84%EC%83%81%EC%8B%AC%EB%A6%AC%EC%82%AC2%EA%B8%89-%EC%8B%A4%EA%B8%B0-%EA%B8%B0%EC%B6%9C-%EA%B3%BC%EB%85%84%EB%8F%84-%EC%95%94%EA%B8%B0%EC%9E%A5", memo: "실기 기출 · 모범답안" },
       { name: "Q-Net 임상심리사2급 시험 정보", kind: "시험 정보", url: "https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=9540", memo: "시험 일정 · 응시 자격 · 출제 기준" }
     ],
+    /* Google Drive '임상심리사 2급 실기' 폴더의 기출 정리 파일 (소유자 계정으로 로그인해야 열림) */
+    myFiles: {
+      title: "내 실기 기출 정리 (Google Drive)",
+      list: [
+        ["📁 실기 폴더", "https://drive.google.com/drive/folders/1RSz1Q4wL5wxw5-2OvCb9YODzeG4QJk0g", "임상심리사 2급 실기 폴더 열기"],
+        ["기출(1) 상담 · 치료", "https://drive.google.com/file/d/1xv9aKIy_fZdbCB0pgFE5mPznv1lFEgVs/view", "임상심리사 기출(1) — 심리상담 · 심리치료 (2003~2023)"],
+        ["기출(2) 평가 · 자문 · 재활", "https://drive.google.com/file/d/14bCYUq3fKgqQ_nLKRT8iATRmUNZBRIXB/view", "임상심리사 기출(2) — 심리평가 · 자문/교육/재활 (2003~2023)"],
+        ["2024~2026 기출", "https://drive.google.com/drive/search?q=" + encodeURIComponent("임상심리사 2024~2026 기출"), "임상심리사 2024~2026 기출 — 2024-1 · 2024-2 · 2025-3 · 2026-1 주제별 합본"]
+      ]
+    },
     rounds: {
       title: "실기 기출 회차별 (모두CBT 해설)",
       base: "https://www.moducbt.com/exam/solution/",
