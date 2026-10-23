@@ -102,7 +102,7 @@
     { key: "writer", short: "작가", label: "작가", groups: [
       { pages: ["writer-desk", "writer-submit", "writer-compose", "writer-capture", "writer-canvas", "writer-quotes"] }
     ] },
-    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-diary", "personal-weekly", "personal-baking", "personal-math", "personal-math-shelf"] },
+    { key: "personal", short: "개인", label: "개인", pages: ["personal-calendar", "personal-budget", "personal-budget-report", "personal-budget-cards", "personal-parttime", "personal-diary", "personal-weekly", "personal-baking", "personal-math", "personal-math-shelf"] },
     { key: "necessary", short: "Necessary", label: "Necessary", pages: ["necessary-pdf"] }
   ];
   App.MENU.forEach(function (g) {
