@@ -78,7 +78,7 @@
 
     var ids = ["home"];
     App.MENU.forEach(function (g) { g.pages.forEach(function (p) { ids.push(p); }); });
-    ok("page count", ids.length === 42, ids.length);
+    ok("page count", ids.length === 43, ids.length);
     for (var k = 0; k < ids.length; k++) {
       var id = ids[k];
       ok("registered " + id, !!App.pages[id], "missing page def");
@@ -117,7 +117,7 @@
     /* 일기 */
     App.h.safeSet("hds_diary_backup", "");
     await go("personal-diary"); await sleep(200);
-    ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|일기|주간 리뷰|베이킹|수학" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
+    ok("diary page", $("#subnav a.active").getAttribute("data-page") === "personal-diary" && $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|") === "일정 · 캘린더|가계부|알바비|일기|주간 리뷰|베이킹|수학" && !!$("#view .diary-card .cmp-paper") && /3분마다 자동 저장/.test($("#view .cmp-stat").textContent) && $("#view .diary-card .mood-btn.on").textContent === "😐" && /오늘/.test($("#view .diary-date").textContent), $$("#subnav a[data-page]").map(function (a) { return a.textContent; }).join("|"));
     $("#view .cmp-full-btn").click(); await sleep(80);
     var fullEd = $("#view .cmp-editor.cmp-full"), fr = fullEd && fullEd.getBoundingClientRect();
     ok("editor full screen fills the window", !!fullEd && Math.round(fr.width) === window.innerWidth && Math.round(fr.height) === window.innerHeight && /글자 수/.test($("#view .cmp-full-info").textContent) && document.body.classList.contains("cmp-full-open") && /닫기/.test($("#view .cmp-full-btn").textContent), fr && (fr.width + "x" + fr.height));
@@ -819,83 +819,13 @@
     var g3 = GF([{ id: "mine", kind: "지출", name: "넷플릭스", amount: 13500, day: 1, cat: "구독", method: "간편결제", memo: "" }], gd);
     ok("pay calendar links my own entry (no duplicate)", !!g3 && g3.fixed.filter(function (f) { return /넷플릭스/.test(f.name); }).length === 1 && g3.fixed.some(function (f) { return f.id === "mine" && f.gcal === "R1" && f.amount === 17000 && f.method === "간편결제"; }), JSON.stringify(g3 && g3.fixed));
     ok("no pay calendar → untouched", GF([], { syncedAt: "x", calendars: [{ id: "me", name: "내 캘린더" }], events: [] }) === null);
-    var PN = App.budget.parseNotice, sep = new Date(2026, 8, 28);
-    var payN = PN("결제가 완료되었어요 해외결제 가맹점에서 2,400원을 결제했어요.", sep);
-    ok("notice: pay-app sentence", payN.ok && payN.amount === 2400 && payN.type === "지출" && payN.merchant === "해외결제 가맹점" && !payN.cancel, JSON.stringify(payN));
-    var payC = PN("스타벅스 강남점에서 4,500원 결제가 취소되었어요", sep);
-    ok("notice: pay-app cancel", payC.ok && payC.amount === 4500 && payC.cancel && payC.merchant === "스타벅스 강남점", JSON.stringify(payC));
-    var won1 = PN("₩18,000 결제 완료 동성로떡볶이", sep), won2 = PN("₩5,000 결제 완료 반월당백화점약국", sep), won3 = PN("₩3,110 결제 취소 우정사업본부(우체국)", sep);
-    ok("notice: ₩ amount first", won1.ok && won1.amount === 18000 && won1.merchant === "동성로떡볶이" && !won1.cancel && won1.method === "간편결제" && App.budget.guessMerchantCat(won1.merchant, "지출", []) === "식비" && App.budget.guessMerchantCat(won2.merchant, "지출", []) === "의료 · 건강" && won3.cancel && won3.amount === 3110 && won3.merchant === "우정사업본부(우체국)", JSON.stringify([won1, won3]));
-    ok("notice: service announcement not a payment", !PN("케이뱅크 [케이뱅크] 서비스 일시 중단 안내 고객님 안녕하세요 10월 18일 일요일 00시에서 10시까지", sep).ok);
-    var n1 = PN("iM뱅크 09/27 13:52\n50813*03093\n입금 1,000,000\n잔액 1,189,248\n토스박선영", sep);
-    ok("notice iM deposit", n1.ok && n1.type === "수입" && n1.amount === 1000000 && n1.date === "2026-09-27" && n1.time === "13:52" && n1.merchant === "토스박선영" && n1.source === "iM뱅크" && n1.method === "계좌이체", JSON.stringify(n1));
-    var n2 = PN("[Web발신]\n신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원", sep);
-    ok("notice shinhan approval", n2.ok && n2.type === "지출" && n2.amount === 12500 && n2.merchant === "스타벅스" && n2.source === "신한카드(1234)" && !n2.cancel && App.budget.guessMerchantCat(n2.merchant, "지출") === "카페 · 간식", JSON.stringify(n2));
-    var n3 = PN("신한카드(1234)취소 박*영 12,500원(일시불)09/28 09:10 스타벅스 누적1,222,067원", sep);
-    ok("notice shinhan cancel", n3.ok && n3.cancel && n3.amount === 12500, JSON.stringify(n3));
-    var n4 = PN("iM뱅크 12/30 10:00 50813*03093 출금 55,000 잔액 1,134,248 관리비", new Date(2027, 0, 3));
-    ok("notice withdrawal + year rollover", n4.ok && n4.type === "지출" && n4.date === "2026-12-30" && n4.merchant === "관리비", JSON.stringify(n4));
-    ok("notice unreadable", !PN("안녕하세요 광고 문자입니다").ok);
-    var h1 = PN("[Web발신]\n현대카드 승인\n박*영\n45,000원 일시불\n09/27 18:20\n(주)이마트 성수점\n누적 1,234,567원", sep);
-    ok("notice hyundai multiline", h1.ok && h1.type === "지출" && h1.amount === 45000 && h1.merchant === "이마트 성수점" && h1.source === "현대카드" && h1.time === "18:20", JSON.stringify(h1));
-    var h2 = PN("현대카드(5678) 승인 박*영 12,000원 할부 3개월 09/26 11:05 쿠팡 누적1,000원", sep);
-    ok("notice hyundai one line + 할부", h2.ok && h2.amount === 12000 && h2.merchant === "쿠팡" && h2.source === "현대카드(5678)", JSON.stringify(h2));
-    var h3 = PN("현대카드 M 취소 박*영 45,000원 09/28 10:00 이마트 성수점", sep);
-    ok("notice hyundai cancel", h3.ok && h3.cancel && h3.amount === 45000 && h3.merchant === "이마트 성수점", JSON.stringify(h3));
-    var k1 = PN("[KB]09/27 13:52\n801202**178\n박선영\n전자금융입금\n1,000,000\n잔액1,189,248", sep);
-    ok("notice KB deposit", k1.ok && k1.type === "수입" && k1.amount === 1000000 && k1.merchant === "박선영" && k1.source === "KB국민은행", JSON.stringify(k1));
-    var k2 = PN("[KB]09/26 08:10 801202**178 스타벅스 체크카드출금 5,600 잔액1,183,648", sep);
-    ok("notice KB check-card withdrawal", k2.ok && k2.type === "지출" && k2.amount === 5600 && k2.merchant === "스타벅스" && k2.source === "KB국민은행", JSON.stringify(k2));
-    var d1 = PN("DGB대구은행 09/25 09:00 508-13-***093 출금 30,000원 잔액 159,248원 SKT통신요금", sep);
-    ok("notice DGB -> iM뱅크", d1.ok && d1.type === "지출" && d1.amount === 30000 && d1.source === "iM뱅크" && /SKT통신요금/.test(d1.merchant), JSON.stringify(d1));
-    var now2 = new Date(), md = String(now2.getMonth() + 1).padStart(2, "0") + "/" + String(now2.getDate()).padStart(2, "0");
-    var shTxt = "신한카드(1234)승인 박*영 8,900원(일시불)" + md + " 12:01 메가MGC커피 누적1,000원";
-    await App.col("budgetInbox").add({ text: shTxt, k: "x" });
-    await App.col("budgetInbox").add({ text: "[Web발신] " + shTxt, k: "x" });
-    await App.col("budgetInbox").add({ text: "iM뱅크 " + md + " 09:00 50813*03093 입금 400,000 잔액 1,589,248 마테마타", k: "x" });
-    await App.col("budgetInbox").add({ text: "광고입니다", k: "x" });
-    await sleep(150);
-    ok("inbox shown + SMS/push merged", !$("#view .bud-inbox").hidden && $$("#view .bud-noti").length === 3 && $$("#view .bud-noti.bad").length === 1, $$("#view .bud-noti").length);
-    var nBefore = window.__MOCK_STORE[lk].items.length;
-    $$("#view .bud-inbox .btn").filter(function (b) { return /^모두 추가/.test(b.textContent); })[0].click(); await sleep(200);
-    var ledNow = window.__MOCK_STORE[lk].items;
-    ok("inbox add all", ledNow.length === nBefore + 2 && ledNow.some(function (i) { return i.memo === "메가커피" && i.rawm === "메가MGC커피" && i.amount === 8900 && i.cat === "카페 · 간식" && /^noti:/.test(i.src); }) && ledNow.some(function (i) { return i.type === "수입" && i.amount === 400000; }), JSON.stringify(ledNow.slice(-2)));
-    ok("inbox leaves unreadable only", Object.keys(window.__MOCK_STORE).filter(function (k) { return k.indexOf("budgetInbox/") === 0; }).length === 1 && $$("#view .bud-noti").length === 1);
-    $("#view .bud-noti .icon-btn").click(); await sleep(120);
-    ok("inbox empty -> hidden", $("#view .bud-inbox").hidden && !Object.keys(window.__MOCK_STORE).some(function (k) { return k.indexOf("budgetInbox/") === 0; }));
-    /* merchant clean-up, rules, memory, auto-add, raw text */
+    /* 분류 규칙 (결제 캘린더 고정지출) + 휴대폰 결제 알림은 지움 */
     var BG = App.budget;
-    ok("clean merchant names", BG.cleanMerchant("메가MGC커피") === "메가커피" && BG.cleanMerchant("(주)우아한형제들") === "배달의민족" && BG.cleanMerchant("KG이니시스 코리아세븐") === "세븐일레븐" && BG.cleanMerchant("주식회사 비바리퍼블리카") === "토스" && BG.cleanMerchant("나이스페이먼츠") === "나이스페이먼츠" && BG.merchantKey("메가 MGC-커피") === "메가mgc커피",
-      [BG.cleanMerchant("메가MGC커피"), BG.cleanMerchant("(주)우아한형제들"), BG.cleanMerchant("KG이니시스 코리아세븐"), BG.cleanMerchant("주식회사 비바리퍼블리카")].join(" / "));
+    ok("no phone notice inbox", !$("#view .bud-inbox") && !$("#view .bud-noti-help") && !BG.parseNotice);
     ok("AI category", BG.ruleCat("ChatGPT Plus") === "AI" && BG.ruleCat("클로드") === "AI" && BG.ruleCat("넷플릭스") === "구독" && App.budget.parseFixed("클로드 31,000원")[0].cat === "AI", BG.ruleCat("클로드") + "/" + App.budget.parseFixed("클로드 31,000원")[0].cat);
     ok("word rules: 관리비 before 통신", BG.ruleCat("케이티텔레캅") === "주거 · 관리비" && BG.ruleCat("KT 통신요금") === "통신" && BG.ruleCat("김밥천국") === "식비" && BG.ruleCat("넷플릭스") === "구독" && BG.ruleCat("삼성화재") === "보험" && BG.ruleCat("정형외과의원") === "의료 · 건강",
       [BG.ruleCat("케이티텔레캅"), BG.ruleCat("KT 통신요금"), BG.ruleCat("넷플릭스")].join(" / "));
-    var mem = (window.__MOCK_STORE["personal/budget"].merchants || {})[BG.merchantKey("메가MGC커피")];
-    ok("merchant remembered on add", mem && mem.name === "메가커피" && mem.cat === "카페 · 간식", JSON.stringify(window.__MOCK_STORE["personal/budget"].merchants));
-    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 4,500원(일시불)" + md + " 15:30 메가MGC커피 누적1,000원", k: "x" }); await sleep(150);
-    var memRow = $$("#view .bud-noti")[0];
-    ok("remembered merchant shown", /기억한 가게/.test(memRow.textContent) && $(".bud-noti-name-in", memRow).value === "메가커피");
-    setVal($(".bud-noti-name-in", memRow), "메가커피 성수점");
-    $$(".tool-btn", memRow).filter(function (b) { return b.textContent === "추가"; })[0].click(); await sleep(200);
-    ok("renamed in inbox → remembered", window.__MOCK_STORE["personal/budget"].merchants[BG.merchantKey("메가MGC커피")].name === "메가커피 성수점" && window.__MOCK_STORE[lk].items.some(function (i) { return i.memo === "메가커피 성수점" && i.amount === 4500; }));
-    var megaRow = $$("#view .bud-list .bud-entry").filter(function (r) { return /메가커피 성수점/.test(r.textContent); })[0];
-    $(".icon-btn[title='수정']", megaRow).click(); await sleep(60);
-    var bfEdit = $("#view form.bud-form");
-    $$("input", bfEdit).filter(function (i) { return /^내용/.test(i.placeholder); })[0].value = "메가커피 역삼";
-    $$("select", bfEdit).filter(function (s) { return s.getAttribute("aria-label") === "분류"; })[0].value = "식비";
-    submit(bfEdit); await sleep(200);
-    var mem2 = window.__MOCK_STORE["personal/budget"].merchants[BG.merchantKey("메가MGC커피")];
-    ok("ledger edit updates memory", mem2.name === "메가커피 역삼" && mem2.cat === "식비", JSON.stringify(mem2));
-    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 3,200원(일시불)" + md + " 16:00 GS25 성수점 누적1,000원", k: "x" });
-    await App.col("budgetInbox").add({ text: "신한카드(1234)승인 박*영 7,700원(일시불)" + md + " 16:10 알수없는상점 누적1,000원", k: "x" });
-    await sleep(150);
-    ok("raw toggle + copy-all", !!Array.prototype.filter.call($$("#view .bud-inbox .tool-btn"), function (b) { return b.textContent === "원문 모두 복사"; })[0] && $$("#view .bud-noti .raw-btn").length === 2);
-    $("#view .bud-noti .raw-btn").click(); await sleep(40);
-    ok("raw line shows original", $$("#view .bud-noti-rawline").length === 1 && /승인/.test($("#view .bud-noti-rawline").textContent));
-    var autoCb = $("#view .bud-auto input"); autoCb.checked = true; change(autoCb); await sleep(300);
-    ok("auto-add only sure notices", window.__MOCK_STORE["personal/budget"].autoAdd === true && window.__MOCK_STORE[lk].items.some(function (i) { return i.memo === "GS25 성수점" && i.cat === "식비" && i.amount === 3200; }) && !window.__MOCK_STORE[lk].items.some(function (i) { return i.amount === 7700; }) && $$("#view .bud-noti").length === 1 && /알수없는상점/.test($("#view .bud-noti").textContent), $$("#view .bud-noti").length);
-    autoCb = $("#view .bud-auto input"); autoCb.checked = false; change(autoCb); await sleep(100);
-    $("#view .bud-noti .icon-btn").click(); await sleep(120);    /* 월별 리포트 */
+    /* 월별 리포트 */
     await App.budget.ledgerRef(App.budget.monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1))).set({ items: [{ id: "pm1", date: "2000-01-01", type: "지출", cat: "식비", amount: 200000, method: "카드", memo: "지난달" }] });
     $$("#pageHead .bud-tab")[1].click(); await sleep(250);
     ok("report page", location.hash === "#/personal-budget-report" && $("#pageHead .bud-tab.on").textContent === "월별 리포트" && !$("#pageHead .page-desc"));
@@ -939,6 +869,35 @@
     setVal(bq, ""); await sleep(20);
     ok("baking search cleared, amounts in g (no ml)", $$("#view .bake-card").every(function (c) { return !c.hidden; }) && $$("#view .bake-ing-amt").every(function (n) { return !/ml/.test(n.textContent); }));
     App.h.safeSet("hds_bake_order", "");
+    /* 알바비: 근무지 등록(이름은 Firestore에만) → 시작 · 끝 시간으로 근무 시간 자동 계산 → 월 합계 · 3.3% · 가계부 수입 */
+    var PT = App.parttime;
+    ok("parttime hours calc", PT.spanHours("15:00", "19:30", 0) === 4.5 && PT.spanHours("13:00", "18:00", 30) === 4.5 && PT.spanHours("22:00", "01:00", 0) === 3 && PT.spanHours("", "10:00", 0) === 0 && PT.fmtHours(4.5) === "4시간 30분" && PT.fmtHours(2) === "2시간");
+    await go("personal-parttime"); await sleep(100);
+    ok("parttime empty setup", /근무지를 먼저 등록/.test($("#view .pt-places").textContent) && $$("#view .pt-place").length === 0);
+    var ptAdd = $("#view .pt-add");
+    setVal($$("input", ptAdd)[0], "영어학원"); setVal($$("input", ptAdd)[1], "15000"); submit(ptAdd); await sleep(80);
+    ptAdd = $("#view .pt-add");
+    setVal($$("input", ptAdd)[0], "수학학원"); setVal($$("input", ptAdd)[1], "20,000"); submit(ptAdd); await sleep(80);
+    var ptPlaces = (window.__MOCK_STORE["personal/parttime"] || {}).places || [];
+    ok("parttime places saved", ptPlaces.length === 2 && ptPlaces[0].name === "영어학원" && ptPlaces[0].rate === 15000 && ptPlaces[1].rate === 20000 && $$("#view .pt-places .chip").length === 2, JSON.stringify(ptPlaces));
+    var ptForm = $("#view .pt-form"), ptTime = $$("input[type='time']", ptForm);
+    setVal(ptTime[0], "15:00"); setVal(ptTime[1], "19:30"); await sleep(20);
+    ok("parttime auto hours", $$("input[type='number']", ptForm)[1].value === "4.5" && /67,500원/.test($("#view .pt-calc").textContent), $("#view .pt-calc").textContent);
+    submit(ptForm); await sleep(80);
+    $$("#view .pt-places .chip")[1].click();
+    ptForm = $("#view .pt-form");
+    setVal($$("input[type='number']", ptForm)[1], "3"); submit(ptForm); await sleep(80);
+    var ptMk = App.budget.monthKey(new Date()), ptDoc = window.__MOCK_STORE["personal/parttime-" + ptMk] || {};
+    ok("parttime entries saved", (ptDoc.items || []).length === 2 && ptDoc.rates && ptDoc.rates[ptPlaces[0].id] === 15000 && $$("#view .pt-entry").length === 2, JSON.stringify(ptDoc));
+    ok("parttime totals", /127,500원/.test($("#view .pt-tiles").textContent) && /7시간 30분/.test($("#view .pt-tiles").textContent) && /67,500원/.test($("#view .pt-pay").textContent) && /60,000원/.test($("#view .pt-pay").textContent), $("#view .pt-tiles").textContent);
+    var ptTax = $(".pt-tax input", $$("#view .pt-place")[1]); ptTax.checked = true; change(ptTax); await sleep(80);
+    ok("parttime 3.3% withholding", /58,020원/.test($("#view .pt-pay").textContent) && /−1,980원/.test($("#view .pt-pay").textContent), $("#view .pt-pay").textContent);
+    $$("#view .pt-pay .tool-btn")[1].click(); await sleep(120);
+    var ptLed = (window.__MOCK_STORE["personal/ledger-" + ptMk] || {}).items || [];
+    ok("parttime → ledger income", ptLed.filter(function (i) { return /^pt-/.test(i.id); }).length === 1 && ptLed.some(function (i) { return i.type === "수입" && i.amount === 58020 && i.cat === "부수입" && /수학학원 알바비/.test(i.memo); }) && /가계부에 들어감/.test($$("#view .pt-pay .tool-btn")[1].textContent), JSON.stringify(ptLed.slice(-1)));
+    ok("parttime monthly table", $$("#view .pt-hist tbody tr").length === 6 && /125,520원/.test($("#view .pt-hist tr.on").textContent), $("#view .pt-hist").textContent);
+    $(".icon-btn[title='삭제']", $$("#view .pt-entry")[0]).click(); await sleep(80);
+    ok("parttime delete", ((window.__MOCK_STORE["personal/parttime-" + ptMk] || {}).items || []).length === 1);
     /* 수학: 잠금 없이 모두 열림, 시작일부터 하루 하나씩 계획 → 계획일 지나면 "밀림" 경고, 고2 예제 3문제(해설 접힘), 완료 표시는 personal/math */
     await App.doc("personal/math").set({ start: App.h.todayStr(), done: {} });
     await go("personal-math"); await sleep(100);

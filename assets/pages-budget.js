@@ -77,10 +77,7 @@
     });
     return out;
   }
-  /* ---------- phone payment notifications (MacroDroid → Firestore budgetInbox) ----------
-     The phone sends the raw SMS / push text; parsing lives here so formats can be fixed without touching the phone.
-       신한카드(1234)승인 박*영 12,500원(일시불)09/27 13:52 스타벅스 누적1,234,567원
-       iM뱅크 09/27 13:52 50813*03093 입금 1,000,000 잔액 1,189,248 토스박선영 */
+  /* ---------- 가게 이름 → 분류 (결제 캘린더 고정지출의 분류 추측) ---------- */
   /* order matters: the first rule that matches wins (관리비 before 통신 so 케이티텔레캅 is not 통신) */
   var MERCHANT_HINTS = [
     [/텔레캅|캡스|세콤|에스원|관리비|관리사무소|도시가스|가스공사|한국전력|한전|수도요금|상하수도|정수기|렌탈|월세/i, "주거 · 관리비"],
@@ -102,88 +99,8 @@
     for (var i = 0; i < MERCHANT_HINTS.length; i++) { if (MERCHANT_HINTS[i][0].test(name)) { return MERCHANT_HINTS[i][1]; } }
     return "";
   }
-  function guessMerchantCat(name, type, history) {
-    if (type === "수입") { return /급여|월급/.test(name) ? "급여" : (/환급|환불/.test(name) ? "환급" : "기타"); }
-    var seen = (history || []).filter(function (it) { return it.type !== "수입" && it.memo && it.memo === name; })[0];
-    if (seen && seen.cat) { return seen.cat; }
-    return ruleCat(name) || "기타";
-  }
-  /* the key a merchant is remembered under: its original notice text without spaces / symbols, lower-cased */
+  /* names compared without spaces / symbols, lower-cased */
   function merchantKey(raw) { return String(raw || "").toLowerCase().replace(/[^0-9a-z가-힣]/g, ""); }
-  /* company names → the brand people know; payment gateways dropped */
-  var BRANDS = [
-    [/우아한\s*형제들/, "배달의민족"], [/코리아\s*세븐/, "세븐일레븐"], [/비지에프\s*리테일|BGF\s*리테일/i, "CU"],
-    [/지에스\s*리테일|GS\s*리테일/i, "GS25"], [/비바\s*리퍼블리카/, "토스"], [/메가\s*(MGC|엠지씨)\s*(커피)?/i, "메가커피"],
-    [/에스씨케이\s*컴퍼니|스타벅스\s*코리아/, "스타벅스"], [/쿠팡\s*이츠\s*서비스/, "쿠팡이츠"], [/딜리버리\s*히어로|위대한\s*상상/, "요기요"],
-    [/카카오\s*모빌리티/, "카카오T"], [/한국\s*철도\s*공사/, "코레일"], [/씨제이\s*씨지브이|CJ\s*CGV/i, "CGV"],
-    [/이마트\s*에브리데이/, "이마트에브리데이"], [/씨제이\s*올리브영/, "올리브영"], [/아성\s*다이소/, "다이소"]
-  ];
-  var GATEWAYS = /(KG\s*)?이니시스|나이스\s*페이(먼츠)?|토스\s*페이먼츠|(NHN\s*)?KCP|한국사이버결제|다날|KSNET|케이에스넷|페이레터|스마트로|KICC|한국정보통신/gi;
-  function cleanMerchant(raw) {
-    var s = String(raw || "").replace(/주식회사|유한회사|\(주\)|㈜|\(유\)/g, " ");
-    var stripped = s.replace(GATEWAYS, " ").replace(/\s+/g, " ").trim();
-    if (stripped) { s = stripped; }  /* keep the gateway name if it is all there is */
-    BRANDS.forEach(function (b) { s = s.replace(b[0], b[1]); });
-    return s.replace(/\s+/g, " ").trim() || String(raw || "").trim();
-  }
-  function parseNotice(raw, now) {
-    now = now || new Date();
-    var s = String(raw || "").replace(/\[?Web발신\]?/g, " ").replace(/\s+/g, " ").trim();
-    var r = { ok: false, raw: s };
-    var dm = s.match(/(\d{1,2})\/(\d{1,2})\s*(\d{1,2}):(\d{2})/) || s.match(/(\d{1,2})\/(\d{1,2})/);
-    if (dm) {
-      var mo = Number(dm[1]), da = Number(dm[2]), y = now.getFullYear();
-      if (mo > now.getMonth() + 2) { y -= 1; }  /* a December notice read in January */
-      r.date = y + "-" + H.pad2(mo) + "-" + H.pad2(da);
-      if (dm[3]) { r.time = H.pad2(Number(dm[3])) + ":" + dm[4]; }
-    } else { r.date = H.dateKey(now); }
-    /* card companies and banks put the merchant in different places, so strip every known part and keep the rest */
-    function leftover(x) {
-      if (dm) { x = x.replace(dm[0], " "); }
-      return x.replace(/\(주\)|㈜/g, " ")
-        .replace(/\[[^\]]*\]/g, " ")
-        .replace(/[가-힣A-Za-z]*(카드|뱅크|은행)(\s*[A-Z](?![A-Za-z가-힣]))?\s*\(?\d{0,4}\)?/g, " ")
-        .replace(/누적\s*[\d,]+\s*원?|잔액\s*[\d,]+\s*원?|잔여\s*한도\s*[\d,]+\s*원?|사용\s*한도\s*[\d,]+\s*원?/g, " ")
-        .replace(/[가-힣A-Za-z]*(입금|출금|지급|이체)\s*[\d,]+\s*원?/g, " ")
-        .replace(/[\d,]+\s*원/g, " ")
-        .replace(/\d+\*+\d+/g, " ")
-        .replace(/[가-힣]{1,2}\*+[가-힣]{0,2}/g, " ")
-        .replace(/승인|취소|일시불|할부\s*\d*\s*(개월)?|체크|신용|해외|국내/g, " ")
-        .replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
-    }
-    var bank = s.match(/(입금|출금|지급|이체)\s*([\d,]+)\s*원?/), pay;
-    if (/카드/.test(s) && /승인|취소/.test(s) && !bank) {
-      var am = s.match(/([\d,]+)\s*원/);
-      if (!am) { return r; }
-      r.amount = num(am[1]); r.type = "지출"; r.method = "카드"; r.cancel = /취소/.test(s);
-      var cm = s.match(/([가-힣A-Za-z]*카드)\s*\(?(\d{3,4})?\)?/);
-      r.source = cm ? cm[1] + (cm[2] ? "(" + cm[2] + ")" : "") : "카드";
-    } else if (bank) {
-      r.amount = num(bank[2]); r.type = bank[1] === "입금" ? "수입" : "지출"; r.method = "계좌이체";
-      var bm = s.match(/\[KB\]|KB국민|국민은행/) ? ["", "KB국민은행"] : (s.match(/iM뱅크|대구은행|DGB/i) ? ["", "iM뱅크"] : s.match(/([가-힣A-Za-z]+(?:뱅크|은행))/));
-      r.source = bm ? bm[1] : "은행";
-    } else if ((pay = s.match(/(\S(?:.*?\S)?)\s*에서\s*([\d,]+)\s*원(?:을|를)?\s*(결제|사용|결제\s*취소|취소)/))) {
-      /* 간편결제 · 앱 알림: "○○에서 2,400원을 결제했어요" */
-      r.amount = num(pay[2]); r.type = "지출"; r.method = "간편결제"; r.cancel = /취소/.test(s.slice(pay.index + pay[0].length - pay[3].length)); r.source = "";
-      r.merchant = pay[1].replace(/^.*?(결제가\s*(완료|취소)\s*(되었어요|됐어요|되었습니다)|결제\s*(완료|알림|취소))\s*/, "").replace(/\s+/g, " ").trim().slice(0, 60);
-      r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
-      r.ok = !!r.amount;
-      return r;
-    } else if ((pay = s.match(/₩\s*([\d,]+)\s*(결제\s*완료|결제\s*취소|취소\s*완료|승인\s*취소|승인)\s*(.*)$/))) {
-      /* 간편결제 앱 알림 (금액이 앞에): "₩18,000 결제 완료 동성로떡볶이" */
-      r.amount = num(pay[1]); r.type = "지출"; r.method = "간편결제"; r.cancel = /취소/.test(pay[2]); r.source = "";
-      r.merchant = pay[3].replace(/\s+/g, " ").trim().slice(0, 60);
-      r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
-      r.ok = !!r.amount;
-      return r;
-    } else { return r; }
-    r.merchant = leftover(s);
-    if (!r.amount) { return r; }
-    r.merchant = (r.merchant || r.source || "").slice(0, 60);
-    r.sig = r.date + " " + (r.time || "") + " " + r.type + " " + r.amount + (r.cancel ? " 취소" : "");
-    r.ok = true;
-    return r;
-  }
   /* Google 캘린더 '결제' 캘린더의 반복 일정 → 고정지출. Returns the new fixed list, or null when nothing changes. */
   function gcalAmount(text) {
     var m = String(text || "").match(/([\d][\d,]*)\s*원/) || String(text || "").match(/(\d{1,3}(?:,\d{3})+|\d{3,})/);
@@ -226,7 +143,7 @@
     });
     return changed ? { fixed: out, skipped: skipped } : null;
   }
-  App.budget = { gcalFixed: gcalFixed, won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, parseNotice: parseNotice, guessMerchantCat: guessMerchantCat, cleanMerchant: cleanMerchant, merchantKey: merchantKey, ruleCat: ruleCat };
+  App.budget = { gcalFixed: gcalFixed, won: won, shortWon: shortWon, monthKey: monthKey, ledgerRef: ledgerRef, settingsRef: settingsRef, totals: totals, byDate: byDate, unpaidFixed: unpaidFixed, fixedDate: fixedDate, parseFixed: parseFixed, merchantKey: merchantKey, ruleCat: ruleCat };
 
   /* my cards (personal/cards) are extra payment methods, so each expense can name the card used */
   var MY_CARDS = [];
@@ -243,13 +160,6 @@
     var v = sel.value; H.clear(sel);
     options.concat(v && options.indexOf(v) === -1 ? [v] : []).forEach(function (o) { var op = el("option", "", o); op.value = o; sel.appendChild(op); });
     sel.value = v;
-  }
-  /* 카드 결제 알림의 카드사(예: 현대카드(1234)) → 내 카드 이름 */
-  function cardForSource(src) {
-    var word = String(src || "").replace(/\(.*$/, "").replace(/카드$/, "").replace(/체크$/, "");
-    if (!word) { return ""; }
-    var hit = MY_CARDS.filter(function (c) { return (c.issuer + " " + c.name).indexOf(word) !== -1; });
-    return hit.length === 1 ? hit[0].name : "";
   }
   function select(options, value, label) {
     var s = el("select"); if (label) { s.setAttribute("aria-label", label); }
@@ -307,10 +217,6 @@
       view.appendChild(bar);
       var tiles = el("div", "tiles bud-tiles"); view.appendChild(tiles);
       var budRow = el("div", "bud-budget-row"); view.appendChild(budRow);
-
-      /* notifications captured on the phone, waiting to be confirmed */
-      var inbox = el("section", "bud-inbox"); inbox.hidden = true; view.appendChild(inbox);
-      state.inbox = [];
 
       /* two independent columns: the ledger on the left, calendar → fixed → stats on the right */
       var cols = el("div", "bud-cols"), colL = el("div", "bud-col"), colR = el("div", "bud-col");
@@ -768,8 +674,6 @@
           id: old ? old.id : H.uid(), date: dateEl.value, type: state.type, cat: catEl.value, amount: amount, method: methodEl.value, memo: memoEl.value.trim()
         });
         state.sel = item.date;
-        /* fixing an entry that came from a phone notice teaches the merchant memory too */
-        if (old && old.rawm && item.memo) { rememberMerchant(old.rawm, item.memo, item.cat, item.type); }
         putItem(item);
         resetForm(); amtEl.focus();
       });
@@ -894,16 +798,7 @@
       var bHint = el("p", "hint", "매달 쓸 수 있는 총 지출 한도예요. 고정지출을 포함한 금액으로 정하면 위 '예산 잔여'가 정확해져요.");
       var mTitleEl = el("div", "mini-title", "결제수단별 지출");
       var mBars = el("div", "bud-bars");
-      var notiHelp = el("details", "reco-settings bud-noti-help");
-      notiHelp.appendChild(el("summary", "", "휴대폰 결제 알림 자동 연동 (안드로이드)"));
-      var notiUl = el("ul", "guide-list");
-      ["갤럭시에 MacroDroid 앱을 깔고, 신한카드 승인 문자 · iM뱅크 입출금 알림이 오면 그 내용을 이 사이트로 보내도록 매크로를 만들어요.",
-        "들어온 알림은 이 페이지 맨 위 '휴대폰 결제 알림'에 쌓여요. 금액 · 가맹점 · 분류를 확인하고 [추가]를 누르면 내역에 들어가요.",
-        "같은 결제가 문자와 앱 알림으로 두 번 와도 한 건으로 묶여요. 승인 취소 알림은 원래 결제를 찾아 지울 수 있어요.",
-        "설정 방법(보안 규칙 · 매크로 만드는 법)은 Claude가 알려준 안내를 따라 주세요. 비밀 키는 이 사이트 코드에 넣지 않아요."
-      ].forEach(function (t) { notiUl.appendChild(el("li", "", t)); });
-      notiHelp.appendChild(notiUl);
-      [bForm, bHint, mTitleEl, mBars, notiHelp].forEach(function (n) { setCard.body.appendChild(n); });
+      [bForm, bHint, mTitleEl, mBars].forEach(function (n) { setCard.body.appendChild(n); });
       bForm.addEventListener("submit", function (e) { e.preventDefault(); saveSettings({ budget: num(bAmt.value) }); });
       function drawBudget() {
         var b = Number(state.settings.budget) || 0;
@@ -927,161 +822,8 @@
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
 
-      /* ---------- 휴대폰 결제 알림 (budgetInbox) ---------- */
-      var inboxRef = App.col("budgetInbox");
-      state.inboxCat = {}; state.inboxName = {}; state.rawOpen = {}; state.autoDone = {};
-      /* name + category for a notice: remembered merchant → cleaned brand name + word rules */
-      function decide(p) {
-        var mem = (state.settings.merchants || {})[merchantKey(p.merchant)];
-        if (mem && (mem.type || "지출") === p.type) { return { name: mem.name || p.merchant, cat: mem.cat, remembered: true, sure: true }; }
-        var name = cleanMerchant(p.merchant), rule = p.type === "수입" ? "" : ruleCat(name);
-        return { name: name, cat: rule || guessMerchantCat(name, p.type, state.items), remembered: false, sure: !!rule };
-      }
-      function rememberMerchant(raw, name, cat, type) {
-        var key = merchantKey(raw);
-        if (!key || !name) { return; }
-        var map = Object.assign({}, state.settings.merchants || {});
-        var prev = map[key];
-        if (prev && prev.name === name && prev.cat === cat && (prev.type || "지출") === type) { return; }
-        map[key] = { name: name, cat: cat, type: type };
-        state.settings = Object.assign({}, state.settings, { merchants: map });
-        settingsRef().set({ merchants: map, updatedAt: new Date().toISOString() }, { merge: true }).catch(function () {});
-      }
-      function inboxGroups() {
-        var out = [], bySig = {};
-        state.inbox.forEach(function (d) {
-          var p = parseNotice(d.text);
-          if (!p.ok) { out.push({ ids: [d.id], p: p }); return; }
-          if (bySig[p.sig]) { bySig[p.sig].ids.push(d.id); return; }  /* same payment via SMS and app push */
-          var g = { ids: [d.id], p: p };
-          if (p.cancel) {
-            g.match = state.items.filter(function (it) { return it.type !== "수입" && Number(it.amount) === p.amount && (it.rawm === p.merchant || it.memo === p.merchant || it.src); })[0] || null;
-          } else {
-            var dec = decide(p);
-            g.dup = state.items.some(function (it) { return it.src === "noti:" + p.sig; });
-            g.name = state.inboxName[p.sig] !== undefined ? state.inboxName[p.sig] : dec.name;
-            g.cat = state.inboxCat[p.sig] || dec.cat;
-            g.remembered = dec.remembered; g.sure = dec.sure && p.type === "지출";
-          }
-          bySig[p.sig] = g; out.push(g);
-        });
-        return out.sort(function (a, b) { var x = (a.p.date || "") + (a.p.time || ""), y = (b.p.date || "") + (b.p.time || ""); return x < y ? 1 : (x > y ? -1 : 0); });
-      }
-      function dropInbox(ids) {
-        state.inbox = state.inbox.filter(function (d) { return ids.indexOf(d.id) === -1; }); drawInbox();
-        return Promise.all(ids.map(function (id) { return inboxRef.doc(id).delete(); })).catch(function (err) { window.alert("알림 삭제 실패: " + err.message); });
-      }
-      function inboxItem(g) {
-        var name = String(g.name || "").trim() || g.p.merchant;
-        rememberMerchant(g.p.merchant, name, g.cat, g.p.type);
-        return { id: H.uid(), date: g.p.date, type: g.p.type, cat: g.cat, amount: g.p.amount, method: (g.p.method === "카드" && cardForSource(g.p.source)) || g.p.method, memo: name, rawm: g.p.merchant, src: "noti:" + g.p.sig, createdAt: new Date().toISOString() };
-      }
-      /* 확실한 알림은 자동 추가: remembered merchants or a word-rule match, expenses only.
-         Runs only once the settings and this month's ledger have both loaded, so nothing is overwritten. */
-      function autoAdd(groups) {
-        if (!state.settings.autoAdd || !state.settingsLoaded || !state.itemsLoaded || state.autoBusy) { return; }
-        var todo = groups.filter(function (g) { return g.p.ok && !g.p.cancel && !g.dup && g.sure && !state.autoDone[g.p.sig]; });
-        if (!todo.length) { return; }
-        todo.forEach(function (g) { state.autoDone[g.p.sig] = true; });
-        state.autoBusy = true;
-        addFromInbox(todo).then(function () { state.autoBusy = false; }, function () { state.autoBusy = false; });
-      }
-      /* entries may belong to other months: merge each month's document, skipping ones already added */
-      function addFromInbox(groups) {
-        var byMonth = {};
-        groups.forEach(function (g) { var mk = g.p.date.slice(0, 7); (byMonth[mk] = byMonth[mk] || []).push(inboxItem(g)); });
-        var jobs = Object.keys(byMonth).map(function (mk) {
-          function merge(cur) {
-            var have = {}; cur.forEach(function (it) { if (it.src) { have[it.src] = true; } });
-            return cur.concat(byMonth[mk].filter(function (it) { return !have[it.src]; }));
-          }
-          if (mk === state.mk) { return saveItems(merge(state.items)); }
-          return ledgerRef(mk).get().then(function (snap) { return saveMonth(mk, merge((snap.exists && snap.data().items) || [])); });
-        });
-        var ids = [].concat.apply([], groups.map(function (g) { return g.ids; }));
-        return Promise.all(jobs).then(function () { return dropInbox(ids); }).catch(function (err) { window.alert("추가 실패: " + err.message); });
-      }
-      function drawInbox() {
-        var groups = inboxGroups();
-        H.clear(inbox); inbox.hidden = !groups.length;
-        if (!groups.length) { return; }
-        var addable = groups.filter(function (g) { return g.p.ok && !g.p.cancel && !g.dup; });
-        var head = el("div", "bud-inbox-head");
-        head.appendChild(el("h2", "", "휴대폰 결제 알림 " + groups.length + "건"));
-        head.appendChild(el("span", "hint", "확인하고 추가하면 내역에 들어가요. 내 계좌끼리 옮긴 돈처럼 가계부에 넣지 않을 건 버리세요."));
-        var acts = el("div", "items-tools");
-        var allAdd = el("button", "btn", "모두 추가 (" + addable.length + ")"); allAdd.type = "button"; allAdd.disabled = !addable.length;
-        allAdd.addEventListener("click", function () { addFromInbox(addable); });
-        var allDrop = el("button", "tool-btn", "모두 버리기"); allDrop.type = "button";
-        allDrop.addEventListener("click", function () {
-          if (window.confirm("알림 " + groups.length + "건을 모두 버릴까요? (가계부 내역은 그대로예요)")) { dropInbox([].concat.apply([], groups.map(function (g) { return g.ids; }))); }
-        });
-        var copyAll = el("button", "tool-btn", "원문 모두 복사"); copyAll.type = "button";
-        copyAll.addEventListener("click", function () { H.copyText(groups.map(function (g) { return g.p.raw; }).join("\n"), copyAll); });
-        var auto = el("label", "bud-auto");
-        var autoCb = el("input"); autoCb.type = "checkbox"; autoCb.checked = !!state.settings.autoAdd;
-        autoCb.addEventListener("change", function () { saveSettings({ autoAdd: autoCb.checked }); });
-        auto.appendChild(autoCb); auto.appendChild(el("span", "", "확실한 알림은 자동 추가"));
-        [allAdd, allDrop, copyAll, auto].forEach(function (n) { acts.appendChild(n); });
-        head.appendChild(acts);
-        inbox.appendChild(head);
-        var list = el("div", "bud-inbox-list");
-        groups.forEach(function (g) {
-          var p = g.p, row = el("div", "bud-noti" + (p.ok && p.type === "수입" ? " inc" : "") + (!p.ok ? " bad" : ""));
-          if (!p.ok) {
-            row.appendChild(el("span", "bud-noti-when", "읽지 못함"));
-            var rawEl = el("span", "bud-noti-main"); rawEl.appendChild(el("span", "bud-noti-raw", p.raw)); rawEl.appendChild(el("span", "mini-sub", "금액을 찾지 못한 알림이에요. 필요하면 아래 내역 입력에서 직접 추가해 주세요."));
-            row.appendChild(rawEl);
-          } else {
-            var d = H.parseKey(p.date);
-            row.appendChild(el("span", "bud-noti-when", (d.getMonth() + 1) + "/" + d.getDate() + (p.time ? " " + p.time : "")));
-            var main = el("span", "bud-noti-main");
-            if (!p.cancel && !g.dup) {
-              /* the shop name can be fixed right here; it is remembered when the notice is added */
-              var nameIn = el("input", "bud-noti-name-in"); nameIn.value = g.name; nameIn.maxLength = 60; nameIn.setAttribute("aria-label", "가게 이름");
-              nameIn.addEventListener("input", function () { state.inboxName[p.sig] = nameIn.value; g.name = nameIn.value; });
-              main.appendChild(nameIn);
-            } else {
-              main.appendChild(el("span", "bud-noti-name", p.merchant || "(내용 없음)"));
-            }
-            main.appendChild(el("span", "mini-sub", [p.source, p.type, p.cancel ? "승인 취소" : "", g.dup ? "이미 추가됨" : "", g.remembered ? "기억한 가게" : ""].filter(Boolean).join(" · ")));
-            row.appendChild(main);
-            if (!p.cancel && !g.dup) {
-              var cat = select(p.type === "수입" ? INC_CATS : EXP_CATS, g.cat, "분류");
-              cat.addEventListener("change", function () { state.inboxCat[p.sig] = cat.value; });
-              row.appendChild(cat);
-            }
-            row.appendChild(el("span", "bud-amt" + (p.type === "수입" ? " inc" : ""), (p.type === "수입" ? "+" : (p.cancel ? "취소 " : "−")) + won(p.amount)));
-            if (p.cancel) {
-              if (g.match) {
-                var undo = el("button", "tool-btn", "원 결제 지우기"); undo.type = "button"; undo.title = g.match.date + " " + (g.match.memo || "") + " " + won(g.match.amount);
-                undo.addEventListener("click", function () { saveItems(state.items.filter(function (it) { return it.id !== g.match.id; })).then(function () { dropInbox(g.ids); }); });
-                row.appendChild(undo);
-              }
-            } else if (!g.dup) {
-              var add = el("button", "tool-btn on", "추가"); add.type = "button";
-              add.addEventListener("click", function () { g.cat = cat.value; g.name = nameIn.value; addFromInbox([g]); });
-              row.appendChild(add);
-            }
-          }
-          if (p.ok) {
-            var rk = p.sig, rawBtn = el("button", "tool-btn raw-btn" + (state.rawOpen[rk] ? " on" : ""), "원문"); rawBtn.type = "button";
-            rawBtn.setAttribute("aria-expanded", state.rawOpen[rk] ? "true" : "false");
-            rawBtn.addEventListener("click", function () { state.rawOpen[rk] = !state.rawOpen[rk]; drawInbox(); });
-            row.appendChild(rawBtn);
-          }
-          var drop = el("button", "icon-btn", "×"); drop.type = "button"; drop.title = "버리기"; drop.setAttribute("aria-label", "알림 버리기");
-          drop.addEventListener("click", function () { dropInbox(g.ids); });
-          row.appendChild(drop);
-          if (p.ok && state.rawOpen[p.sig]) { row.appendChild(el("div", "bud-noti-rawline", p.raw)); }
-          list.appendChild(row);
-        });
-        inbox.appendChild(list);
-        autoAdd(groups);
-      }
-
       /* ---------- month navigation ---------- */
-      function drawAll() { drawSummary(); drawFixed(); drawDaily(); drawList(); drawCats(); drawBudget(); drawInbox(); }
+      function drawAll() { drawSummary(); drawFixed(); drawDaily(); drawList(); drawCats(); drawBudget(); }
       function setMonth(mk) {
         state.mk = mk;
         if (state.sel.slice(0, 7) !== mk) { state.sel = mk === today.slice(0, 7) ? today : mk + "-01"; }
@@ -1105,7 +847,6 @@
         if (r) { saveSettings({ fixed: r.fixed }); }
       }
       App.watchDoc(App.doc("personal/gcal"), function (d) { gdocPay = d; syncPayCal(); });
-      App.watchQuery(inboxRef, function (docs) { state.inbox = docs; drawInbox(); });
       setMonth(state.mk);
     }
   });
