@@ -1317,3 +1317,21 @@ body.cmp-full-open { overflow: hidden; }
 .pt-add { margin-top: 12px; }
 @media (max-width: 820px) { .pt-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .pt-tiles .tile { padding: 10px 11px; } .pt-tiles .tile-value { font-size: 1.12rem; overflow-wrap: anywhere; } }
+.pt-cell .pt-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 2px; }
+.pt-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-soft); }
+.pt-dot.p0 { background: var(--accent); }
+.pt-dot.p1 { background: var(--accent-2); }
+.pt-dot.p2 { background: var(--ink); }
+.pt-dot.plan { background: transparent; border: 1.5px dashed var(--ink-soft); width: 6px; height: 6px; }
+.pt-dot.plan.p0 { border-color: var(--accent); }
+.pt-dot.plan.p1 { border-color: var(--accent-2); }
+.bud-cell.sel .pt-dot { outline: 1px solid var(--bg); }
+.pt-plan { color: var(--ink-soft); }
+.pt-daylist { display: flex; flex-direction: column; gap: 2px; }
+.pt-daylist .bud-entry-main { font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.pt-replist { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.pt-repform { margin-bottom: 8px; }
+.pt-days .pt-places { margin-top: 2px; }
+.pt-days .chip { padding: 5px 10px; }
+.pt-skips { display: flex; flex-direction: column; gap: 4px; }
+.pt-skip { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.82rem; padding: 4px 2px; border-top: 1px solid var(--line); }

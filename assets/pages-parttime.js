@@ -34,13 +34,50 @@
     var tax = place.tax ? Math.floor(gross * 0.033 / 10) * 10 : 0;  /* 원 단위 절사 (10원 미만) */
     return { hours: Math.round(hours * 100) / 100, days: Object.keys(days).length, gross: gross, tax: tax, net: gross - tax };
   }
-  App.parttime = { spanHours: spanHours, fmtHours: fmtHours, placePay: placePay };
+  function daysIn(mk) { var p = mk.split("-"); return new Date(Number(p[0]), Number(p[1]), 0).getDate(); }
+  function shortWon(n) {
+    n = Math.round(Number(n) || 0);
+    if (n >= 10000) { return (n / 10000).toFixed(n >= 100000 ? 0 : 1).replace(/\.0$/, "") + "만"; }
+    return n.toLocaleString("ko-KR");
+  }
+  /* the days a repeat rule covers in one month: weekday matches, inside from ~ until, and not after `upto` */
+  function ruleDates(rule, mk, upto) {
+    var out = [], n = daysIn(mk), p = mk.split("-");
+    for (var d = 1; d <= n; d++) {
+      var key = mk + "-" + H.pad2(d), dow = new Date(Number(p[0]), Number(p[1]) - 1, d).getDay();
+      if ((rule.days || []).indexOf(dow) === -1) { continue; }
+      if (rule.from && key < rule.from) { continue; }
+      if (rule.until && key > rule.until) { continue; }
+      if (upto && key > upto) { continue; }
+      out.push(key);
+    }
+    return out;
+  }
+  /* 반복 근무 → 근무 기록: days up to today that are not recorded yet and not taken out (skips).
+     Each made entry keeps rk = "date|ruleId", so editing or deleting it never brings it back. */
+  function repeatFill(items, skips, rules, places, mk, today) {
+    var have = {}, skip = {}, ok = {}, add = [];
+    (items || []).forEach(function (it) { if (it.rk) { have[it.rk] = true; } });
+    (skips || []).forEach(function (k) { skip[k] = true; });
+    (places || []).forEach(function (p) { ok[p.id] = true; });
+    (rules || []).forEach(function (r) {
+      if (!ok[r.place]) { return; }
+      ruleDates(r, mk, today).forEach(function (date) {
+        var rk = date + "|" + r.id;
+        if (have[rk] || skip[rk]) { return; }
+        add.push({ id: H.uid(), date: date, place: r.place, start: r.start || "", end: r.end || "", brk: Number(r.brk) || 0,
+          hours: spanHours(r.start, r.end, r.brk), memo: "", rk: rk, auto: true, createdAt: new Date().toISOString() });
+      });
+    });
+    return add;
+  }
+  App.parttime = { spanHours: spanHours, fmtHours: fmtHours, placePay: placePay, repeatFill: repeatFill, ruleDates: ruleDates };
 
   App.page({
     id: "personal-parttime", title: "알바비",
     render: function (view) {
       var today = H.todayStr();
-      var state = { mk: monthKey(new Date()), places: [], items: [], rates: {}, place: "", editId: null, loaded: false };
+      var state = { mk: monthKey(new Date()), places: [], repeats: [], items: [], skips: [], rates: {}, place: "", editId: null, loaded: false, monthLoaded: false, sel: today, rDays: [1, 3, 5] };
       var unsubMonth = null;
 
       /* ---------- month bar + summary ---------- */
@@ -55,10 +92,14 @@
 
       var cols = el("div", "bud-cols"), colL = el("div", "bud-col"), colR = el("div", "bud-col");
       cols.appendChild(colL); cols.appendChild(colR); view.appendChild(cols);
+      /* like 가계부: the record on the left, the month calendar → pay → repeats → monthly → places on the right */
       var logCard = ui.card(colL, { tab: "Hours", tone: "t-3", title: "근무 시간 입력" });
+      var calCard = ui.card(colR, { tab: "Daily", tone: "t-2", title: "날짜별 알바비" });
       var payCard = ui.card(colR, { tab: "Pay", tone: "t-2", title: "이 달 알바비" });
+      var repCard = ui.card(colR, { tab: "Repeat", tone: "t-3", title: "반복 근무 (자동 입력)" });
       var histCard = ui.card(colR, { tab: "Monthly", tone: "t-1", title: "월별 알바비" });
       var setCard = ui.card(colR, { tab: "Places", tone: "t-1", title: "근무지 · 시급" });
+      [logCard, calCard, payCard, repCard, histCard, setCard].forEach(function (c, i) { c.el.style.setProperty("--m-order", String(i === 0 ? 1 : (i === 1 ? 0 : i))); });
 
       function rateOf(id) {
         if (state.rates[id] != null) { return Number(state.rates[id]) || 0; }
@@ -67,10 +108,31 @@
       }
       /* each month keeps the rates it was paid at, so a raise later does not change past months */
       function currentRates() { var r = {}; state.places.forEach(function (p) { r[p.id] = rateOf(p.id); }); return r; }
-      function saveItems(items) {
-        state.items = items; drawAll();
-        return monthRef(state.mk).set({ items: items, rates: currentRates(), updatedAt: new Date().toISOString() }, { merge: true })
+      function saveItems(items, skips) {
+        state.items = items; if (skips) { state.skips = skips; } drawAll();
+        var data = { items: items, rates: currentRates(), updatedAt: new Date().toISOString() };
+        if (skips) { data.skips = skips; }
+        return monthRef(state.mk).set(data, { merge: true })
           .catch(function (err) { window.alert("저장 실패: " + err.message); });
+      }
+      /* deleting a day the repeat made only takes that day out; the repeat keeps going */
+      function removeEntry(it) {
+        var items = state.items.filter(function (x) { return x.id !== it.id; });
+        return saveItems(items, it.rk ? state.skips.filter(function (k) { return k !== it.rk; }).concat([it.rk]) : null);
+      }
+      function saveRepeats(repeats) {
+        state.repeats = repeats; drawAll();
+        return settingsRef().set({ repeats: repeats, updatedAt: new Date().toISOString() }, { merge: true })
+          .then(function () { fillMonth(); loadHist(); })
+          .catch(function (err) { window.alert("저장 실패: " + err.message); });
+      }
+      /* add the repeat days of the month on screen once both the rules and the month have loaded */
+      function fillMonth() {
+        if (!state.loaded || !state.monthLoaded || state.filling) { return; }
+        var add = repeatFill(state.items, state.skips, state.repeats, state.places, state.mk, today);
+        if (!add.length) { return; }
+        state.filling = true;
+        saveItems(state.items.concat(add)).then(function () { state.filling = false; }, function () { state.filling = false; });
       }
       function savePlaces(places) {
         state.places = places; drawAll();
@@ -170,7 +232,7 @@
         var rest = state.items.filter(function (x) { return x.id !== item.id; });
         if (mk === state.mk) { saveItems(rest.concat([item])); resetForm(); return; }
         /* a day in another month goes to that month's document */
-        var job = old ? saveItems(rest) : Promise.resolve();
+        var job = old ? saveItems(rest, old.rk ? state.skips.concat([old.rk]) : null) : Promise.resolve();
         job.then(function () { return monthRef(mk).get(); }).then(function (snap) {
           var d = (snap.exists && snap.data()) || {};
           return monthRef(mk).set({ items: (d.items || []).concat([item]), rates: d.rates || currentRates(), updatedAt: new Date().toISOString() }, { merge: true });
@@ -202,20 +264,174 @@
           row.appendChild(chip);
           var main = el("span", "bud-entry-main");
           main.appendChild(el("span", "bud-entry-memo", (it.start && it.end ? it.start + " ~ " + it.end : "시간만 입력") + " · " + fmtHours(it.hours)));
-          main.appendChild(el("span", "mini-sub", [it.brk ? "쉬는 시간 " + it.brk + "분" : "", it.memo].filter(Boolean).join(" · ")));
+          main.appendChild(el("span", "mini-sub", [it.rk ? "반복" : "", it.brk ? "쉬는 시간 " + it.brk + "분" : "", it.memo].filter(Boolean).join(" · ")));
           row.appendChild(main);
           var r = rateOf(it.place);
           row.appendChild(el("span", "bud-amt inc", r ? won(Math.round((Number(it.hours) || 0) * r)) : "—"));
           var ed = el("button", "icon-btn", "✎"); ed.type = "button"; ed.title = "수정"; ed.setAttribute("aria-label", "수정");
           ed.addEventListener("click", function () { startEdit(it); });
-          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "삭제"; del.setAttribute("aria-label", "삭제");
-          del.addEventListener("click", function () {
-            if (window.confirm("이 근무 기록을 지울까요?\n" + it.date + " " + placeName(it.place) + " · " + fmtHours(it.hours))) {
-              saveItems(state.items.filter(function (x) { return x.id !== it.id; }));
-            }
-          });
-          row.appendChild(ed); row.appendChild(del);
+          row.appendChild(ed); row.appendChild(delBtn(it));
           list.appendChild(row);
+        });
+      }
+      function delBtn(it) {
+        var del = el("button", "icon-btn", "×"); del.type = "button";
+        del.title = it.rk ? "이 날만 빼기 (반복은 그대로)" : "삭제"; del.setAttribute("aria-label", del.title);
+        del.addEventListener("click", function () {
+          var what = it.date + " " + placeName(it.place) + " · " + fmtHours(it.hours);
+          if (window.confirm(it.rk ? "이 날은 알바를 안 했나요? 이 날만 뺄게요.\n" + what + "\n(반복 근무는 그대로 이어져요)" : "이 근무 기록을 지울까요?\n" + what)) { removeEntry(it); }
+        });
+        return del;
+      }
+
+      /* ---------- 날짜별 알바비 (가계부처럼 한 달 달력) ---------- */
+      var calGrid = el("div", "cal-grid bud-cal pt-cal");
+      var calStats = el("div", "stat-row bud-stats");
+      var dayHead = el("div", "mini-title");
+      var dayList = el("div", "pt-daylist");
+      [calGrid, calStats, dayHead, dayList].forEach(function (n) { calCard.body.appendChild(n); });
+      function payOf(it) { return Math.round((Number(it.hours) || 0) * rateOf(it.place)); }
+      function placeIdx(id) { return state.places.map(function (p) { return p.id; }).indexOf(id); }
+      function drawCal() {
+        var p = state.mk.split("-"), y = Number(p[0]), m = Number(p[1]) - 1, n = daysIn(state.mk);
+        var byDay = {}, max = 0;
+        state.items.forEach(function (it) { (byDay[it.date] = byDay[it.date] || []).push(it); });
+        Object.keys(byDay).forEach(function (k) { var s = byDay[k].reduce(function (a, it) { return a + payOf(it); }, 0); byDay[k].pay = s; if (s > max) { max = s; } });
+        /* repeat days still ahead in the month, shown faintly as 예정 */
+        var planned = {};
+        state.repeats.forEach(function (r) { if (placeIdx(r.place) === -1) { return; } ruleDates(r, state.mk).forEach(function (k) { if (k > today && state.skips.indexOf(k + "|" + r.id) === -1) { (planned[k] = planned[k] || []).push(r); } }); });
+        H.clear(calGrid);
+        H.DOW.forEach(function (d) { calGrid.appendChild(el("div", "cal-dow", d)); });
+        for (var i = 0, sd = new Date(y, m, 1).getDay(); i < sd; i++) { calGrid.appendChild(el("div", "cal-cell blank")); }
+        for (var d = 1; d <= n; d++) {
+          (function (day) {
+            var key = state.mk + "-" + H.pad2(day), dow = new Date(y, m, day).getDay(), its = byDay[key];
+            var cell = el("button", "cal-cell bud-cell pt-cell" + (key === today ? " today" : "") + (key === state.sel ? " sel" : "") + ((dow === 0 || dow === 6) ? " wknd" : "") + (key > today ? " future" : ""));
+            cell.type = "button";
+            cell.appendChild(el("span", "bud-cell-day", String(day)));
+            var dots = el("span", "pt-dots");
+            (its || []).forEach(function (it) { var ix = placeIdx(it.place); dots.appendChild(el("span", "pt-dot p" + (ix < 0 ? 3 : ix % 4))); });
+            (planned[key] || []).forEach(function (r) { dots.appendChild(el("span", "pt-dot plan p" + (placeIdx(r.place) % 4))); });
+            if (dots.firstChild) { cell.appendChild(dots); }
+            if (its && its.pay) {
+              cell.style.setProperty("--heat", String(Math.round(10 + its.pay / max * 45)));
+              cell.classList.add("has");
+              cell.appendChild(el("span", "bud-cell-amt", shortWon(its.pay)));
+            } else if (its) { cell.classList.add("has"); cell.appendChild(el("span", "bud-cell-amt", fmtHours(its.reduce(function (a, it) { return a + (Number(it.hours) || 0); }, 0)))); }
+            else if (planned[key]) { cell.appendChild(el("span", "bud-cell-inc pt-plan", "예정")); }
+            cell.setAttribute("aria-label", key + (its ? " 근무 " + its.length + "번, " + won(its.pay || 0) : (planned[key] ? " 근무 예정" : " 근무 없음")));
+            cell.addEventListener("click", function () { state.sel = key; if (!state.editId) { dateEl.value = key; } drawCal(); });
+            calGrid.appendChild(cell);
+          })(d);
+        }
+        var workDays = Object.keys(byDay).length, tot = 0;
+        Object.keys(byDay).forEach(function (k) { tot += byDay[k].pay; });
+        var plannedPay = 0;
+        Object.keys(planned).forEach(function (k) { planned[k].forEach(function (r) { plannedPay += Math.round(spanHours(r.start, r.end, r.brk) * rateOf(r.place)); }); });
+        H.clear(calStats);
+        function stat(label, value) { var s = el("span", "", label + " "); s.appendChild(el("strong", "", value)); calStats.appendChild(s); }
+        stat("일한 날", workDays + "일");
+        stat("하루 평균", workDays ? won(tot / workDays) : "—");
+        stat("남은 예정", plannedPay ? "+" + won(plannedPay) : "—");
+        /* selected day: its entries, with × to take a day out */
+        var sel = state.sel.slice(0, 7) === state.mk ? state.sel : null;
+        H.clear(dayList);
+        if (!sel) { dayHead.textContent = "날짜를 누르면 그날 근무가 보여요"; return; }
+        var sd2 = H.parseKey(sel);
+        dayHead.textContent = (sd2.getMonth() + 1) + "월 " + sd2.getDate() + "일 (" + H.DOW[sd2.getDay()] + ")" + (byDay[sel] && byDay[sel].pay ? " · " + won(byDay[sel].pay) : "");
+        if (!byDay[sel]) {
+          dayList.appendChild(el("p", "hint", planned[sel] ? "반복 근무 예정일이에요. 그날이 되면 자동으로 들어가요." : "이 날은 근무 기록이 없어요. 위 입력 칸 날짜가 이 날로 바뀌었어요."));
+          return;
+        }
+        byDay[sel].forEach(function (it) {
+          var row = el("div", "bud-entry pt-entry");
+          var ix = placeIdx(it.place);
+          row.appendChild(el("span", "cat-chip bud-cat pt-chip" + (ix >= 0 ? " p" + (ix % 4) : ""), placeName(it.place)));
+          row.appendChild(el("span", "bud-entry-main", (it.start && it.end ? it.start + " ~ " + it.end + " · " : "") + fmtHours(it.hours) + (it.rk ? " · 반복" : "")));
+          row.appendChild(el("span", "bud-amt inc", rateOf(it.place) ? won(payOf(it)) : "—"));
+          var ed = el("button", "icon-btn", "✎"); ed.type = "button"; ed.title = "수정"; ed.setAttribute("aria-label", "수정");
+          ed.addEventListener("click", function () { startEdit(it); });
+          row.appendChild(ed); row.appendChild(delBtn(it));
+          dayList.appendChild(row);
+        });
+      }
+
+      /* ---------- 반복 근무 ---------- */
+      var repList = el("div", "pt-replist");
+      var repForm = el("form", "item-form pt-repform");
+      var rPlace = el("select"); rPlace.setAttribute("aria-label", "반복 근무지");
+      var rDays = el("div", "f wide pt-days"); rDays.setAttribute("role", "group"); rDays.setAttribute("aria-label", "요일");
+      var rStart = el("input"); rStart.type = "time"; rStart.required = true; rStart.setAttribute("aria-label", "반복 시작 시간");
+      var rEnd = el("input"); rEnd.type = "time"; rEnd.required = true; rEnd.setAttribute("aria-label", "반복 끝 시간");
+      var rBrk = el("input"); rBrk.type = "number"; rBrk.min = "0"; rBrk.step = "5"; rBrk.placeholder = "0"; rBrk.setAttribute("aria-label", "반복 쉬는 시간(분)");
+      var rFrom = el("input"); rFrom.type = "date"; rFrom.required = true; rFrom.value = today.slice(0, 7) + "-01"; rFrom.setAttribute("aria-label", "반복 시작일");
+      var rUntil = el("input"); rUntil.type = "date"; rUntil.setAttribute("aria-label", "반복 끝날");
+      var rActs = el("div", "actions"), rAdd = el("button", "btn", "반복 추가"); rAdd.type = "submit"; rActs.appendChild(rAdd);
+      [field("근무지", rPlace), rDays, field("시작", rStart), field("끝", rEnd), field("쉬는 시간 (분)", rBrk), field("이 날부터", rFrom), field("이 날까지 (비우면 계속)", rUntil), rActs].forEach(function (x) { repForm.appendChild(x); });
+      var skipBox = el("div", "pt-skips");
+      [repList, repForm, skipBox].forEach(function (x) { repCard.body.appendChild(x); });
+      var DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+      function daysText(days) { return DOW_ORDER.filter(function (d) { return (days || []).indexOf(d) !== -1; }).map(function (d) { return H.DOW[d]; }).join(" · "); }
+      repForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!state.places.length) { window.alert("근무지를 먼저 등록해 주세요."); return; }
+        if (!state.rDays.length) { window.alert("요일을 하나 이상 골라 주세요."); return; }
+        if (!spanHours(rStart.value, rEnd.value, rBrk.value)) { window.alert("시작 · 끝 시간을 확인해 주세요."); return; }
+        var r = { id: H.uid(), place: rPlace.value, days: state.rDays.slice().sort(), start: rStart.value, end: rEnd.value, brk: Number(rBrk.value) || 0, from: rFrom.value, until: rUntil.value || "" };
+        rStart.value = ""; rEnd.value = ""; rBrk.value = ""; rUntil.value = "";
+        saveRepeats(state.repeats.concat([r]));
+      });
+      function drawRepeats() {
+        H.clear(repList);
+        state.repeats.forEach(function (r) {
+          var row = el("div", "bud-entry pt-rep");
+          var ix = placeIdx(r.place);
+          row.appendChild(el("span", "cat-chip bud-cat pt-chip" + (ix >= 0 ? " p" + (ix % 4) : ""), placeName(r.place)));
+          var main = el("span", "bud-entry-main");
+          main.appendChild(el("span", "bud-entry-memo", "매주 " + daysText(r.days) + " · " + r.start + " ~ " + r.end));
+          var f = H.parseKey(r.from), u = r.until ? H.parseKey(r.until) : null;
+          main.appendChild(el("span", "mini-sub", [fmtHours(spanHours(r.start, r.end, r.brk)), r.brk ? "쉬는 시간 " + r.brk + "분" : "", (f.getMonth() + 1) + "/" + f.getDate() + "부터" + (u ? " " + (u.getMonth() + 1) + "/" + u.getDate() + "까지" : "")].filter(Boolean).join(" · ")));
+          row.appendChild(main);
+          var del = el("button", "icon-btn", "×"); del.type = "button"; del.title = "반복 그만하기"; del.setAttribute("aria-label", "반복 그만하기");
+          del.addEventListener("click", function () {
+            if (window.confirm("이 반복 근무를 그만할까요?\n이미 들어간 근무 기록은 그대로 남아요.")) { saveRepeats(state.repeats.filter(function (x) { return x.id !== r.id; })); }
+          });
+          row.appendChild(del);
+          repList.appendChild(row);
+        });
+        if (!state.repeats.length) { repList.appendChild(el("p", "hint", "정해진 요일에 일하면 여기 한 번만 적어 두세요. 오늘까지의 날짜가 근무 기록에 자동으로 들어가요.")); }
+        /* form options */
+        var cur = rPlace.value; H.clear(rPlace);
+        state.places.forEach(function (p) { var o = el("option", "", p.name); o.value = p.id; rPlace.appendChild(o); });
+        if (cur && placeIdx(cur) !== -1) { rPlace.value = cur; }
+        repForm.hidden = !state.places.length;
+        H.clear(rDays);
+        rDays.appendChild(el("span", "f-label", "요일"));
+        var chips = el("div", "pt-places pt-daychips");
+        DOW_ORDER.forEach(function (d) {
+          var on = state.rDays.indexOf(d) !== -1;
+          var b = el("button", "chip" + (on ? " active" : ""), H.DOW[d]); b.type = "button"; b.setAttribute("aria-pressed", on ? "true" : "false");
+          b.addEventListener("click", function () { state.rDays = on ? state.rDays.filter(function (x) { return x !== d; }) : state.rDays.concat([d]); drawRepeats(); });
+          chips.appendChild(b);
+        });
+        rDays.appendChild(chips);
+        /* days taken out this month, with a way back */
+        H.clear(skipBox);
+        var sk = state.skips.slice().sort();
+        if (!sk.length) { return; }
+        skipBox.appendChild(el("div", "mini-title", "이 달에 뺀 날 " + sk.length + "일"));
+        sk.forEach(function (k) {
+          var date = k.split("|")[0], r = state.repeats.filter(function (x) { return x.id === k.split("|")[1]; })[0];
+          var dd = H.parseKey(date), row = el("div", "pt-skip");
+          row.appendChild(el("span", "", (dd.getMonth() + 1) + "/" + dd.getDate() + " (" + H.DOW[dd.getDay()] + ") " + (r ? placeName(r.place) : "")));
+          var back = el("button", "tool-btn", "다시 넣기"); back.type = "button";
+          back.addEventListener("click", function () {
+            state.skips = state.skips.filter(function (x) { return x !== k; });
+            monthRef(state.mk).set({ skips: state.skips, updatedAt: new Date().toISOString() }, { merge: true }).then(fillMonth).catch(function (err) { window.alert("저장 실패: " + err.message); });
+            drawAll();
+          });
+          row.appendChild(back);
+          skipBox.appendChild(row);
         });
       }
 
@@ -294,7 +510,16 @@
         var months = []; for (var i = 1; i <= 5; i++) { months.push(shiftMonth(monthKey(new Date()), -i)); }
         months.push(monthKey(new Date()));
         Promise.all(months.map(function (mk) {
-          return monthRef(mk).get().then(function (s) { histDocs[mk] = (s.exists && s.data()) || { items: [] }; });
+          return monthRef(mk).get().then(function (s) {
+            var d = (s.exists && s.data()) || { items: [] };
+            /* 반복 근무 days of earlier months are filled in too, the first time they are seen */
+            var add = mk === state.mk ? [] : repeatFill(d.items, d.skips, state.repeats, state.places, mk, today);
+            if (add.length) {
+              d = Object.assign({}, d, { items: (d.items || []).concat(add), rates: d.rates || currentRates() });
+              monthRef(mk).set({ items: d.items, rates: d.rates, updatedAt: new Date().toISOString() }, { merge: true }).catch(function () {});
+            }
+            histDocs[mk] = d;
+          });
         })).then(drawHist, function () {});
       }
 
@@ -352,15 +577,18 @@
       }
 
       /* ---------- month navigation ---------- */
-      function drawAll() { drawSummary(); drawPlaceChips(); drawCalc(); drawList(); drawPay(); drawHist(); drawSettings(); }
+      function drawAll() { drawSummary(); drawPlaceChips(); drawCalc(); drawList(); drawCal(); drawPay(); drawRepeats(); drawHist(); drawSettings(); }
       function setMonth(mk) {
         state.mk = mk;
         if (!state.editId && dateEl.value.slice(0, 7) !== mk) { dateEl.value = mk === today.slice(0, 7) ? today : mk + "-01"; }
-        state.items = []; state.rates = {}; ledger = null;
+        if (state.sel.slice(0, 7) !== mk) { state.sel = mk === today.slice(0, 7) ? today : mk + "-01"; }
+        state.items = []; state.skips = []; state.rates = {}; ledger = null; state.monthLoaded = false;
         if (unsubMonth) { unsubMonth(); }
         unsubMonth = App.watchDoc(monthRef(mk), function (d) {
-          state.items = (d && d.items) || []; state.rates = (d && d.rates) || {};
-          histDocs[mk] = d || { items: [] }; drawAll();
+          if (state.mk !== mk) { return; }
+          state.items = (d && d.items) || []; state.skips = (d && d.skips) || []; state.rates = (d && d.rates) || {};
+          state.monthLoaded = true;
+          histDocs[mk] = d || { items: [] }; drawAll(); fillMonth();
         });
         if (unsubLedger) { unsubLedger(); }
         unsubLedger = App.watchDoc(App.doc("personal/ledger-" + mk), function (d) { ledger = d; drawPay(); });
@@ -372,10 +600,12 @@
       thisM.addEventListener("click", function () { setMonth(monthKey(new Date())); });
 
       App.watchDoc(settingsRef(), function (d) {
-        state.places = (d && d.places) || []; state.loaded = true; drawAll();
+        var first = !state.loaded;
+        state.places = (d && d.places) || []; state.repeats = (d && d.repeats) || []; state.loaded = true; drawAll();
+        fillMonth();
+        if (first) { loadHist(); }
       });
       setMonth(state.mk);
-      loadHist();
     }
   });
 })(window.App);
